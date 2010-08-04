@@ -6,6 +6,8 @@ module Tests where
 import Control.Applicative ((<$>))
 import Data.Monoid (mempty, mappend, mconcat)
 
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as LB
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
@@ -28,6 +30,10 @@ tests =
     , testProperty "associativity Monoid law"  monoidAssociativity
     , testProperty "mconcat Monoid law"        monoidConcat
     , testProperty "string → builder → string" fromStringToString
+    , testProperty "string and text"           stringAndText
+    , testCase     "escaping case 1"           escaping1
+    , testCase     "escaping case 2"           escaping2
+    , testCase     "escaping case 3"           escaping3
     ]
 
 monoidLeftIdentity :: Builder -> Bool
@@ -46,6 +52,18 @@ fromStringToString :: String -> Bool
 fromStringToString string = string == convert string
   where
     convert = decode . LB.unpack . toLazyByteString . fromString
+
+stringAndText :: String -> Bool
+stringAndText string = fromString string == fromText (T.pack string)
+
+escaping1 :: Assertion
+escaping1 = fromString "&lt;hello&gt;" @?= fromHtmlEscapedString "<hello>"
+
+escaping2 :: Assertion
+escaping2 = fromString "f &amp;&amp;&amp; g" @?= fromHtmlEscapedString "f &&& g"
+
+escaping3 :: Assertion
+escaping3 = fromString "&quot;&apos;" @?= fromHtmlEscapedString "\"'"
 
 instance Show Builder where
     show = show . toLazyByteString
