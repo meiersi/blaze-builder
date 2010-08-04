@@ -1,5 +1,22 @@
 -- | The builder monoid from BlazeHtml.
 --
+-- Usage is fairly straightforward. Builders can be constructed from many
+-- values, including 'String' and 'Text' values.
+--
+-- > strings :: [String]
+-- > strings = replicate 10000 "Hello there!"
+--
+-- Concatenation should happen through the 'Monoid' interface.
+--
+-- > concatenation :: Builder
+-- > concatenation = mconcat $ map fromString strings
+--
+-- There is only one way to efficiently obtain the result: to convert the
+-- 'Builder' to a lazy 'L.ByteString' using 'toLazyByteString'.
+--
+-- > result :: L.ByteString
+-- > result = toLazyByteString continuation
+--
 {-# LANGUAGE BangPatterns, OverloadedStrings #-}
 module Text.Blaze.Builder.Core
     ( 

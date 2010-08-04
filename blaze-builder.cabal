@@ -2,7 +2,9 @@ Name:                blaze-builder
 Version:             0.2
 Synopsis:            Builder to efficiently append text.
 Description:         Builder to efficiently append text, optimized for
-                     HTML generation.
+                     HTML generation. There is a small usage example in the
+                     Text.Blaze.Builder.Core module, you should begin by
+                     reading that.
 Homepage:            http://jaspervdj.be/blaze
 Bug-Reports:         http://github.com/jaspervdj/BlazeHtml/issues
 License:             BSD3
