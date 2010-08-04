@@ -15,7 +15,7 @@ module Text.Blaze.Builder.Core
 
       -- * Creating builders
     , singleton
-    , copyByteString
+    , fromByteString
 
       -- * Extracting the result from a builder
     , toLazyByteString
@@ -146,10 +146,10 @@ singleton = writeSingleton writeByte
 
 -- | /O(n)./ A Builder taking a 'S.ByteString`, copying it.
 --
-copyByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to copy
+fromByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to copy
                -> Builder       -- ^ Resulting 'Builder'
-copyByteString = writeSingleton writeByteString
-{-# INLINE copyByteString #-}
+fromByteString = writeSingleton writeByteString
+{-# INLINE fromByteString #-}
 
 -- | Copied from Data.ByteString.Lazy.
 --
