@@ -4,37 +4,37 @@ module Builder where
 import Data.Char (ord)
 import Data.Monoid (mconcat)
 
-import qualified Data.Binary.Builder as DB
+import qualified Data.Binary.Builder as Binary
 import Criterion.Main
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString as S
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
 
-import qualified Text.Blaze.Builder.Core as BB
-import qualified Text.Blaze.Builder.Utf8 as BB
+import qualified Text.Blaze.Builder.Core as Blaze
+import qualified Text.Blaze.Builder.Utf8 as Blaze
 
 main :: IO ()
 main = defaultMain $ concat
     [ benchmark "[String]"
-        (mconcat . concatMap (map $ DB.singleton .  fromIntegral . ord))
-        (mconcat . map BB.fromString)
+        (mconcat . concatMap (map $ Binary.singleton .  fromIntegral . ord))
+        (mconcat . map Blaze.fromString)
         strings
     , benchmark "[S.ByteString]"
-        (mconcat . map DB.fromByteString)
-        (mconcat . map BB.fromByteString)
+        (mconcat . map Binary.fromByteString)
+        (mconcat . map Blaze.fromByteString)
         byteStrings
     , benchmark "[Text]"
-        (mconcat . map (DB.fromByteString . encodeUtf8))
-        (mconcat . map BB.fromText)
+        (mconcat . map (Binary.fromByteString . encodeUtf8))
+        (mconcat . map Blaze.fromText)
         texts
     ]
   where
     benchmark name binaryF blazeF x =
         [ bench (name ++ " (Data.Binary builder)") $
-            whnf (LB.length . DB.toLazyByteString . binaryF) x
+            whnf (LB.length . Binary.toLazyByteString . binaryF) x
         , bench (name ++ " (blaze builder)") $
-            whnf (LB.length . BB.toLazyByteString . blazeF) x
+            whnf (LB.length . Blaze.toLazyByteString . blazeF) x
         ]
 
     strings :: [String]
