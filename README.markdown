@@ -9,3 +9,11 @@ concatenation. This builder is optimized for the generation of HTML, meaning:
 - it natively supports HTML entity escaping.
 
 This builder was created for the blaze-html templating system.
+
+Run the benchmarks:
+
+    make benchmark
+
+Run the test suite:
+
+    make test
