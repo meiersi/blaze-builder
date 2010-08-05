@@ -6,7 +6,7 @@ Description:         Builder to efficiently append text, optimized for
                      Text.Blaze.Builder.Core module, you should begin by
                      reading that.
 Homepage:            http://jaspervdj.be/blaze
-Bug-Reports:         http://github.com/jaspervdj/BlazeHtml/issues
+Bug-Reports:         http://github.com/jaspervdj/blaze-builder/issues
 License:             BSD3
 License-file:        LICENSE
 Author:              Jasper Van der Jeugt, Simon Meier
