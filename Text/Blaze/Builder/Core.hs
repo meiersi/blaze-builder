@@ -15,7 +15,7 @@
 -- 'Builder' to a lazy 'L.ByteString' using 'toLazyByteString'.
 --
 -- > result :: L.ByteString
--- > result = toLazyByteString continuation
+-- > result = toLazyByteString concatenation
 --
 {-# LANGUAGE BangPatterns, OverloadedStrings #-}
 module Text.Blaze.Builder.Core
