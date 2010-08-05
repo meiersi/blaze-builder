@@ -5,6 +5,7 @@ module Tests where
 
 import Control.Applicative ((<$>))
 import Data.Monoid (mempty, mappend, mconcat)
+import Data.Word (Word8)
 
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -31,6 +32,7 @@ tests =
     , testProperty "mconcat Monoid law"        monoidConcat
     , testProperty "string → builder → string" fromStringToString
     , testProperty "string and text"           stringAndText
+    , testProperty "lazy bytestring identity"  identityLazyByteString
     , testCase     "escaping case 1"           escaping1
     , testCase     "escaping case 2"           escaping2
     , testCase     "escaping case 3"           escaping3
@@ -56,6 +58,10 @@ fromStringToString string = string == convert string
 stringAndText :: String -> Bool
 stringAndText string = fromString string == fromText (T.pack string)
 
+identityLazyByteString :: LB.ByteString -> Bool
+identityLazyByteString lbs =
+    lbs == toLazyByteString (mconcat $ map fromByteString $ LB.toChunks lbs)
+
 escaping1 :: Assertion
 escaping1 = fromString "&lt;hello&gt;" @?= fromHtmlEscapedString "<hello>"
 
@@ -73,3 +79,9 @@ instance Eq Builder where
 
 instance Arbitrary Builder where
     arbitrary = fromString <$> arbitrary
+
+instance Arbitrary Word8 where
+    arbitrary = elements [minBound .. maxBound]
+
+instance Arbitrary LB.ByteString where
+    arbitrary = LB.pack <$> arbitrary
