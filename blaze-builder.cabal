@@ -1,5 +1,5 @@
 Name:                blaze-builder
-Version:             0.2
+Version:             0.1
 Synopsis:            Builder to efficiently append text.
 Description:         Builder to efficiently append text, optimized for
                      HTML generation. There is a small usage example in the
