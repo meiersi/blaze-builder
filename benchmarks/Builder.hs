@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Builder where
+module Main where
 
 import Data.Char (ord)
 import Data.Monoid (mconcat)
+import Data.Word (Word8)
 
 import qualified Data.Binary.Builder as Binary
 import Criterion.Main
@@ -28,6 +29,10 @@ main = defaultMain $ concat
         (mconcat . map (Binary.fromByteString . encodeUtf8))
         (mconcat . map Blaze.fromText)
         texts
+    , benchmark "[Word8]"
+        (mconcat . map Binary.singleton)
+        (mconcat . map Blaze.singleton)
+        word8s
     ]
   where
     benchmark name binaryF blazeF x =
@@ -48,3 +53,7 @@ main = defaultMain $ concat
     texts :: [Text]
     texts = replicate 10000 "<img>"
     {-# NOINLINE texts #-}
+
+    word8s :: [Word8]
+    word8s = replicate 10000 $ fromIntegral $ ord 'a'
+    {-# NOINLINE word8s #-}
