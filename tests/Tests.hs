@@ -33,6 +33,7 @@ tests =
     , testProperty "string → builder → string" fromStringToString
     , testProperty "string and text"           stringAndText
     , testProperty "lazy bytestring identity"  identityLazyByteString
+    , testProperty "flushing identity"         identityFlushing
     , testCase     "escaping case 1"           escaping1
     , testCase     "escaping case 2"           escaping2
     , testCase     "escaping case 3"           escaping3
@@ -61,6 +62,12 @@ stringAndText string = fromString string == fromText (T.pack string)
 identityLazyByteString :: LB.ByteString -> Bool
 identityLazyByteString lbs =
     lbs == toLazyByteString (mconcat $ map fromByteString $ LB.toChunks lbs)
+
+identityFlushing :: String -> String -> Bool
+identityFlushing s1 s2 =
+    let b1 = fromString s1
+        b2 = fromString s2
+    in b1 `mappend` b2 == b1 `mappend` flush `mappend` b2
 
 escaping1 :: Assertion
 escaping1 = fromString "&lt;hello&gt;" @?= fromHtmlEscapedString "<hello>"

@@ -34,6 +34,9 @@ module Text.Blaze.Builder.Core
     , singleton
     , fromByteString
 
+      -- * Special builders
+    , flush
+
       -- * Extracting the result from a builder
     , toLazyByteString
     ) where
@@ -168,6 +171,13 @@ fromByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to copy
 fromByteString = writeSingleton writeByteString
 {-# INLINE fromByteString #-}
 
+-- | Flush a 'Builder'. This means a new chunk will be started in the resulting
+-- lazy 'L.ByteString'.
+--
+flush :: Builder
+flush = Builder $ \f pf _ ->
+    return $ BufferFull 0 pf f
+
 -- | Copied from Data.ByteString.Lazy.
 --
 defaultSize :: Int
@@ -203,13 +213,9 @@ runBuilderWith bufSize (Builder b) k =
                 Done pf'
                   | pf == pf' -> return k
                   | otherwise -> return $ S.PS buf 0 (pf' `minusPtr` pf) : k 
-                BufferFull newSize pf' nextStep
-                  | pf == pf' -> bufferFullError
-                  | otherwise -> return $ S.PS buf 0 (pf' `minusPtr` pf) : 
+                BufferFull newSize pf' nextStep ->
+                  return $ S.PS buf 0 (pf' `minusPtr` pf) : 
                        S.inlinePerformIO (go (max newSize bufSize) nextStep)
-
-    bufferFullError =
-        error "runBuilder: buffer cannot be full; no data was written."
 
 -- | /O(n)./ Extract the lazy 'L.ByteString' from the builder.
 --
