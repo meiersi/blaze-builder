@@ -60,8 +60,7 @@ stringAndText :: String -> Bool
 stringAndText string = fromString string == fromText (T.pack string)
 
 identityLazyByteString :: LB.ByteString -> Bool
-identityLazyByteString lbs =
-    lbs == toLazyByteString (mconcat $ map fromByteString $ LB.toChunks lbs)
+identityLazyByteString lbs = lbs == toLazyByteString (fromLazyByteString lbs)
 
 identityFlushing :: String -> String -> Bool
 identityFlushing s1 s2 =

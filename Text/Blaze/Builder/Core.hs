@@ -33,6 +33,7 @@ module Text.Blaze.Builder.Core
       -- * Creating builders
     , singleton
     , fromByteString
+    , fromLazyByteString
 
       -- * Special builders
     , flush
@@ -170,6 +171,13 @@ fromByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to copy
                -> Builder       -- ^ Resulting 'Builder'
 fromByteString = writeSingleton writeByteString
 {-# INLINE fromByteString #-}
+
+-- | /O(n)./ A 'Builder' taking a 'L.ByteString', copying all chunks.
+--
+fromLazyByteString :: L.ByteString  -- ^ Lazy 'L.ByteString' to copy
+                   -> Builder       -- Resulting 'Builder'
+fromLazyByteString = writeList writeByteString . L.toChunks
+{-# INLINE fromLazyByteString #-}
 
 -- | Flush a 'Builder'. This means a new chunk will be started in the resulting
 -- lazy 'L.ByteString'.
