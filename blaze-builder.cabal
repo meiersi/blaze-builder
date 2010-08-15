@@ -19,7 +19,8 @@ Library
   Ghc-Options:       -Wall
 
   -- Modules exported by the library.
-  Exposed-modules:   Text.Blaze.Builder.Core
+  Exposed-modules:   Text.Blaze.Builder
+                     Text.Blaze.Builder.Core
                      Text.Blaze.Builder.Utf8
                      Text.Blaze.Builder.Html
                      Text.Blaze.Builder.Word
