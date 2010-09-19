@@ -16,7 +16,12 @@ module Text.Blaze.Builder.Core
       -- * Creating builders
     , singleton
     , fromByteString
-    , fromLazyByteString
+    , copyByteString
+    , insertByteString
+
+    -- , fromLazyByteString
+    , copyLazyByteString
+    , insertLazyByteString
 
       -- * Special builders
     , flush
@@ -49,6 +54,14 @@ data BuildSignal
   | BufferFull
       {-# UNPACK #-} !Int
       {-# UNPACK #-} !(Ptr Word8)
+      {-# UNPACK #-} !BuildStep
+  -- | Signal that a ByteString needs to be wrapped or inserted as is. The
+  -- concrete behaviour is up to the driver of the builder. Arguments:
+  -- The next free byte in the buffer, the ByteString modification,
+  -- and the next build step.
+  | ModifyByteStrings
+      {-# UNPACK #-} !(Ptr Word8) 
+      {-# UNPACK #-} !([S.ByteString] -> [S.ByteString]) 
       {-# UNPACK #-} !BuildStep
 
 -- | Type for a single build step. Every build step checks that
@@ -150,20 +163,66 @@ singleton = writeSingleton writeByte
 
 -- | /O(n)./ A Builder taking a 'S.ByteString`, copying it.
 --
-fromByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to copy
+copyByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to copy
                -> Builder       -- ^ Resulting 'Builder'
-fromByteString = writeSingleton writeByteString
+copyByteString = writeSingleton writeByteString
+{-# INLINE copyByteString #-}
+
+-- | /O(1)./ A Builder taking a 'S.ByteString`, inserting it directly.
+--
+-- This operation should only be used for large (> 8kb for IO) ByteStrings as
+-- otherwise the resulting output is may be too fragmented to be processed
+-- efficiently.
+--
+insertByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to insert
+                 -> Builder       -- ^ Resulting 'Builder'
+insertByteString bs = Builder $ \ k pf _ ->
+    return $ ModifyByteStrings pf (bs:) k
+{-# INLINE insertByteString #-}
+
+-- | Construct a 'Builder' from a single ByteString, copying it if its
+-- size is below 8kb and inserting directly otherwise.
+--
+fromByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to insert
+               -> Builder       -- ^ Resulting 'Builder'
+fromByteString bs = Builder step
+  where
+    step k pf pe
+      | maxCopyLength < size    = return $ ModifyByteStrings pf (bs:) k
+      | pf `plusPtr` size <= pe = do
+          withForeignPtr fpbuf $ \pbuf -> 
+              copyBytes pf (pbuf `plusPtr` offset) size
+          let pf' = pf `plusPtr` size
+          pf' `seq` k pf' pe
+      | otherwise               = return $ BufferFull size pf (step k)
+      where
+        (fpbuf, offset, size) = S.toForeignPtr bs
 {-# INLINE fromByteString #-}
 
 -- | /O(n)./ A 'Builder' taking a 'L.ByteString', copying all chunks.
+-- Here, 'n' is the size of the input in bytes.
 --
-fromLazyByteString :: L.ByteString  -- ^ Lazy 'L.ByteString' to copy
+copyLazyByteString :: L.ByteString  -- ^ Lazy 'L.ByteString' to copy
                    -> Builder       -- Resulting 'Builder'
-fromLazyByteString = writeList writeByteString . L.toChunks
-{-# INLINE fromLazyByteString #-}
+copyLazyByteString = writeList writeByteString . L.toChunks
+{-# INLINE copyLazyByteString #-}
+
+-- | /O(n)./ A Builder taking a lazy 'L.ByteString', inserting its chunks
+-- directly. Here, 'n' is the number of chunks.
+--
+-- This operation should only be used, if the chunks are large (> 8kb for IO)
+-- on average. Otherwise the resulting output may be too fragmented to be
+-- processed efficiently.
+--
+insertLazyByteString :: L.ByteString  -- ^ Lazy 'L.ByteString' to insert
+                     -> Builder       -- ^ Resulting 'Builder'
+insertLazyByteString lbs = Builder step
+  where
+    step k pf _ = return $ ModifyByteStrings pf (L.toChunks lbs ++) k
+{-# INLINE insertLazyByteString #-}
 
 -- | Flush a 'Builder'. This means a new chunk will be started in the resulting
--- lazy 'L.ByteString'.
+-- lazy 'L.ByteString'. The remaining part of the buffer is spilled.
 --
 flush :: Builder
 flush = Builder $ \f pf _ ->
@@ -192,21 +251,51 @@ runBuilder = runBuilderWith defaultSize
 --
 runBuilderWith :: Int -> Builder -> [S.ByteString] -> [S.ByteString]
 runBuilderWith bufSize (Builder b) k = 
-    S.inlinePerformIO $ go bufSize (b finalStep)
+    S.inlinePerformIO $ fillNewBuffer bufSize (b finalStep)
   where
     finalStep pf _ = return $ Done pf
 
-    go !size !step = do
-        buf <- S.mallocByteString size
-        withForeignPtr buf $ \pf -> do
-            next <- step pf (pf `plusPtr` size)
-            case next of
-                Done pf'
-                  | pf == pf' -> return k
-                  | otherwise -> return $ S.PS buf 0 (pf' `minusPtr` pf) : k 
-                BufferFull newSize pf' nextStep ->
-                  return $ S.PS buf 0 (pf' `minusPtr` pf) : 
-                       S.inlinePerformIO (go (max newSize bufSize) nextStep)
+    fillNewBuffer !size !step0 = do
+        fpbuf <- S.mallocByteString size
+        withForeignPtr fpbuf $ fillBuffer fpbuf
+      where
+        fillBuffer fpbuf !pbuf = fill pbuf step0
+          where
+            pe = pbuf `plusPtr` size
+            fill !pf !step = do
+                next <- step pf pe
+                case next of
+                    Done pf' 
+                      | pf' == pf -> return k
+                      | otherwise -> return $ 
+                          S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf) : k
+
+                    BufferFull newSize pf' nextStep  ->
+                        return $ 
+                            S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf) : 
+                            (S.inlinePerformIO $ 
+                                fillNewBuffer (max newSize bufSize) nextStep)
+                        
+                    ModifyByteStrings  pf' bsk nextStep  ->
+                        modifyByteStrings pf' bsk nextStep
+              where
+                modifyByteStrings pf' bsk nextStep
+                    | pf' == pf                           =
+                        return $ bsk (S.inlinePerformIO $ fill pf' nextStep)
+                    | minBufferLength < pe `minusPtr` pf' =
+                        return $ bs : bsk (S.inlinePerformIO $ fill pf' nextStep)
+                    | otherwise                           =
+                        return $ bs : 
+                            bsk (S.inlinePerformIO $ fillNewBuffer bufSize nextStep)
+                  where
+                    bs = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
+                {-# INLINE modifyByteStrings #-}
+
+maxCopyLength :: Int
+maxCopyLength = 8 * 1024
+
+minBufferLength :: Int
+minBufferLength = 4 * 1024
 
 -- | /O(n)./ Extract the lazy 'L.ByteString' from the builder.
 --
