@@ -21,10 +21,10 @@ module Text.Blaze.Builder
     ( module Text.Blaze.Builder.Core
     , module Text.Blaze.Builder.Utf8
     , module Text.Blaze.Builder.Html
-    , module Text.Blaze.Builder.Word
+    -- , module Text.Blaze.Builder.Word
     ) where
 
 import Text.Blaze.Builder.Core
 import Text.Blaze.Builder.Utf8
 import Text.Blaze.Builder.Html
-import Text.Blaze.Builder.Word
+-- import Text.Blaze.Builder.Word

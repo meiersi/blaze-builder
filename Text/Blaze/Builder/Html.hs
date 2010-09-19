@@ -38,18 +38,18 @@ writeHtmlEscapedChar c    = writeChar c
 --
 fromHtmlEscapedChar :: Char     -- ^ Character to write
                     -> Builder  -- ^ Resulting 'Builder'
-fromHtmlEscapedChar = writeSingleton writeHtmlEscapedChar
+fromHtmlEscapedChar = fromWriteSingleton writeHtmlEscapedChar
 
 -- | A HTML escaped 'String'.
 --
 fromHtmlEscapedString :: String   -- ^ String to create a 'Builder' from
                       -> Builder  -- ^ Resulting 'Builder'
-fromHtmlEscapedString = writeList writeHtmlEscapedChar
+fromHtmlEscapedString = fromWriteList writeHtmlEscapedChar
 
 -- | An HTML escaped piece of 'Text'.
 --
 fromHtmlEscapedText :: Text     -- ^ 'Text' to insert
                     -> Builder  -- ^ Resulting 'Builder'
-fromHtmlEscapedText = writeSingleton (T.foldl appendChar mempty)
+fromHtmlEscapedText = fromWriteSingleton (T.foldl appendChar mempty)
   where
     appendChar w c = w `mappend` writeHtmlEscapedChar c

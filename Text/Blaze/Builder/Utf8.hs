@@ -76,16 +76,16 @@ encodeCharUtf8 f1 f2 f3 f4 c = case ord c of
 --
 fromChar :: Char     -- ^ 'Char' to insert
          -> Builder  -- ^ Resulting 'Builder'
-fromChar = writeSingleton writeChar
+fromChar = fromWriteSingleton writeChar
 
 -- | A list of unescaped, utf8 encoded characters.
 --
 fromString :: String   -- ^ 'String' to insert
            -> Builder  -- ^ Resulting 'Builder'
-fromString = writeList writeChar
+fromString = fromWriteList writeChar
 
 -- | Create an UTF-8 encoded 'Builder' from some 'Text'.
 --
 fromText :: Text     -- ^ 'Text' to insert
          -> Builder  -- ^ Resulting 'Builder'
-fromText = writeSingleton (T.foldl (\w c -> w `mappend` writeChar c) mempty)
+fromText = fromWriteSingleton (T.foldl (\w c -> w `mappend` writeChar c) mempty)
