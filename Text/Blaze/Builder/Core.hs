@@ -38,6 +38,7 @@ module Text.Blaze.Builder.Core
     -- * The Builder type
     , Builder
     , toLazyByteString
+    , toByteStringIO
 
     -- ** Basic builder construction
     , empty                   -- DEPRECATED: use 'mempty' instead
@@ -81,6 +82,7 @@ module Text.Blaze.Builder.Core
     ) where
 
 import Foreign
+import Control.Monad (unless)
 import Data.Monoid (Monoid, mempty, mappend, mconcat)
 import qualified Data.ByteString      as S
 import qualified Data.ByteString.Lazy as L
@@ -350,6 +352,41 @@ toLazyByteString :: Builder       -- ^ 'Builder' to evaluate
                  -> L.ByteString  -- ^ Resulting UTF-8 encoded 'L.ByteString'
 toLazyByteString = L.fromChunks . flip runBuilder []
 {-# INLINE toLazyByteString #-}
+
+-- | Run the builder with a buffer of at least the given size and execute
+-- the given IO action whenever it is full.
+toByteStringIOWith :: Int -> Builder -> (S.ByteString -> IO ()) -> IO ()
+toByteStringIOWith bufSize (Builder b) io = 
+    fillNewBuffer bufSize (b finalStep)
+  where
+    finalStep pf _ = return $ Done pf
+
+    fillNewBuffer !size !step0 = do
+        S.mallocByteString size >>= fillBuffer
+      where
+        fillBuffer fpbuf = fill step0
+          where
+            -- safe because the constructed ByteString references the foreign
+            -- pointer AFTER its buffer was filled.
+            pf = unsafeForeignPtrToPtr fpbuf
+            fill !step = do
+                next <- step pf (pf `plusPtr` size)
+                case next of
+                    Done pf' ->
+                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
+
+                    BufferFull newSize pf' nextStep  -> do
+                        io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
+                        if bufSize < newSize
+                          then fillNewBuffer newSize nextStep
+                          else fill nextStep
+                        
+                    ModifyByteStrings  pf' bsk nextStep  -> do
+                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
+                        mapM_ io (bsk [])
+                        fill nextStep
+
+toByteStringIO = toByteStringIOWith defaultSize
 
 
 -- Single bytes
