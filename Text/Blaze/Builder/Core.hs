@@ -201,6 +201,12 @@ append :: Builder -> Builder -> Builder
 append = mappend
 
 -- | Construct a 'Builder' constructor from a single 'Write' constructor.
+-- This constructor should be known /statically/ such that it can be
+-- eliminated. Semantically it holds
+--
+-- > fromWrite . write = fromWriteSingleton write
+--
+-- However, performance-wise the right-hand side is more efficient.
 --
 fromWrite :: Write   -- ^ 'Write' abstraction
           -> Builder -- ^ Resulting 'Builder'
