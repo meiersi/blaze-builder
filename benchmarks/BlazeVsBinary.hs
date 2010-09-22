@@ -1,5 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Main where
+-- | A comparison between 'blaze-builder' and the Data.Binary.Builder from
+-- 'binary'. The goal is to measure the performance on serializing dynamic
+-- data referenced by a list.
+--
+--  Note that some of the benchmarks are a bit unfair with respect to
+--  blaze-builder, as it does more than 'binary':
+--
+--    1. It encodes chars as utf-8 strings and does not just truncate bits
+--       8-31.
+--
+--    2. It does copy the contents of the lazy bytestring chunks if they are
+--       shorter than 4kb. This ensures efficient processing of the resulting
+--       lazy bytestring. 'binary' just inserts the chunks directly in the
+--       resulting output stream.
+--
+module BlazeVsBinary where
 
 import Data.Char (ord)
 import Data.Monoid (mconcat)
@@ -7,7 +22,7 @@ import Data.Word (Word8)
 
 import qualified Data.Binary.Builder as Binary
 import Criterion.Main
-import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as S
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
@@ -21,9 +36,9 @@ main = defaultMain $ concat
         (mconcat . concatMap (map $ Binary.singleton .  fromIntegral . ord))
         (mconcat . map Blaze.fromString)
         strings
-    , benchmark "[S.ByteString]"
-        (mconcat . map Binary.fromByteString)
-        (mconcat . map Blaze.fromByteString)
+    , benchmark "L.ByteString"
+        (Binary.fromLazyByteString)
+        (Blaze.fromLazyByteString)
         byteStrings
     , benchmark "[Text]"
         (mconcat . map (Binary.fromByteString . encodeUtf8))
@@ -31,23 +46,23 @@ main = defaultMain $ concat
         texts
     , benchmark "[Word8]"
         (mconcat . map Binary.singleton)
-        (mconcat . map Blaze.singleton)
+        (Blaze.fromWord8s)
         word8s
     ]
   where
     benchmark name binaryF blazeF x =
         [ bench (name ++ " (Data.Binary builder)") $
-            whnf (LB.length . Binary.toLazyByteString . binaryF) x
+            whnf (L.length . Binary.toLazyByteString . binaryF) x
         , bench (name ++ " (blaze builder)") $
-            whnf (LB.length . Blaze.toLazyByteString . blazeF) x
+            whnf (L.length . Blaze.toLazyByteString . blazeF) x
         ]
 
     strings :: [String]
     strings = replicate 10000 "<img>"
     {-# NOINLINE strings #-}
 
-    byteStrings :: [S.ByteString]
-    byteStrings = replicate 10000 "<img>"
+    byteStrings :: L.ByteString
+    byteStrings = L.fromChunks $ replicate 10000 "<img>"
     {-# NOINLINE byteStrings #-}
 
     texts :: [Text]

@@ -1,6 +1,6 @@
-benchmark:
-	ghc --make -O2 -fforce-recomp -main-is Builder benchmarks/Builder.hs
-	./benchmarks/Builder --resamples 10000
+bench-blaze-vs-binary:
+	ghc --make -O2 -fforce-recomp -main-is BlazeVsBinary benchmarks/BlazeVsBinary.hs
+	./benchmarks/BlazeVsBinary --resamples 10000
 
 bench-chunked-write:
 	ghc --make -O2 -fforce-recomp -main-is ChunkedWrite benchmarks/ChunkedWrite.hs

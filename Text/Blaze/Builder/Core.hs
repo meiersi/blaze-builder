@@ -16,7 +16,7 @@ module Text.Blaze.Builder.Core
       Write (..)
 
     -- ** Byte writes
-    , writeByte
+    , writeWord8
     , writeByteString
 
     -- ** Big-endian writes
@@ -65,7 +65,8 @@ module Text.Blaze.Builder.Core
     -- ** Builders derived from existing writes
     
     -- *** Byte writes
-    , fromByte
+    , fromWord8
+    , fromWord8s
 
     -- *** Big-endian writes
     , fromWord16be           -- :: Word16 -> Builder
@@ -135,10 +136,10 @@ instance Monoid Write where
 
 -- | Write a single byte.
 --
-writeByte :: Word8  -- ^ Byte to write
-          -> Write  -- ^ Resulting write
-writeByte x = Write 1 (\pf -> poke pf x)
-{-# INLINE writeByte #-}
+writeWord8 :: Word8  -- ^ 'Word8' to write
+           -> Write  -- ^ Resulting write
+writeWord8 x = Write 1 (\pf -> poke pf x)
+{-# INLINE writeWord8 #-}
 
 -- | Write a strict 'S.ByteString'.
 --
@@ -622,18 +623,24 @@ toByteStringIO = toByteStringIOWith defaultSize
 -- Single bytes
 ------------------------------------------------------------------------------
 
--- | Construct a 'Builder' from a single byte.
+-- | Construct a 'Builder' from a single 'Word8'.
 --
-fromByte :: Word8    -- ^ Byte to create a 'Builder' from
-         -> Builder  -- ^ Resulting 'Builder'
-fromByte = fromWriteSingleton writeByte
+fromWord8 :: Word8    -- ^ 'Word8' to create a 'Builder' from
+          -> Builder  -- ^ Resulting 'Builder'
+fromWord8 = fromWriteSingleton writeWord8
 
 -- | Construct a 'Builder' from a single byte. Deprecated use 'fromByte'
 -- instead.
 --
 singleton :: Word8    -- ^ Byte to create a 'Builder' from
           -> Builder  -- ^ Resulting 'Builder'
-singleton = fromWriteSingleton writeByte
+singleton = fromWriteSingleton writeWord8
+
+-- | Construct a 'Builder' from a list of 'Word8s'.
+--
+fromWord8s :: [Word8]  -- ^ '[Word8]' to create a 'Builder' from
+           -> Builder  -- ^ Resulting 'Builder'
+fromWord8s = fromWrite8List writeWord8
 
 
 -- Strict ByteStrings

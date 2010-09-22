@@ -1,5 +1,5 @@
 dist
 *.o
 *.hi
-benchmarks/Builder
+benchmarks/BlazeVsBinary
 benchmarks/ChunkedWrite

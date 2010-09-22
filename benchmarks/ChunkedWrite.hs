@@ -37,17 +37,17 @@ main = defaultMain
         whnf bench16Chars chars
 
     , bench "mconcat . map fromByte: [Word8] -> Builder -> L.ByteString" $ 
-        whnf benchMConcatBytes bytes
+        whnf benchMConcatWord8s word8s
     , bench "fromWriteList: [Word8] -> Builder -> L.ByteString" $ 
-        whnf bench1Bytes bytes
+        whnf bench1Word8s word8s
     , bench "fromWrite2List: [Word8] -> Builder -> L.ByteString" $ 
-        whnf bench2Bytes bytes
+        whnf bench2Word8s word8s
     , bench "fromWrite4List: [Word8] -> Builder -> L.ByteString" $ 
-        whnf bench4Bytes bytes
+        whnf bench4Word8s word8s
     , bench "fromWrite8List: [Word8] -> Builder -> L.ByteString" $ 
-        whnf bench8Bytes bytes
+        whnf bench8Word8s word8s
     , bench "fromWrite16List: [Word8] -> Builder -> L.ByteString" $ 
-        whnf bench16Bytes bytes
+        whnf bench16Word8s word8s
 
     , bench "mconcat . map fromWord32host: [Word32] -> Builder -> L.ByteString" $ 
         whnf benchMConcatWord32s word32s
@@ -65,16 +65,16 @@ main = defaultMain
   where
     n = 100000
 
-    bytes :: [Word8]
-    bytes = take n $ map fromIntegral $ [(1::Int)..]
-    {-# NOINLINE bytes #-}
+    word8s :: [Word8]
+    word8s = take n $ map fromIntegral $ [(1::Int)..]
+    {-# NOINLINE word8s #-}
 
     word32s :: [Word32]
     word32s = take n $ [1..]
     {-# NOINLINE word32s #-}
 
     chars :: String
-    chars = take n $ map (chr . fromIntegral) $ bytes
+    chars = take n $ map (chr . fromIntegral) $ word8s
     {-# NOINLINE chars #-}
 
 -- Char
@@ -99,23 +99,23 @@ bench16Chars = L.length . BB.toLazyByteString . BB.fromWrite16List BB.writeChar
 
 -- Word8
 
-benchMConcatBytes :: [Word8] -> Int64
-benchMConcatBytes = L.length . BB.toLazyByteString . mconcat . map BB.fromByte 
+benchMConcatWord8s :: [Word8] -> Int64
+benchMConcatWord8s = L.length . BB.toLazyByteString . mconcat . map BB.fromWord8
 
-bench1Bytes :: [Word8] -> Int64
-bench1Bytes = L.length . BB.toLazyByteString . BB.fromWriteList BB.writeByte
+bench1Word8s :: [Word8] -> Int64
+bench1Word8s = L.length . BB.toLazyByteString . BB.fromWriteList BB.writeWord8
 
-bench2Bytes :: [Word8] -> Int64
-bench2Bytes = L.length . BB.toLazyByteString . BB.fromWrite2List BB.writeByte
+bench2Word8s :: [Word8] -> Int64
+bench2Word8s = L.length . BB.toLazyByteString . BB.fromWrite2List BB.writeWord8
 
-bench4Bytes :: [Word8] -> Int64
-bench4Bytes = L.length . BB.toLazyByteString . BB.fromWrite4List BB.writeByte
+bench4Word8s :: [Word8] -> Int64
+bench4Word8s = L.length . BB.toLazyByteString . BB.fromWrite4List BB.writeWord8
 
-bench8Bytes :: [Word8] -> Int64
-bench8Bytes = L.length . BB.toLazyByteString . BB.fromWrite8List BB.writeByte
+bench8Word8s :: [Word8] -> Int64
+bench8Word8s = L.length . BB.toLazyByteString . BB.fromWrite8List BB.writeWord8
 
-bench16Bytes :: [Word8] -> Int64
-bench16Bytes = L.length . BB.toLazyByteString . BB.fromWrite16List BB.writeByte
+bench16Word8s :: [Word8] -> Int64
+bench16Word8s = L.length . BB.toLazyByteString . BB.fromWrite16List BB.writeWord8
 
 -- Word32
 
