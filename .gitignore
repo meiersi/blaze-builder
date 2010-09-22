@@ -3,3 +3,4 @@ dist
 *.hi
 benchmarks/BlazeVsBinary
 benchmarks/ChunkedWrite
+benchmarks/BenchThroughput
