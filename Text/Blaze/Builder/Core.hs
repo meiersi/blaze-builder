@@ -48,6 +48,10 @@ module Text.Blaze.Builder.Core
     , fromWrite
     , fromWriteSingleton
     , fromWriteList
+    , fromWrite2List
+    , fromWrite4List
+    , fromWrite8List
+    , fromWrite16List
 
     -- ** Optimized Builders from ByteStrings
     , copyByteString
@@ -264,6 +268,229 @@ fromWriteList write = makeBuilder
                 Write size io = write x'
 {-# INLINE fromWriteList #-}
 
+-- | Construct a builder writing a list of data two elements at a time from a
+-- write abstraction.
+--
+fromWrite2List :: (a -> Write)  -- ^ 'Write' abstraction
+               -> [a]           -- ^ List of values to write
+               -> Builder       -- ^ Resulting 'Builder'
+fromWrite2List write = makeBuilder
+  where
+    makeBuilder []  = mempty
+    makeBuilder xs0 = Builder $ step xs0
+      where
+        step xs1 k pf0 pe0 = go xs1 pf0
+          where
+            go []       !pf = k pf pe0
+
+            go xs@[x'1] !pf
+              | pf' <= pe0  = do
+                  io pf
+                  k pf' pe0
+              | otherwise   = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1
+                pf' = pf `plusPtr` size
+
+            go xs@(x'1:x'2:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                pf' = pf `plusPtr` size
+{-# INLINE fromWrite2List #-}
+
+-- | Construct a builder writing a list of data four elements at a time from a
+-- write abstraction.
+--
+fromWrite4List :: (a -> Write)  -- ^ 'Write' abstraction
+               -> [a]           -- ^ List of values to write
+               -> Builder       -- ^ Resulting 'Builder'
+fromWrite4List write = makeBuilder
+  where
+    makeBuilder []  = mempty
+    makeBuilder xs0 = Builder $ step xs0
+      where
+        step xs1 k pf0 pe0 = go xs1 pf0
+          where
+            go xs@(x'1:x'2:x'3:x'4:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                                          `mappend` write x'3 
+                                          `mappend` write x'4 
+                pf' = pf `plusPtr` size
+
+            go xs@(x'1:x'2:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                pf' = pf `plusPtr` size
+
+            go xs@[x'1] !pf
+              | pf' <= pe0  = do
+                  io pf
+                  k pf' pe0
+              | otherwise   = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1
+                pf' = pf `plusPtr` size
+
+            go [] !pf = k pf pe0
+{-# INLINE fromWrite4List #-}
+
+-- | Construct a builder writing a list of data eight elements at a time from a
+-- write abstraction.
+--
+fromWrite8List :: (a -> Write)  -- ^ 'Write' abstraction
+               -> [a]           -- ^ List of values to write
+               -> Builder       -- ^ Resulting 'Builder'
+fromWrite8List write = makeBuilder
+  where
+    makeBuilder []  = mempty
+    makeBuilder xs0 = Builder $ step xs0
+      where
+        step xs1 k pf0 pe0 = go xs1 pf0
+          where
+            go xs@(x'1:x'2:x'3:x'4:x'5:x'6:x'7:x'8:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                                          `mappend` write x'3 
+                                          `mappend` write x'4 
+                                          `mappend` write x'5 
+                                          `mappend` write x'6 
+                                          `mappend` write x'7 
+                                          `mappend` write x'8 
+                pf' = pf `plusPtr` size
+
+            go xs@(x'1:x'2:x'3:x'4:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                                          `mappend` write x'3 
+                                          `mappend` write x'4 
+                pf' = pf `plusPtr` size
+
+            go xs@(x'1:x'2:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                pf' = pf `plusPtr` size
+
+            go xs@[x'1] !pf
+              | pf' <= pe0  = do
+                  io pf
+                  k pf' pe0
+              | otherwise   = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1
+                pf' = pf `plusPtr` size
+
+            go [] !pf = k pf pe0
+{-# INLINE fromWrite8List #-}
+
+-- | Construct a builder writing a list of data 16 elements at a time from a
+-- write abstraction.
+--
+fromWrite16List :: (a -> Write)  -- ^ 'Write' abstraction
+                -> [a]           -- ^ List of values to write
+                -> Builder       -- ^ Resulting 'Builder'
+fromWrite16List write = makeBuilder
+  where
+    makeBuilder []  = mempty
+    makeBuilder xs0 = Builder $ step xs0
+      where
+        step xs1 k pf0 pe0 = go xs1 pf0
+          where
+            go xs@(x'1:x'2:x'3:x'4:x'5:x'6:x'7:x'8:x'9:x'10:x'11:x'12:x'13:x'14:x'15:x'16:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                                          `mappend` write x'3 
+                                          `mappend` write x'4 
+                                          `mappend` write x'5 
+                                          `mappend` write x'6 
+                                          `mappend` write x'7 
+                                          `mappend` write x'8 
+                                          `mappend` write x'9 
+                                          `mappend` write x'10
+                                          `mappend` write x'11
+                                          `mappend` write x'12
+                                          `mappend` write x'13
+                                          `mappend` write x'14
+                                          `mappend` write x'15
+                                          `mappend` write x'16
+                pf' = pf `plusPtr` size
+
+            go xs@(x'1:x'2:x'3:x'4:x'5:x'6:x'7:x'8:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                                          `mappend` write x'3 
+                                          `mappend` write x'4 
+                                          `mappend` write x'5 
+                                          `mappend` write x'6 
+                                          `mappend` write x'7 
+                                          `mappend` write x'8 
+                pf' = pf `plusPtr` size
+
+
+            go xs@(x'1:x'2:x'3:x'4:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                                          `mappend` write x'3 
+                                          `mappend` write x'4 
+                pf' = pf `plusPtr` size
+
+            go xs@(x'1:x'2:xs') !pf
+              | pf' <= pe0  = do
+                  io pf
+                  go xs' pf'
+              | otherwise = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1 `mappend` write x'2
+                pf' = pf `plusPtr` size
+
+            go xs@[x'1] !pf
+              | pf' <= pe0  = do
+                  io pf
+                  k pf' pe0
+              | otherwise   = do return $ BufferFull size pf (step xs k)
+              where
+                Write size io = write x'1
+                pf' = pf `plusPtr` size
+
+            go [] !pf = k pf pe0
+{-# INLINE fromWrite16List #-}
+
 -- | Flush a 'Builder'. This means a new chunk will be started in the resulting
 -- lazy 'L.ByteString'. The remaining part of the buffer is spilled.
 --
@@ -386,6 +613,9 @@ toByteStringIOWith bufSize (Builder b) io =
                         mapM_ io (bsk [])
                         fill nextStep
 
+-- | Run the builder with a 'defaultSize'd buffer and execute the given IO
+-- action whenever it is full.
+toByteStringIO :: Builder -> (S.ByteString -> IO ()) -> IO ()
 toByteStringIO = toByteStringIOWith defaultSize
 
 

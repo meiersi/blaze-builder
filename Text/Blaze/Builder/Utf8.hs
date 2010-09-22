@@ -83,6 +83,9 @@ fromChar = fromWriteSingleton writeChar
 fromString :: String   -- ^ 'String' to insert
            -> Builder  -- ^ Resulting 'Builder'
 fromString = fromWriteList writeChar
+-- fromWrite2List made things slightly worse for the blaze-html benchmarks
+-- despite being better when serializing only a list.  Probably, the cache is
+-- already occupied enough with dealing with the data from Html rendering.
 
 -- | Create an UTF-8 encoded 'Builder' from some 'Text'.
 --
