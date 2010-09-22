@@ -86,8 +86,5 @@ instance Eq Builder where
 instance Arbitrary Builder where
     arbitrary = fromString <$> arbitrary
 
-instance Arbitrary Word8 where
-    arbitrary = elements [minBound .. maxBound]
-
 instance Arbitrary LB.ByteString where
     arbitrary = LB.pack <$> arbitrary
