@@ -21,6 +21,7 @@ import qualified Data.Text as T
 
 import Text.Blaze.Builder.Core
 import Text.Blaze.Builder.Utf8
+import Text.Blaze.Builder.ByteString
 
 -- | Write an unicode character to a 'Builder', doing HTML escaping.
 --

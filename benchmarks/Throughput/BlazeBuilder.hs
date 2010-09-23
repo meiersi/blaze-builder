@@ -6,7 +6,7 @@ module Throughput.BlazeBuilder (
 import Data.Monoid
 import qualified Data.ByteString.Lazy as L
 
-import Text.Blaze.Builder.Core
+import Text.Blaze.Builder
 
 import Throughput.Utils
 

@@ -2,7 +2,7 @@
 module Throughput.BlazePut (serialize) where
 
 import qualified Data.ByteString.Lazy as L
-import Text.Blaze.Builder.Core
+import Text.Blaze.Builder
 import Text.Blaze.Put
 import Data.Monoid
 

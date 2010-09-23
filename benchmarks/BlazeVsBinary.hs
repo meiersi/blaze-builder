@@ -27,8 +27,7 @@ import qualified Data.ByteString as S
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
 
-import qualified Text.Blaze.Builder.Core as Blaze
-import qualified Text.Blaze.Builder.Utf8 as Blaze
+import qualified Text.Blaze.Builder as Blaze
 
 main :: IO ()
 main = defaultMain $ concat
@@ -57,18 +56,18 @@ main = defaultMain $ concat
             whnf (L.length . Blaze.toLazyByteString . blazeF) x
         ]
 
-    strings :: [String]
-    strings = replicate 10000 "<img>"
-    {-# NOINLINE strings #-}
+strings :: [String]
+strings = replicate 10000 "<img>"
+{-# NOINLINE strings #-}
 
-    byteStrings :: L.ByteString
-    byteStrings = L.fromChunks $ replicate 10000 "<img>"
-    {-# NOINLINE byteStrings #-}
+byteStrings :: L.ByteString
+byteStrings = L.fromChunks $ replicate 10000 "<img>"
+{-# NOINLINE byteStrings #-}
 
-    texts :: [Text]
-    texts = replicate 10000 "<img>"
-    {-# NOINLINE texts #-}
+texts :: [Text]
+texts = replicate 10000 "<img>"
+{-# NOINLINE texts #-}
 
-    word8s :: [Word8]
-    word8s = replicate 10000 $ fromIntegral $ ord 'a'
-    {-# NOINLINE word8s #-}
+word8s :: [Word8]
+word8s = replicate 10000 $ fromIntegral $ ord 'a'
+{-# NOINLINE word8s #-}

@@ -25,6 +25,9 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 import Text.Blaze.Builder.Core
+import Text.Blaze.Builder.Internal
+import Text.Blaze.Builder.ByteString
+import Text.Blaze.Builder.Word
 
 -- | Write a Unicode character, encoding it as UTF-8.
 --

@@ -19,12 +19,41 @@
 --
 module Text.Blaze.Builder
     ( module Text.Blaze.Builder.Core
+    , module Text.Blaze.Builder.ByteString
+    , module Text.Blaze.Builder.Word
     , module Text.Blaze.Builder.Utf8
     , module Text.Blaze.Builder.Html
-    -- , module Text.Blaze.Builder.Word
+
+    , empty                   -- DEPRECATED: use 'mempty' instead
+    , singleton               -- DEPRECATED: use 'fromByte' instead
+    , append                  -- DEPRECATED: use 'mappend' instead
     ) where
 
 import Text.Blaze.Builder.Core
+import Text.Blaze.Builder.ByteString
+import Text.Blaze.Builder.Word
 import Text.Blaze.Builder.Utf8
 import Text.Blaze.Builder.Html
--- import Text.Blaze.Builder.Word
+
+import Data.Monoid
+import Data.Word
+
+------------------------------------------------------------------------------
+-- API Compatibility to Data.Binary.Builder from 'binary'
+------------------------------------------------------------------------------
+
+-- | /O(1)/. An empty builder. Deprecated: use 'mempty' instead.
+empty :: Builder
+empty = mempty
+
+-- | Construct a 'Builder' from a single byte. Deprecated use 'fromByte'
+-- instead.
+--
+singleton :: Word8    -- ^ Byte to create a 'Builder' from
+          -> Builder  -- ^ Resulting 'Builder'
+singleton = fromWriteSingleton writeWord8
+
+-- | /O(1)/. Append two builders. Deprecated: use 'mappend' instead.
+append :: Builder -> Builder -> Builder
+append = mappend
+

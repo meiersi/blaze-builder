@@ -53,7 +53,7 @@ module Text.Blaze.Put (
 
 import Data.Monoid
 import Text.Blaze.Builder.Core (Builder, toLazyByteString)
-import qualified Text.Blaze.Builder.Core as B
+import qualified Text.Blaze.Builder as B
 
 import Data.Word
 import qualified Data.ByteString      as S
