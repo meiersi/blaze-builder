@@ -140,13 +140,13 @@ fromLazyByteString = makeBuilder . L.toChunks
               | maxCopyLength < size    = 
                   return $ ModifyByteStrings pf (x':) (step xs' k)
 
-              | pf `plusPtr` size <= pe0 = do
+              | pf' <= pe0 = do
                   withForeignPtr fpbuf $ \pbuf -> 
                       copyBytes pf (pbuf `plusPtr` offset) size
-                  let pf' = pf `plusPtr` size
-                  pf' `seq` k pf' pe0
+                  go xs' pf'
 
               | otherwise               = return $ BufferFull size pf (step xs k)
               where
+                pf' = pf `plusPtr` size
                 (fpbuf, offset, size) = S.toForeignPtr x'
 {-# INLINE fromLazyByteString #-}
