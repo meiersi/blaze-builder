@@ -36,7 +36,9 @@ module Text.Blaze.Builder.Core
     , writeWord64host         -- :: Word64 -> Write
 
     -- * The Builder type
-    , Builder
+    , Builder(..)
+    , BuildStep
+    , BuildSignal(..)
     , toLazyByteString
     , toByteStringIO
 

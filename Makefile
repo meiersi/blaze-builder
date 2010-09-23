@@ -20,5 +20,10 @@ bench-throughput: benchmarks/Throughput/CBenchmark.o
 benchmarks/Throughput/CBenchmark.o: benchmarks/Throughput/CBenchmark.c
 	gcc -O3 -c $< -o $@
 
+bench-string-and-text:
+	ghc --make -O2 -fforce-recomp -ibenchmarks -main-is StringAndText StringAndText
+	./benchmarks/StringAndText --resamples 10000
+
+
 test:
 	runghc -itests tests/Tests.hs

@@ -10,6 +10,10 @@ module Text.Blaze.Builder.Utf8
     , fromChar
     , fromString
     , fromText
+    , fromTextFolded
+    , fromTextUnpacked
+    , fromTextEncoded
+    , fromTextSingleWrite
     ) where
 
 import Foreign
@@ -18,6 +22,7 @@ import Data.Monoid (mempty, mappend)
 
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 import Text.Blaze.Builder.Core
 
@@ -87,8 +92,45 @@ fromString = fromWriteList writeChar
 -- despite being better when serializing only a list.  Probably, the cache is
 -- already occupied enough with dealing with the data from Html rendering.
 
+
 -- | Create an UTF-8 encoded 'Builder' from some 'Text'.
 --
 fromText :: Text     -- ^ 'Text' to insert
          -> Builder  -- ^ Resulting 'Builder'
-fromText = fromWriteSingleton (T.foldl (\w c -> w `mappend` writeChar c) mempty)
+fromText = fromTextUnpacked
+
+-- | Encode the 'Text' as UTF-8 by building a single write and writing all
+-- characters in one go.
+fromTextSingleWrite :: Text -> Builder
+fromTextSingleWrite = 
+    fromWriteSingleton (T.foldl (\w c -> w `mappend` writeChar c) mempty)
+
+-- | Encode the 'Text' as UTF-8 by folding it and filling the raw buffer
+-- directly.
+fromTextFolded :: Text -> Builder
+fromTextFolded t = Builder $ \k -> T.foldr step k t
+  where
+    step c k pf pe
+      | pf' <= pe = do
+          io pf
+          k pf' pe  -- here it would be great, if we wouldn't have to pass
+                    -- around pe: requires a more powerful fold for Text.
+      | otherwise =
+          return $ BufferFull size pf $ \pfNew peNew -> do
+            let pfNew' = pfNew `plusPtr` size
+            io pfNew
+            k pfNew' peNew
+      where
+        pf' = pf `plusPtr` size
+        Write size io = writeChar c
+{-# INLINE fromTextFolded #-}
+
+-- | Encode the 'Text' as UTF-8 by unpacking it and encoding the resulting
+-- 'String'. This is currently the fastest method!
+fromTextUnpacked :: Text -> Builder
+fromTextUnpacked = fromString . T.unpack
+{-# INLINE fromTextUnpacked #-}
+
+fromTextEncoded :: Text -> Builder
+fromTextEncoded = fromByteString . T.encodeUtf8
+{-# INLINE fromTextEncoded #-}
