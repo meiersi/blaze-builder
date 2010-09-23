@@ -4,3 +4,4 @@ dist
 benchmarks/BlazeVsBinary
 benchmarks/ChunkedWrite
 benchmarks/BenchThroughput
+benchmarks/StringAndText
