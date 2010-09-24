@@ -2,32 +2,32 @@ module Throughput.BinaryBuilderDeclarative (
   serialize
 ) where
 
-import Control.Monad
-
 import Data.Monoid
 import Data.Word
 import qualified Data.ByteString.Lazy as L
 
 import Data.Binary.Builder
 
+import Control.Monad
+
 import Throughput.Utils
 
-serialize :: Int -> Int -> Endian -> Maybe (Int -> L.ByteString)
-serialize wordSize chunkSize end = fmap (toLazyByteString.) $
+serialize :: Int -> Int -> Endian -> Int -> Maybe L.ByteString
+serialize wordSize chunkSize end iters = fmap toLazyByteString $
   case (wordSize, chunkSize, end) of
-    (1, 1,_)        -> return $ writeByteN1
+    (1, 1,_)        -> return $ writeByteN1 iters
 
-    (2, 1,  Big)    -> return $ writeWord16N1Big
-    (2, 1,  Little) -> return $ writeWord16N1Little
-    (2, 1,  Host)   -> return $ writeWord16N1Host
+    (2, 1,  Big)    -> return $ writeWord16N1Big iters
+    (2, 1,  Little) -> return $ writeWord16N1Little iters
+    (2, 1,  Host)   -> return $ writeWord16N1Host iters
 
-    (4, 1,  Big)    -> return $ writeWord32N1Big
-    (4, 1,  Little) -> return $ writeWord32N1Little
-    (4, 1,  Host)   -> return $ writeWord32N1Host
+    (4, 1,  Big)    -> return $ writeWord32N1Big iters
+    (4, 1,  Little) -> return $ writeWord32N1Little iters
+    (4, 1,  Host)   -> return $ writeWord32N1Host iters
 
-    (8, 1,  Host)   -> return $ writeWord64N1Host
-    (8, 1,  Big)    -> return $ writeWord64N1Big
-    (8, 1,  Little) -> return $ writeWord64N1Little
+    (8, 1,  Host)   -> return $ writeWord64N1Host iters
+    (8, 1,  Big)    -> return $ writeWord64N1Big iters
+    (8, 1,  Little) -> return $ writeWord64N1Little iters
 
     _               -> mzero
 
