@@ -9,6 +9,7 @@ module Text.Blaze.Builder.Utf8
       -- * Creating builders
     , fromChar
     , fromString
+    , fromShow
     , fromText
     , fromTextFolded
     , fromTextUnpacked
@@ -95,6 +96,12 @@ fromString = fromWriteList writeChar
 -- despite being better when serializing only a list.  Probably, the cache is
 -- already occupied enough with dealing with the data from Html rendering.
 
+
+-- | Serialize a value by 'Show'ing it and utf-8 encoding the resulting
+-- characters.
+--
+fromShow :: Show a => a -> Builder
+fromShow = fromString . show
 
 -- | Create an UTF-8 encoded 'Builder' from some 'Text'.
 --
