@@ -1,3 +1,31 @@
+-----------------------------------------------------------------------------
+-- |
+-- Module      : BenchThroughput
+-- Copyright   : Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : GHC
+--
+-- This benchmark is based on 'tests/Benchmark.hs' from the 'binary-0.5.0.2'
+-- package.
+--
+-- Benchmark the throughput of 'blaze-builder' and 'binary' for serializing
+-- sequences of 'Word8' .. 'Word64' values in little-endian, big-endian, and
+-- "host-endian" formats.
+--
+-- The results on a Core2 Duo T7500 with Linux 2.6.32-24 i686 and GHC 6.12.3
+-- are as follows:
+--
+--   Using the Blaze.Builder directly (i.e. not encapsulated in a writer monad
+--   as Put is doing it) gives the best scalability. Up to 'Word32', it holds
+--   that the bigger the chunk size, the bigger the relative speedup of using
+--   the Blaze.Builder. For 'Word64', the speedup is not as impressive.
+--   Probably due to the more expensive writes.
+--
+-----------------------------------------------------------------------------
+
 module BenchThroughput (main) where
 
 import qualified Throughput.BinaryBuilder as BinaryBuilder
