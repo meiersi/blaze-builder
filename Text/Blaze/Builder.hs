@@ -1,29 +1,75 @@
--- | The builder monoid from BlazeHtml.
+-----------------------------------------------------------------------------
+-- |
+-- Module      : Text.Blaze.Builder
+-- Copyright   : Jasper Van der Jeugt, Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Jasper Van der Jeugt <jaspervdj@gmail.com>, 
+--               Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
 --
--- Usage is fairly straightforward. Builders can be constructed from many
--- values, including 'String' and 'Text' values.
+-- This is the main module, which you should import as a user of the library.
+--
+-- > import Text.Blaze.Builder
+-- 
+-- It provides you with a type 'Builder' that allows to efficiently construct
+-- lazy bytestrings. 
+--
+-- Intuitively, a 'Builder' denotes the construction of a part of a lazy
+-- bytestring. Builders can either be created using one of the primitive
+-- combinators in "Text.Blaze.Builder.Core" or by using one of the predefined
+-- combinators for standard Haskell values (see the modules below).
+-- Concatenation of Builders is done using 'mappend' from the 'Monoid'
+-- typeclass.
+--
+-- Here is a small example that serializes a list of strings using the UTF-8
+-- encoding.
 --
 -- > strings :: [String]
 -- > strings = replicate 10000 "Hello there!"
 --
--- Concatenation should happen through the 'Monoid' interface.
+-- The function 'fromString' creates a 'Builder' denoting the UTF-8 encoded
+-- argument. Hence, UTF-8 encoding and concatenating all @strings@ can be done
+-- follows.
 --
 -- > concatenation :: Builder
 -- > concatenation = mconcat $ map fromString strings
 --
--- There is only one way to efficiently obtain the result: to convert the
--- 'Builder' to a lazy 'L.ByteString' using 'toLazyByteString'.
+-- The function 'toLazyByteString'  can be used to execute a 'Builder' and
+-- obtain the resulting lazy bytestring.
 --
 -- > result :: L.ByteString
 -- > result = toLazyByteString concatenation
 --
+-- The @result@ is a lazy bytestring containing 10000 repetitions of the string
+-- @\"Hello there!\"@ encoded using UTF-8. The corresponding 120000 bytes are
+-- distributed among three chunks of 32kb and a last chunk of 6kb.
+--
+-- /A note on history./ This serialization library was inspired by the module
+-- @Data.Binary.Builder@ provided by the @binary@ package. It was originally
+-- developed with the specific needs of the @blaze-html@ package in mind. Since
+-- then it has been restructured to serve as a drop-in replacement for
+-- @Data.Binary.Builder@, which it improves upon both in speed as well as
+-- expressivity.
+-----------------------------------------------------------------------------
+
 module Text.Blaze.Builder
-    ( module Text.Blaze.Builder.Core
+    ( 
+      -- * Builder combinators and constructors
+      module Text.Blaze.Builder.Core 
     , module Text.Blaze.Builder.ByteString
     , module Text.Blaze.Builder.Word
     , module Text.Blaze.Builder.Utf8
     , module Text.Blaze.Builder.Html
 
+      -- * Compatibility to Data.Binary.Builder from the binary package
+      --
+      -- | The following functions ensure that @"Text.Blaze.Builder"@ is a
+      -- drop-in replacement for @Data.Binary.Builder@ from the @binary@
+      -- package. Note that these functions are deprecated and will be removed
+      -- in future versions of the @blaze-builder@ package.
+      --
     , empty                   -- DEPRECATED: use 'mempty' instead
     , singleton               -- DEPRECATED: use 'fromByte' instead
     , append                  -- DEPRECATED: use 'mappend' instead
@@ -42,18 +88,20 @@ import Data.Word
 -- API Compatibility to Data.Binary.Builder from 'binary'
 ------------------------------------------------------------------------------
 
--- | /O(1)/. An empty builder. Deprecated: use 'mempty' instead.
+-- | /O(1)/. An empty builder. 
+--
+-- /Deprecated:/ use 'mempty' instead.
 empty :: Builder
 empty = mempty
 
--- | Construct a 'Builder' from a single byte. Deprecated use 'fromByte'
--- instead.
+-- | /O(1)/. Append two builders. 
 --
-singleton :: Word8    -- ^ Byte to create a 'Builder' from
-          -> Builder  -- ^ Resulting 'Builder'
-singleton = fromWriteSingleton writeWord8
-
--- | /O(1)/. Append two builders. Deprecated: use 'mappend' instead.
+-- /Deprecated:/ use 'mappend' instead.
 append :: Builder -> Builder -> Builder
 append = mappend
 
+-- | /O(1)/. Serialize a single byte.
+--
+-- /Deprecated:/ use 'fromWord8' instead.
+singleton :: Word8 -> Builder
+singleton = fromWriteSingleton writeWord8
