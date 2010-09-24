@@ -19,6 +19,7 @@ module Text.Blaze.Builder.Core
     , fromWrite
     , fromWriteSingleton
     , fromWriteList
+    , fromWrite1List
     , fromWrite2List
     , fromWrite4List
     , fromWrite8List
@@ -130,6 +131,8 @@ fromWriteList write = makeBuilder
               where
                 Write size io = write x'
 {-# INLINE fromWriteList #-}
+
+fromWrite1List = fromWriteList
 
 -- | Construct a builder writing a list of data two elements at a time from a
 -- write abstraction.

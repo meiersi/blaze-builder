@@ -33,6 +33,7 @@ import qualified Throughput.BinaryPut     as BinaryPut
 
 import qualified Throughput.BlazeBuilder as BlazeBuilder
 import qualified Throughput.BlazePut     as BlazePut
+import qualified Throughput.BlazeBuilderDeclarative as BlazeBuilderDecl
 
 import Throughput.Utils
 import Throughput.Memory
@@ -75,6 +76,7 @@ main = do
         , chunkSize <- [1,2,4,8,16]
         , end       <- [Host,Big,Little]
         , serialize <- [ (False, "BlazeBuilder",  BlazeBuilder.serialize)
+                       , (False, "BlazeBuilderDecl",  BlazeBuilderDecl.serialize)
                        , (False, "BlazePut",      BlazePut.serialize)
                        , (False, "BinaryBuilder", BinaryBuilder.serialize)
                        , (True,  "BinaryPut",     BinaryPut.serialize)
@@ -108,7 +110,7 @@ test (space, serializeName, serialize) wordSize chunkSize end mb = do
         bs  = serialize wordSize chunkSize end iterations
         -- sum = runGet (doGet wordSize chunkSize end iterations) bs
 
-    printf "%13s: %dMB of Word%-2d in chunks of %2d (%6s endian):"
+    printf "%16s: %dMB of Word%-2d in chunks of %2d (%6s endian):"
         serializeName (mb :: Int) (8 * wordSize :: Int) (chunkSize :: Int) (show end)
 
     putSeconds <- time $ evaluate (L.length bs)
@@ -137,7 +139,7 @@ compareResults (space, serializeName, serialize) wordSize chunkSize end mb0 = do
         iterations = bytes `div` wordSize
         bs0 = BinaryBuilder.serialize wordSize chunkSize end iterations
         bs1 = serialize wordSize chunkSize end iterations
-    printf "%13s: %dMB of Word%-2d in chunks of %2d (%6s endian):"
+    printf "%16s: %dMB of Word%-2d in chunks of %2d (%6s endian):"
       serializeName (mb :: Int) (8 * wordSize :: Int) (chunkSize :: Int) (show end)
     if (bs0 == bs1) 
       then putStrLn " Ok"
