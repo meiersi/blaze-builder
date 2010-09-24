@@ -1,0 +1,12 @@
+
+  
+  * custom serialization functions for lists of 'WordX's
+      - use benchmarks to determine best chunk size
+      - benchmark chunk size speedup for more complicated computations of list
+        elements.
+      - extend throughput benchmarks with declarative versions of loops
+
+  * fast serialization for 'Text' values (currently unpacking to 'String' is
+    the fastest :-/)
+
+  * extend tests to new functions
