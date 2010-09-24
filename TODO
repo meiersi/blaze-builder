@@ -4,9 +4,27 @@
       - use benchmarks to determine best chunk size
       - benchmark chunk size speedup for more complicated computations of list
         elements.
-      - extend throughput benchmarks with declarative versions of loops
 
   * fast serialization for 'Text' values (currently unpacking to 'String' is
     the fastest :-/)
 
+  * implement further encodings for 'Char'
+
   * extend tests to new functions
+
+  * benchmarks
+      - understand why the declarative blaze-builder version is the fastest
+        serializer for Word64 little-endian and big-endian 
+
+  * documentation
+      - test if {-# UNPACK #-} no longer disturbs haddock
+
+  * benchmark if it is beneficial to concatenate small bytestrings before compression
+
+  * check portability to Hugs
+
+  * naming issue: modules for all the different encodings or names as in
+
+      Utf8.fromString   <--
+      fromStringAsUtf8
+      fromStringUtf8
