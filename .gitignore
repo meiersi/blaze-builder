@@ -1,7 +1,9 @@
 dist
 *.o
 *.hi
+
 benchmarks/BlazeVsBinary
 benchmarks/ChunkedWrite
 benchmarks/BenchThroughput
 benchmarks/StringAndText
+benchmarks/Compression

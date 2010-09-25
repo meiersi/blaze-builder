@@ -24,6 +24,10 @@ bench-string-and-text:
 	ghc --make -O2 -fforce-recomp -ibenchmarks -main-is StringAndText StringAndText
 	./benchmarks/StringAndText --resamples 10000
 
+bench-compression:
+	ghc --make -O2 -fforce-recomp -ibenchmarks -main-is Compression Compression
+	./benchmarks/Compression --resamples 10000
+
 
 test:
 	runghc -itests tests/Tests.hs
