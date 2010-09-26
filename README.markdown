@@ -1,21 +1,30 @@
 blaze-builder
 =============
 
-TODO: Update this description.
+This library allows to efficiently serialize Haskell values to lazy bytestrings
+with a large average chunk size. The large average chunk size allows to make
+good use of cache prefetching in later processing steps (e.g. compression) and
+reduces the sytem call overhead when writing the resulting lazy bytestring to a
+file or sending it over the network.
 
-This is a string builder in Haskell. The goal is to support fast string
-concatenation. This builder is optimized for the generation of HTML, meaning:
+This library was inspired by the module Data.Binary.Builder provided by the
+binary package. It was originally developed with the specific needs of the
+blaze-html package in mind. Since then it has been restructured to serve as a
+drop-in replacement for Data.Binary.Builder, which it improves upon both in
+speed as well as expressivity.
 
-- it is optimized for appending many small parts;
-- it natively supports UTF-8 encoding;
-- it natively supports HTML entity escaping.
+To see the improvements in speed, run the throughput benchmark, which measures
+serialization speeds for writing Word8, Word16, Word32 and Word64 in different
+endian formats and different chunk sizes, using the command
 
-This builder was created for the blaze-html templating system.
+  make bench-throughput
 
-Run the benchmarks:
+or run the list serialization comparison benchmark
 
-    make benchmark
+  make bench-blaze-vs-binary
 
-Run the test suite:
-
-    make test
+Checkout the combinators in the module "Text.Blaze.Builder.Write" to see
+the improvements in expressivity. This module allows to incorporate efficient
+primitive buffer manipulations as parts of a builder. We use this facility
+in the 'blaze-html' HTML templating library to allow for the efficient
+serialization of HTML escaped and UTF-8 encoded characters.

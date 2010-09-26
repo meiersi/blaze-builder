@@ -1,7 +1,4 @@
   
-  * update README.markdown
-
-  
   * custom serialization functions for lists of 'WordX's
       - use benchmarks to determine best chunk size
       - benchmark chunk size speedup for more complicated computations of list
