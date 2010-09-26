@@ -15,6 +15,8 @@ clean-bench-all:
 	rm -f Text/Blaze/Builder/*.o Text/Blaze/Builder/*.hi
 	rm -f Text/Blaze/Builder/Char/*.o Text/Blaze/Builder/Char/*.hi
 	rm -f Text/Blaze/Builder/Html/*.o Text/Blaze/Builder/Html/*.hi
+	rm -f Text/Blaze/Builder/Core/*.o Text/Blaze/Builder/Core/*.hi
+	rm -f benchmarks/Compression benchmarks/StringAndText benchmarks/BenchThroughput benchmarks/ChunkedWrite benchmarks/BlazeVsBinary
 
 
 ## Individual benchmarks
