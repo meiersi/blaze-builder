@@ -1,6 +1,8 @@
 blaze-builder
 =============
 
+TODO: Update this description.
+
 This is a string builder in Haskell. The goal is to support fast string
 concatenation. This builder is optimized for the generation of HTML, meaning:
 
