@@ -9,7 +9,8 @@
 -- Stability   : experimental
 -- Portability : portable to Hugs and GHC
 --
--- This is the main module, which you should import as a user of the library.
+-- @'Text.Blaze.Builder'@ is the main module, which you should import as a user
+-- of the library.
 --
 -- > import Text.Blaze.Builder
 -- 
@@ -19,12 +20,14 @@
 -- Intuitively, a 'Builder' denotes the construction of a part of a lazy
 -- bytestring. Builders can either be created using one of the primitive
 -- combinators in "Text.Blaze.Builder.Core" or by using one of the predefined
--- combinators for standard Haskell values (see the modules below).
--- Concatenation of Builders is done using 'mappend' from the 'Monoid'
--- typeclass.
+-- combinators for standard Haskell values (see the exposed modules of this
+-- package).  Concatenation of Builders is done using 'mappend' from the
+-- 'Monoid' typeclass.
 --
 -- Here is a small example that serializes a list of strings using the UTF-8
 -- encoding.
+--
+-- > import Text.Blaze.Builder.Char.Utf8
 --
 -- > strings :: [String]
 -- > strings = replicate 10000 "Hello there!"
@@ -60,8 +63,6 @@ module Text.Blaze.Builder
       module Text.Blaze.Builder.Core 
     , module Text.Blaze.Builder.ByteString
     , module Text.Blaze.Builder.Word
-    , module Text.Blaze.Builder.Utf8
-    , module Text.Blaze.Builder.Html
 
       -- * Compatibility to Data.Binary.Builder from the binary package
       --
@@ -78,8 +79,6 @@ module Text.Blaze.Builder
 import Text.Blaze.Builder.Core
 import Text.Blaze.Builder.ByteString
 import Text.Blaze.Builder.Word
-import Text.Blaze.Builder.Utf8
-import Text.Blaze.Builder.Html
 
 import Data.Monoid
 import Data.Word

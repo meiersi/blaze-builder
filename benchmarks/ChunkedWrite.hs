@@ -19,7 +19,8 @@ import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as S
 import qualified Data.Text as T
 
-import qualified Text.Blaze.Builder as BB
+import qualified Text.Blaze.Builder           as BB
+import qualified Text.Blaze.Builder.Char.Utf8 as BB
 
 main = defaultMain 
     [ bench "mconcat . map fromByte: [Char] -> Builder -> L.ByteString" $ 

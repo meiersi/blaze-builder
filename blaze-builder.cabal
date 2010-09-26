@@ -29,12 +29,12 @@ Library
                      Text.Blaze.Builder.Core
                      Text.Blaze.Builder.Word
                      Text.Blaze.Builder.ByteString
-                     Text.Blaze.Builder.Utf8
-                     Text.Blaze.Builder.Html
+                     Text.Blaze.Builder.Char.Utf8
+                     Text.Blaze.Builder.Html.Utf8
 
                      -- exposed for now, simplifies experimenting for
                      -- library users
-                     Text.Blaze.Builder.Internal
+                     Text.Blaze.Builder.Core.Internal
   
   -- Packages needed in order to build this package.
   Build-depends:     base >= 4 && < 5,

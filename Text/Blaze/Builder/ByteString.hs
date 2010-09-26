@@ -20,7 +20,7 @@ module Text.Blaze.Builder.ByteString
     ) where
 
 import Text.Blaze.Builder.Core
-import Text.Blaze.Builder.Internal
+import Text.Blaze.Builder.Core.Internal
 
 import Foreign
 import Data.Monoid

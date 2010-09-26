@@ -27,7 +27,7 @@ module Text.Blaze.Builder.Core
 
     ) where
 
-import Text.Blaze.Builder.Internal
+import Text.Blaze.Builder.Core.Internal
 
 import Foreign
 import Control.Monad (unless)

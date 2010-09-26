@@ -2,10 +2,12 @@
 -- insert HTML, including HTML escaping and the like.
 --
 {-# LANGUAGE OverloadedStrings #-}
-module Text.Blaze.Builder.Html
+module Text.Blaze.Builder.Html.Utf8
     ( 
+      module Text.Blaze.Builder.Char.Utf8
+
       -- * Custom writes to the builder
-      writeHtmlEscapedChar
+    , writeHtmlEscapedChar
 
       -- * Creating builders
     , fromHtmlEscapedChar
@@ -20,7 +22,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 
 import Text.Blaze.Builder.Core
-import Text.Blaze.Builder.Utf8
+import Text.Blaze.Builder.Char.Utf8
 import Text.Blaze.Builder.ByteString
 
 -- | Write an unicode character to a 'Builder', doing HTML escaping.

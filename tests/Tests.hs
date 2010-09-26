@@ -18,8 +18,8 @@ import Test.HUnit hiding (Test)
 import Codec.Binary.UTF8.String (decode)
 
 import Text.Blaze.Builder.Core
-import Text.Blaze.Builder.Utf8
-import Text.Blaze.Builder.Html
+import Text.Blaze.Builder.Char.Utf8
+import Text.Blaze.Builder.Html.Utf8
 
 main :: IO ()
 main = defaultMain $ return $ testGroup "Tests" tests

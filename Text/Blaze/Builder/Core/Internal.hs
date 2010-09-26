@@ -1,5 +1,5 @@
 -- | Core types and functions for the 'Builder' monoid
-module Text.Blaze.Builder.Internal
+module Text.Blaze.Builder.Core.Internal
     ( 
     -- * The Builder type
       Builder(..)

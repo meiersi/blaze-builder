@@ -13,7 +13,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 import qualified Text.Blaze.Builder.Core as Blaze
-import qualified Text.Blaze.Builder.Utf8 as Blaze
+import qualified Text.Blaze.Builder.Char.Utf8 as Blaze
 
 main :: IO ()
 main = defaultMain 

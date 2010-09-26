@@ -1,7 +1,7 @@
 -- | A module that extends the builder monoid from BlazeHtml with a number of
 -- functions to insert unicode as UTF-8.
 --
-module Text.Blaze.Builder.Utf8
+module Text.Blaze.Builder.Char.Utf8
     ( 
       -- * Custom writes to the builder
       writeChar
@@ -26,9 +26,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 import Text.Blaze.Builder.Core
-import Text.Blaze.Builder.Internal
+import Text.Blaze.Builder.Core.Internal
 import Text.Blaze.Builder.ByteString
-import Text.Blaze.Builder.Word
 
 -- | Write a Unicode character, encoding it as UTF-8.
 --
