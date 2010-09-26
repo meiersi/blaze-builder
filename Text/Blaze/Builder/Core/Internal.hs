@@ -1,4 +1,4 @@
--- | Core types and functions for the 'Builder' monoid
+-- | Implementation of the 'Builder' monoid.
 module Text.Blaze.Builder.Core.Internal
     ( 
     -- * The Builder type
@@ -6,10 +6,10 @@ module Text.Blaze.Builder.Core.Internal
     , BuildStep
     , BuildSignal(..)
 
-    -- * Internal constants
+    -- * Default constants
     , defaultBufferSize
-    , minBufferLength
-    , maxCopyLength
+    , defaultMinimalChunkSize
+    , defaultMaximalCopySize
     ) where
 
 
@@ -106,12 +106,12 @@ defaultBufferSize = 32 * k - overhead
 -- | The minimal length a buffer should have for it to be worth to be processed
 -- further. For 4kb it is the case that a memcopy takes about as long as a
 -- system call in Linux.
-minBufferLength :: Int
-minBufferLength = 4 * 1024
+defaultMinimalChunkSize :: Int
+defaultMinimalChunkSize = 4 * 1024
 
 -- | The maximal number of bytes where copying is cheaper than direct
 -- insertion. This takes into account the fragmentation that may occur in the
 -- output buffer due to the early flush.
-maxCopyLength :: Int
-maxCopyLength = 2 * minBufferLength
+defaultMaximalCopySize :: Int
+defaultMaximalCopySize = 2 * defaultMinimalChunkSize
 

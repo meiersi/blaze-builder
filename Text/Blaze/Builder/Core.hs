@@ -99,7 +99,7 @@ runBuilderWith bufSize (Builder b) k =
                 modifyByteStrings pf' bsk nextStep
                     | pf' == pf                           =
                         return $ bsk (inlinePerformIO $ fill pf' nextStep)
-                    | minBufferLength < pe `minusPtr` pf' =
+                    | defaultMinimalChunkSize < pe `minusPtr` pf' =
                         return $ bs : bsk (inlinePerformIO $ fill pf' nextStep)
                     | otherwise                           =
                         return $ bs : 

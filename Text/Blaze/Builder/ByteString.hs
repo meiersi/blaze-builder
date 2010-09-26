@@ -85,7 +85,7 @@ fromByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to insert
 fromByteString bs = Builder step
   where
     step k pf pe
-      | maxCopyLength < size    = return $ ModifyByteStrings pf (bs:) k
+      | defaultMaximalCopySize < size    = return $ ModifyByteStrings pf (bs:) k
       | pf `plusPtr` size <= pe = do
           withForeignPtr fpbuf $ \pbuf -> 
               copyBytes pf (pbuf `plusPtr` offset) size
@@ -124,7 +124,7 @@ insertLazyByteString lbs = Builder step
 
 
 -- | Construct a builder from a lazy 'L.ByteString' that copies chunks smaller 
--- than 'maxCopyLength' and inserts them otherwise.
+-- than 'defaultMaximalCopySize' and inserts them otherwise.
 --
 fromLazyByteString :: L.ByteString  -- ^ Lazy 'L.ByteString' to insert/copy.
                    -> Builder       -- ^ Resulting 'Builder'
@@ -137,7 +137,7 @@ fromLazyByteString = makeBuilder . L.toChunks
           where
             go []          !pf = k pf pe0
             go xs@(x':xs') !pf
-              | maxCopyLength < size    = 
+              | defaultMaximalCopySize < size    = 
                   return $ ModifyByteStrings pf (x':) (step xs' k)
 
               | pf' <= pe0 = do
