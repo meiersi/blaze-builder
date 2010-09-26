@@ -92,15 +92,19 @@ import Data.Word
 -- /Deprecated:/ use 'mempty' instead.
 empty :: Builder
 empty = mempty
+{-# DEPRECATED empty "Use 'mempty' instead." #-}
 
 -- | /O(1)/. Append two builders. 
 --
 -- /Deprecated:/ use 'mappend' instead.
 append :: Builder -> Builder -> Builder
 append = mappend
+{-# DEPRECATED append "Use 'mappend' instead." #-}
 
 -- | /O(1)/. Serialize a single byte.
 --
 -- /Deprecated:/ use 'fromWord8' instead.
 singleton :: Word8 -> Builder
 singleton = fromWriteSingleton writeWord8
+{-# DEPRECATED singleton "Use 'fromWord8' instead." #-}
+
