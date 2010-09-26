@@ -27,3 +27,7 @@
       Utf8.fromString   <--
       fromStringAsUtf8
       fromStringUtf8
+
+  * performance:
+      - perhaps we could improve performance by taking page size, page
+        alignment, and memory access alignment into account.
