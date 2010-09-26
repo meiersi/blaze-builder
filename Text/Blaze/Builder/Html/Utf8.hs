@@ -1,21 +1,26 @@
--- | A module that extends the builder monoid from BlazeHtml with function to
--- insert HTML, including HTML escaping and the like.
---
 {-# LANGUAGE OverloadedStrings #-}
+-- | 'Write's and 'Builder's for serializing HTML escaped and UTF-8 encoded
+-- characters.
+--
+-- This module is used by both the 'blaze-html' and the \'hamlet\' HTML
+-- templating libraries. If the 'Builder' from 'blaze-builder' replaces the
+-- 'Data.Binary.Builder' implementation, this module will most likely keep its
+-- place, as it provides a set of very specialized functions.
 module Text.Blaze.Builder.Html.Utf8
     ( 
       module Text.Blaze.Builder.Char.Utf8
 
-      -- * Custom writes to the builder
+      -- * Writing HTML escaped and UTF-8 encoded characters to a buffer
     , writeHtmlEscapedChar
 
-      -- * Creating builders
+      -- * Creating Builders from HTML escaped and UTF-8 encoded characters
     , fromHtmlEscapedChar
     , fromHtmlEscapedString
+    , fromHtmlEscapedShow
     , fromHtmlEscapedText
     ) where
 
-import Data.ByteString.Char8 ()
+import Data.ByteString.Char8 ()  -- for the 'IsString' instance of bytesrings
 
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -24,10 +29,9 @@ import Text.Blaze.Builder.Core
 import Text.Blaze.Builder.Char.Utf8
 import Text.Blaze.Builder.ByteString
 
--- | Write an unicode character to a 'Builder', doing HTML escaping.
+-- | Write a HTML escaped and UTF-8 encoded Unicode character to a bufffer.
 --
-writeHtmlEscapedChar :: Char   -- ^ Character to write
-                     -> Write  -- ^ Resulting write
+writeHtmlEscapedChar :: Char -> Write
 writeHtmlEscapedChar '<'  = writeByteString "&lt;"
 writeHtmlEscapedChar '>'  = writeByteString "&gt;"
 writeHtmlEscapedChar '&'  = writeByteString "&amp;"
@@ -36,20 +40,27 @@ writeHtmlEscapedChar '\'' = writeByteString "&apos;"
 writeHtmlEscapedChar c    = writeChar c
 {-# INLINE writeHtmlEscapedChar #-}
 
--- | A HTML escaped 'Char'.
+-- | /O(1)./ Serialize a HTML escaped Unicode character using the UTF-8
+-- encoding.
 --
-fromHtmlEscapedChar :: Char     -- ^ Character to write
-                    -> Builder  -- ^ Resulting 'Builder'
+fromHtmlEscapedChar :: Char -> Builder
 fromHtmlEscapedChar = fromWriteSingleton writeHtmlEscapedChar
 
--- | A HTML escaped 'String'.
+-- | /O(n)/. Serialize a HTML escaped Unicode 'String' using the UTF-8
+-- encoding.
 --
-fromHtmlEscapedString :: String   -- ^ String to create a 'Builder' from
-                      -> Builder  -- ^ Resulting 'Builder'
+fromHtmlEscapedString :: String -> Builder
 fromHtmlEscapedString = fromWriteList writeHtmlEscapedChar
 
--- | An HTML escaped piece of 'Text'.
+-- | /O(n)/. Serialize a value by 'Show'ing it and then, HTML escaping and
+-- UTF-8 encoding the resulting 'String'.
 --
-fromHtmlEscapedText :: Text     -- ^ 'Text' to insert
-                    -> Builder  -- ^ Resulting 'Builder'
+fromHtmlEscapedShow :: Show a => a -> Builder
+fromHtmlEscapedShow = fromHtmlEscapedString . show
+
+
+-- | /O(n)/. Serialize a HTML escaped Unicode 'Text' using the UTF-8 encoding.
+--
+fromHtmlEscapedText :: Text -> Builder
 fromHtmlEscapedText = fromHtmlEscapedString . T.unpack
+
