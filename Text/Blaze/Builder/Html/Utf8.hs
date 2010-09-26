@@ -16,7 +16,6 @@ module Text.Blaze.Builder.Html.Utf8
     ) where
 
 import Data.ByteString.Char8 ()
-import Data.Monoid (mempty, mappend)
 
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -53,6 +52,4 @@ fromHtmlEscapedString = fromWriteList writeHtmlEscapedChar
 --
 fromHtmlEscapedText :: Text     -- ^ 'Text' to insert
                     -> Builder  -- ^ Resulting 'Builder'
-fromHtmlEscapedText = fromWriteSingleton (T.foldl appendChar mempty)
-  where
-    appendChar w c = w `mappend` writeHtmlEscapedChar c
+fromHtmlEscapedText = fromHtmlEscapedString . T.unpack
