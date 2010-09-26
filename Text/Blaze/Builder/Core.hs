@@ -1,21 +1,24 @@
-{-# LANGUAGE CPP, BangPatterns, OverloadedStrings #-}
+{-# LANGUAGE CPP, BangPatterns #-}
 
--- | Core types and functions for the 'Builder' monoid
+-- | This module exports the two types 'Builder' and 'Write' as well as a set
+-- of combinators relating them.
 --
---
-
 module Text.Blaze.Builder.Core
     ( 
-    -- * Atomic writes to a buffer
-      Write (..)
-
-    -- * The Builder type
-    , Builder
-    , toLazyByteString
-    , toByteStringIO
-
-    -- ** Basic builder construction
+    -- * The @Builder@ monoid for building lazy bytestrings
+      Builder
     , flush
+
+    -- ** Obtaining the built chunks
+    , toLazyByteString
+    , toLazyByteStringWith
+    , toByteStringIO
+    , toByteStringIOWith
+
+    -- * Atomic writes to a buffer
+    , Write (..)
+
+    -- ** Creating builders from atomic writes
     , fromWrite
     , fromWriteSingleton
     , fromWriteList
@@ -43,32 +46,194 @@ import Data.ByteString.Internal (inlinePerformIO)
 import qualified Data.ByteString.Internal as S
 #endif
 
-
-
 ------------------------------------------------------------------------------
--- Writing to a buffer
+-- Flushing and running a Builder
 ------------------------------------------------------------------------------
 
--- | Write abstraction so we can avoid some gory and bloody details. A write
--- abstration holds the exact size of the write in bytes, and a function to
--- carry out the write operation.
+
+-- | Flush a 'Builder'. This means a new chunk will be started in the resulting
+-- lazy 'L.ByteString'. The remaining part of the buffer is spilled.
 --
+flush :: Builder
+flush = Builder $ \f pf _ ->
+    return $ BufferFull 0 pf f
+
+-- | Run the builder with buffers of at least the given size.
+--
+-- Note that the builders should guarantee that on average the desired buffer
+-- size is attained almost perfectly. "Almost" because builders may decide to
+-- start a new buffer and not completely fill the existing buffer, if this is
+-- faster. However, they should not spill too much of the buffer, if they
+-- cannot compensate for it.
+--
+runBuilderWith :: Int -> Builder -> [S.ByteString] -> [S.ByteString]
+runBuilderWith bufSize (Builder b) k = 
+    inlinePerformIO $ fillNewBuffer bufSize (b finalStep)
+  where
+    finalStep pf _ = return $ Done pf
+
+    fillNewBuffer !size !step0 = do
+        fpbuf <- S.mallocByteString size
+        withForeignPtr fpbuf $ fillBuffer fpbuf
+      where
+        fillBuffer fpbuf !pbuf = fill pbuf step0
+          where
+            pe = pbuf `plusPtr` size
+            fill !pf !step = do
+                next <- step pf pe
+                case next of
+                    Done pf' 
+                      | pf' == pf -> return k
+                      | otherwise -> return $ 
+                          S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf) : k
+
+                    BufferFull newSize pf' nextStep  ->
+                        return $ 
+                            S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf) : 
+                            (inlinePerformIO $ 
+                                fillNewBuffer (max newSize bufSize) nextStep)
+                        
+                    ModifyByteStrings  pf' bsk nextStep  ->
+                        modifyByteStrings pf' bsk nextStep
+              where
+                modifyByteStrings pf' bsk nextStep
+                    | pf' == pf                           =
+                        return $ bsk (inlinePerformIO $ fill pf' nextStep)
+                    | minBufferLength < pe `minusPtr` pf' =
+                        return $ bs : bsk (inlinePerformIO $ fill pf' nextStep)
+                    | otherwise                           =
+                        return $ bs : 
+                            bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep)
+                  where
+                    bs = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
+                {-# INLINE modifyByteStrings #-}
+
+-- | /O(n)./ Extract the lazy 'L.ByteString' from the builder.
+--
+-- > toLazyByteString (x `mappend` y) == toLazyByteString x `mappend` toLazyByteString y
+--
+toLazyByteStringWith :: Int          -- ^ Desired chunk size
+                     -> Builder 
+                     -> L.ByteString
+toLazyByteStringWith bufSize = L.fromChunks . flip (runBuilderWith bufSize) []
+{-# INLINE toLazyByteStringWith #-}
+
+-- | /O(n)./ Extract the lazy 'L.ByteString' from the builder.
+--
+-- > toLazyByteString (x `mappend` y) == toLazyByteString x `mappend` toLazyByteString y
+--
+toLazyByteString :: Builder -> L.ByteString
+toLazyByteString = toLazyByteStringWith defaultBufferSize
+{-# INLINE toLazyByteString #-}
+
+-- | Run the builder with a buffer of at least the given size and execute
+-- the given IO action whenever it is full.
+--
+--
+toByteStringIOWith :: Int -> (S.ByteString -> IO ()) -> Builder -> IO ()
+toByteStringIOWith bufSize io (Builder b) = 
+    fillNewBuffer bufSize (b finalStep)
+  where
+    finalStep pf _ = return $ Done pf
+
+    fillNewBuffer !size !step0 = do
+        S.mallocByteString size >>= fillBuffer
+      where
+        fillBuffer fpbuf = fill step0
+          where
+            -- safe because the constructed ByteString references the foreign
+            -- pointer AFTER its buffer was filled.
+            pf = unsafeForeignPtrToPtr fpbuf
+            fill !step = do
+                next <- step pf (pf `plusPtr` size)
+                case next of
+                    Done pf' ->
+                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
+
+                    BufferFull newSize pf' nextStep  -> do
+                        io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
+                        if bufSize < newSize
+                          then fillNewBuffer newSize nextStep
+                          else fill nextStep
+                        
+                    ModifyByteStrings  pf' bsk nextStep  -> do
+                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
+                        mapM_ io (bsk [])
+                        fill nextStep
+
+-- | Run the builder with a 'defaultSize'd buffer and execute the given IO
+-- action whenever it is full.
+--
+-- > toByteStringIO io (x `mappend` y) == toByteStringIO io x >> toByteStringIO io y
+--
+toByteStringIO :: (S.ByteString -> IO ()) -> Builder -> IO ()
+toByteStringIO = toByteStringIOWith defaultBufferSize
+{-# INLINE toByteStringIO #-}
+
+
+------------------------------------------------------------------------------
+-- Atomic writes to a buffer
+------------------------------------------------------------------------------
+
+-- | A value @Write n io@ denotes the write of @n@ bytes to a buffer. The
+-- actual write is executed by calling @io@ with a pointer @pf@ to the first
+-- free byte that the write should start with. Note that the caller of @io pf@
+-- must ensure that @n@ bytes are free starting from @pf@.
+--
+-- For example, the function @'writeWord8'@ provided by
+-- "Text.Blaze.Builder.Word" creates a 'Write' that writes a single fixed byte
+-- to a buffer.
+--
+-- > writeWord8   :: Word8 -> Write
+-- > writeWord8 x  = Write 1 (\pf -> poke pf x)
+--
+-- The benefit of writes is that they abstract low-level manipulations (e.g.
+-- 'poke' and 'copyBytes') of sequences of bytes in a form that that can be
+-- completely optimized away in many cases.
+--
+-- For example, the 'Monoid' instance of 'Write' allows to formulate writing a
+-- three-tuple of bytes as follows.
+--
+-- > writeThreeWord8   :: (Word8, Word8, Word8) -> Write
+-- > writeThreeWord8 (x,y,z) = 
+-- >     writeWord8 x `mappend` writeWord8 y `mappend` writeWord8 z
+--
+-- An expression that the compiler will optimize to the following efficient
+-- 'Write'.
+--
+-- > writeThreeWord8 (x, y, z) = Write 3 $ \pf -> do
+-- >     poke pf               x
+-- >     poke (pf `plusPtr` 1) y
+-- >     poke (pf `plusPtr` 2) z
+--
+-- 
+--
+-- However, writes are /atomic/.
+-- This means that the written data cannot be wrapped over buffer boundaries as
+-- it can be done for builders. For writes it holds that either the buffer
+-- has enough free space and the write can proceed or a new buffer with a
+-- size larger or equal to the number of bytes to write has to be allocated.
+--
+-- The difference between 'Write's
+-- and 'Builder's is t
 data Write = Write
-    {-# UNPACK #-} !Int
-    (Ptr Word8 -> IO ())
+    {-# UNPACK #-} !Int  -- Number of bytes that will be written.
+    (Ptr Word8 -> IO ()) -- Function to write the bytes starting from the given
+                         -- pointer
 
 -- A monoid interface for the write actions.
 instance Monoid Write where
     mempty = Write 0 (const $ return ())
     {-# INLINE mempty #-}
+
     mappend (Write l1 f1) (Write l2 f2) = Write (l1 + l2) $ \ptr -> do
         f1 ptr
         f2 (ptr `plusPtr` l1)
     {-# INLINE mappend #-}
 
-------------------------------------------------------------------------------
--- The Builder type
-------------------------------------------------------------------------------
+
+-- Lifting Writes to Builders
+-----------------------------
 
 -- | Construct a 'Builder' constructor from a single 'Write' constructor.
 -- This constructor should be known /statically/ such that it can be
@@ -78,8 +243,7 @@ instance Monoid Write where
 --
 -- However, performance-wise the right-hand side is more efficient.
 --
-fromWrite :: Write   -- ^ 'Write' abstraction
-          -> Builder -- ^ Resulting 'Builder'
+fromWrite :: Write -> Builder
 fromWrite (Write size io) =
     Builder step
   where
@@ -93,9 +257,7 @@ fromWrite (Write size io) =
 
 -- | Construct a 'Builder' constructor from a single 'Write' constructor.
 --
-fromWriteSingleton :: (a -> Write)  -- ^ 'Write' abstraction
-                   -> a             -- ^ Actual value to write
-                   -> Builder       -- ^ Resulting 'Builder'
+fromWriteSingleton :: (a -> Write) -> a -> Builder   
 fromWriteSingleton write = makeBuilder
   where 
     makeBuilder x = Builder step
@@ -112,9 +274,7 @@ fromWriteSingleton write = makeBuilder
 
 -- | Construct a builder writing a list of data from a write abstraction.
 --
-fromWriteList :: (a -> Write)  -- ^ 'Write' abstraction
-              -> [a]           -- ^ List of values to write
-              -> Builder       -- ^ Resulting 'Builder'
+fromWriteList :: (a -> Write) -> [a] -> Builder
 fromWriteList write = makeBuilder
   where
     makeBuilder []  = mempty
@@ -132,14 +292,13 @@ fromWriteList write = makeBuilder
                 Write size io = write x'
 {-# INLINE fromWriteList #-}
 
+fromWrite1List :: (a -> Write) -> [a] -> Builder
 fromWrite1List = fromWriteList
 
 -- | Construct a builder writing a list of data two elements at a time from a
 -- write abstraction.
 --
-fromWrite2List :: (a -> Write)  -- ^ 'Write' abstraction
-               -> [a]           -- ^ List of values to write
-               -> Builder       -- ^ Resulting 'Builder'
+fromWrite2List :: (a -> Write) -> [a] -> Builder
 fromWrite2List write = makeBuilder
   where
     makeBuilder []  = mempty
@@ -171,9 +330,7 @@ fromWrite2List write = makeBuilder
 -- | Construct a builder writing a list of data four elements at a time from a
 -- write abstraction.
 --
-fromWrite4List :: (a -> Write)  -- ^ 'Write' abstraction
-               -> [a]           -- ^ List of values to write
-               -> Builder       -- ^ Resulting 'Builder'
+fromWrite4List :: (a -> Write) -> [a] -> Builder
 fromWrite4List write = makeBuilder
   where
     makeBuilder []  = mempty
@@ -216,9 +373,7 @@ fromWrite4List write = makeBuilder
 -- | Construct a builder writing a list of data eight elements at a time from a
 -- write abstraction.
 --
-fromWrite8List :: (a -> Write)  -- ^ 'Write' abstraction
-               -> [a]           -- ^ List of values to write
-               -> Builder       -- ^ Resulting 'Builder'
+fromWrite8List :: (a -> Write) -> [a] -> Builder
 fromWrite8List write = makeBuilder
   where
     makeBuilder []  = mempty
@@ -276,9 +431,7 @@ fromWrite8List write = makeBuilder
 -- | Construct a builder writing a list of data 16 elements at a time from a
 -- write abstraction.
 --
-fromWrite16List :: (a -> Write)  -- ^ 'Write' abstraction
-                -> [a]           -- ^ List of values to write
-                -> Builder       -- ^ Resulting 'Builder'
+fromWrite16List :: (a -> Write) -> [a] -> Builder
 fromWrite16List write = makeBuilder
   where
     makeBuilder []  = mempty
@@ -356,113 +509,5 @@ fromWrite16List write = makeBuilder
 
             go [] !pf = k pf pe0
 {-# INLINE fromWrite16List #-}
-
--- | Flush a 'Builder'. This means a new chunk will be started in the resulting
--- lazy 'L.ByteString'. The remaining part of the buffer is spilled.
---
-flush :: Builder
-flush = Builder $ \f pf _ ->
-    return $ BufferFull 0 pf f
-
--- | Run the builder with the default buffer size.
---
-runBuilder :: Builder -> [S.ByteString] -> [S.ByteString]
-runBuilder = runBuilderWith defaultBufferSize
-{-# INLINE runBuilder #-}
-
--- | Run the builder with buffers of at least the given size.
---
--- Note that the builders should guarantee that on average the desired buffer
--- size is attained almost perfectly. "Almost" because builders may decide to
--- start a new buffer and not completely fill the existing buffer, if this is
--- faster. However, they should not spill too much of the buffer, if they
--- cannot compensate for it.
---
-runBuilderWith :: Int -> Builder -> [S.ByteString] -> [S.ByteString]
-runBuilderWith bufSize (Builder b) k = 
-    inlinePerformIO $ fillNewBuffer bufSize (b finalStep)
-  where
-    finalStep pf _ = return $ Done pf
-
-    fillNewBuffer !size !step0 = do
-        fpbuf <- S.mallocByteString size
-        withForeignPtr fpbuf $ fillBuffer fpbuf
-      where
-        fillBuffer fpbuf !pbuf = fill pbuf step0
-          where
-            pe = pbuf `plusPtr` size
-            fill !pf !step = do
-                next <- step pf pe
-                case next of
-                    Done pf' 
-                      | pf' == pf -> return k
-                      | otherwise -> return $ 
-                          S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf) : k
-
-                    BufferFull newSize pf' nextStep  ->
-                        return $ 
-                            S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf) : 
-                            (inlinePerformIO $ 
-                                fillNewBuffer (max newSize bufSize) nextStep)
-                        
-                    ModifyByteStrings  pf' bsk nextStep  ->
-                        modifyByteStrings pf' bsk nextStep
-              where
-                modifyByteStrings pf' bsk nextStep
-                    | pf' == pf                           =
-                        return $ bsk (inlinePerformIO $ fill pf' nextStep)
-                    | minBufferLength < pe `minusPtr` pf' =
-                        return $ bs : bsk (inlinePerformIO $ fill pf' nextStep)
-                    | otherwise                           =
-                        return $ bs : 
-                            bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep)
-                  where
-                    bs = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
-                {-# INLINE modifyByteStrings #-}
-
--- | /O(n)./ Extract the lazy 'L.ByteString' from the builder.
---
-toLazyByteString :: Builder       -- ^ 'Builder' to evaluate
-                 -> L.ByteString  -- ^ Resulting UTF-8 encoded 'L.ByteString'
-toLazyByteString = L.fromChunks . flip runBuilder []
-{-# INLINE toLazyByteString #-}
-
--- | Run the builder with a buffer of at least the given size and execute
--- the given IO action whenever it is full.
-toByteStringIOWith :: Int -> Builder -> (S.ByteString -> IO ()) -> IO ()
-toByteStringIOWith bufSize (Builder b) io = 
-    fillNewBuffer bufSize (b finalStep)
-  where
-    finalStep pf _ = return $ Done pf
-
-    fillNewBuffer !size !step0 = do
-        S.mallocByteString size >>= fillBuffer
-      where
-        fillBuffer fpbuf = fill step0
-          where
-            -- safe because the constructed ByteString references the foreign
-            -- pointer AFTER its buffer was filled.
-            pf = unsafeForeignPtrToPtr fpbuf
-            fill !step = do
-                next <- step pf (pf `plusPtr` size)
-                case next of
-                    Done pf' ->
-                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
-
-                    BufferFull newSize pf' nextStep  -> do
-                        io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
-                        if bufSize < newSize
-                          then fillNewBuffer newSize nextStep
-                          else fill nextStep
-                        
-                    ModifyByteStrings  pf' bsk nextStep  -> do
-                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
-                        mapM_ io (bsk [])
-                        fill nextStep
-
--- | Run the builder with a 'defaultSize'd buffer and execute the given IO
--- action whenever it is full.
-toByteStringIO :: Builder -> (S.ByteString -> IO ()) -> IO ()
-toByteStringIO = toByteStringIOWith defaultBufferSize
 
 
