@@ -41,8 +41,7 @@ import qualified Data.ByteString.Internal as S
 
 -- | Write a strict 'S.ByteString'.
 --
-writeByteString :: S.ByteString  -- ^ 'S.ByteString' to write
-                -> Write         -- ^ Resulting write
+writeByteString :: S.ByteString -> Write
 writeByteString bs = Write l io
   where
   (fptr, o, l) = S.toForeignPtr bs
@@ -60,8 +59,7 @@ writeByteString bs = Write l io
 
 -- | /O(n)./ A Builder taking a 'S.ByteString`, copying it.
 --
-copyByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to copy
-               -> Builder       -- ^ Resulting 'Builder'
+copyByteString :: S.ByteString -> Builder
 copyByteString = fromWriteSingleton writeByteString
 {-# INLINE copyByteString #-}
 
@@ -71,8 +69,7 @@ copyByteString = fromWriteSingleton writeByteString
 -- otherwise the resulting output is may be too fragmented to be processed
 -- efficiently.
 --
-insertByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to insert
-                 -> Builder       -- ^ Resulting 'Builder'
+insertByteString :: S.ByteString -> Builder
 insertByteString bs = Builder $ \ k pf _ ->
     return $ ModifyByteStrings pf (bs:) k
 {-# INLINE insertByteString #-}
@@ -80,8 +77,7 @@ insertByteString bs = Builder $ \ k pf _ ->
 -- | Construct a 'Builder' from a single ByteString, copying it if its
 -- size is below 8kb and inserting directly otherwise.
 --
-fromByteString :: S.ByteString  -- ^ Strict 'S.ByteString' to insert
-               -> Builder       -- ^ Resulting 'Builder'
+fromByteString :: S.ByteString -> Builder
 fromByteString bs = Builder step
   where
     step k pf pe
@@ -103,8 +99,7 @@ fromByteString bs = Builder step
 -- | /O(n)./ A 'Builder' taking a 'L.ByteString', copying all chunks.
 -- Here, 'n' is the size of the input in bytes.
 --
-copyLazyByteString :: L.ByteString  -- ^ Lazy 'L.ByteString' to copy
-                   -> Builder       -- Resulting 'Builder'
+copyLazyByteString :: L.ByteString -> Builder
 copyLazyByteString = fromWriteList writeByteString . L.toChunks
 {-# INLINE copyLazyByteString #-}
 
@@ -115,8 +110,7 @@ copyLazyByteString = fromWriteList writeByteString . L.toChunks
 -- on average. Otherwise the resulting output may be too fragmented to be
 -- processed efficiently.
 --
-insertLazyByteString :: L.ByteString  -- ^ Lazy 'L.ByteString' to insert
-                     -> Builder       -- ^ Resulting 'Builder'
+insertLazyByteString :: L.ByteString -> Builder
 insertLazyByteString lbs = Builder step
   where
     step k pf _ = return $ ModifyByteStrings pf (L.toChunks lbs ++) k
@@ -126,8 +120,7 @@ insertLazyByteString lbs = Builder step
 -- | Construct a builder from a lazy 'L.ByteString' that copies chunks smaller 
 -- than 'defaultMaximalCopySize' and inserts them otherwise.
 --
-fromLazyByteString :: L.ByteString  -- ^ Lazy 'L.ByteString' to insert/copy.
-                   -> Builder       -- ^ Resulting 'Builder'
+fromLazyByteString :: L.ByteString -> Builder
 fromLazyByteString = makeBuilder . L.toChunks
   where
     makeBuilder []  = mempty
