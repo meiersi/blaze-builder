@@ -1,21 +1,28 @@
 {-# LANGUAGE CPP, BangPatterns, OverloadedStrings #-}
 
 
--- | Builder's from ByteStrings.
+-- | 'Write's and 'Builder's for strict and lazy bytestrings.
+--
+-- We assume the following qualified imports in order to differentiate between
+-- strict and lazy bytestrings in the code examples.
+--
+-- > import qualified Data.ByteString      as S
+-- > import qualified Data.ByteString.Lazy as L
+--
 module Text.Blaze.Builder.ByteString
     ( 
-    -- * Atomic writes to a buffer
+    -- * Strict bytestrings
       writeByteString
-
-    -- * Builders from strict ByteStrings
+    , fromByteString
+    , fromByteStringWith
     , copyByteString
     , insertByteString
-    , fromByteString
 
-    -- * Builders from lazy ByteStrings
+    -- * Lazy bytestrings
+    , fromLazyByteString
+    , fromLazyByteStringWith
     , copyLazyByteString
     , insertLazyByteString
-    , fromLazyByteString
 
     ) where
 
@@ -36,10 +43,10 @@ import qualified Data.ByteString.Internal as S
 
 
 ------------------------------------------------------------------------------
--- Writing to a buffer
+-- Strict ByteStrings
 ------------------------------------------------------------------------------
 
--- | Write a strict 'S.ByteString'.
+-- | Write a strict 'S.ByteString' to a buffer.
 --
 writeByteString :: S.ByteString -> Write
 writeByteString bs = Write l io
@@ -48,40 +55,42 @@ writeByteString bs = Write l io
   io pf = withForeignPtr fptr $ \p -> copyBytes pf (p `plusPtr` o) l
 {-# INLINE writeByteString #-}
 
-
-------------------------------------------------------------------------------
--- Builders
-------------------------------------------------------------------------------
-
--- Strict ByteStrings
-------------------------------------------------------------------------------
-
-
--- | /O(n)./ A Builder taking a 'S.ByteString`, copying it.
+-- | Smart serialization of a strict bytestring.
 --
-copyByteString :: S.ByteString -> Builder
-copyByteString = fromWriteSingleton writeByteString
-{-# INLINE copyByteString #-}
-
--- | /O(1)./ A Builder taking a 'S.ByteString`, inserting it directly.
+-- @'fromByteString' = 'fromByteStringWith' 'defaultMaximalCopySize'@
 --
--- This operation should only be used for large (> 8kb for IO) ByteStrings as
--- otherwise the resulting output is may be too fragmented to be processed
--- efficiently.
+-- Use this function to serialize strict bytestrings. It guarantees an
+-- average chunk size of 4kb, which has been shown to be a reasonable size in
+-- benchmarks. Note that the check whether to copy or to insert is (almost)
+-- free as the builder performance is mostly memory-bound.
 --
-insertByteString :: S.ByteString -> Builder
-insertByteString bs = Builder $ \ k pf _ ->
-    return $ ModifyByteStrings pf (bs:) k
-{-# INLINE insertByteString #-}
-
--- | Construct a 'Builder' from a single ByteString, copying it if its
--- size is below 8kb and inserting directly otherwise.
+-- If you statically know that copying or inserting the strict bytestring is
+-- always the best choice, then you can use the 'copyByteString' or
+-- 'insertByteString' functions. 
 --
 fromByteString :: S.ByteString -> Builder
-fromByteString bs = Builder step
+fromByteString = fromByteStringWith defaultMaximalCopySize
+{-# INLINE fromByteString #-}
+
+
+-- | @fromByteStringWith maximalCopySize bs@ serializes the strict bytestring
+-- @bs@ according to the following rules.
+--
+--   [@S.length bs <= maximalCopySize@:] @bs@ is copied to the output buffer.
+--
+--   [@S.length bs >  maximalCopySize@:] @bs@ the output buffer is flushed and
+--   @bs@ is inserted directly as separate chunk in the output stream.
+--
+-- These rules guarantee that average chunk size in the output stream is at
+-- least half the @maximalCopySize@.
+--
+fromByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
+                   -> S.ByteString -- ^ Strict 'S.ByteString' to serialize.
+                   -> Builder      -- ^ Resulting 'Builder'.
+fromByteStringWith maximalCopySize bs = Builder step
   where
     step k pf pe
-      | defaultMaximalCopySize < size    = return $ ModifyByteStrings pf (bs:) k
+      | maximalCopySize < size  = return $ ModifyByteStrings pf (bs:) k
       | pf `plusPtr` size <= pe = do
           withForeignPtr fpbuf $ \pbuf -> 
               copyBytes pf (pbuf `plusPtr` offset) size
@@ -90,38 +99,70 @@ fromByteString bs = Builder step
       | otherwise               = return $ BufferFull size pf (step k)
       where
         (fpbuf, offset, size) = S.toForeignPtr bs
-{-# INLINE fromByteString #-}
+{-# INLINE fromByteStringWith #-}
+
+
+-- | @copyByteString bs@ serialize the strict bytestring @bs@ by copying it to
+-- the output buffer. 
+--
+-- Use this function to serialize strict bytestrings that are statically known
+-- to be smallish (@<= 4kb@).
+--
+copyByteString :: S.ByteString -> Builder
+copyByteString = fromWriteSingleton writeByteString
+{-# INLINE copyByteString #-}
+
+-- | @insertByteString bs@ serializes the strict bytestring @bs@ by inserting
+-- it directly as a chunk of the output stream. 
+--
+-- Note that this implies flushing the output buffer; even if it contains just
+-- a single byte. Hence, you should use this operation only for large (@> 8kb@)
+-- bytestrings, as otherwise the resulting output stream may be too fragmented
+-- to be processed efficiently.
+--
+insertByteString :: S.ByteString -> Builder
+insertByteString bs = Builder $ \ k pf _ ->
+    return $ ModifyByteStrings pf (bs:) k
+{-# INLINE insertByteString #-}
 
 
 -- Lazy bytestrings
 ------------------------------------------------------------------------------
 
--- | /O(n)./ A 'Builder' taking a 'L.ByteString', copying all chunks.
--- Here, 'n' is the size of the input in bytes.
+-- | /O(n)/. Smart serialization of a lazy bytestring.
 --
-copyLazyByteString :: L.ByteString -> Builder
-copyLazyByteString = fromWriteList writeByteString . L.toChunks
-{-# INLINE copyLazyByteString #-}
-
--- | /O(n)./ A Builder taking a lazy 'L.ByteString', inserting its chunks
--- directly. Here, 'n' is the number of chunks.
+-- @'fromLazyByteString' = 'fromLazyByteStringWith' 'defaultMaximalCopySize'@
 --
--- This operation should only be used, if the chunks are large (> 8kb for IO)
--- on average. Otherwise the resulting output may be too fragmented to be
--- processed efficiently.
+-- Use this function to serialize lazy bytestrings. It guarantees an average
+-- chunk size of 4kb, which has been shown to be a reasonable size in
+-- benchmarks. Note that the check whether to copy or to insert is (almost)
+-- free as the builder performance is mostly memory-bound.
 --
-insertLazyByteString :: L.ByteString -> Builder
-insertLazyByteString lbs = Builder step
-  where
-    step k pf _ = return $ ModifyByteStrings pf (L.toChunks lbs ++) k
-{-# INLINE insertLazyByteString #-}
-
-
--- | Construct a builder from a lazy 'L.ByteString' that copies chunks smaller 
--- than 'defaultMaximalCopySize' and inserts them otherwise.
+-- If you statically know that copying or inserting /all/ chunks of the lazy
+-- bytestring is always the best choice, then you can use the
+-- 'copyLazyByteString' or 'insertLazyByteString' functions. 
 --
 fromLazyByteString :: L.ByteString -> Builder
-fromLazyByteString = makeBuilder . L.toChunks
+fromLazyByteString = fromLazyByteStringWith defaultMaximalCopySize
+{-# INLINE fromLazyByteString #-}
+
+-- | /O(n)/. Serialize a lazy bytestring chunk-wise according to the same rules
+-- as in 'fromByteStringWith'.
+--
+-- Semantically, it holds that
+--
+-- >   fromLazyByteStringWith maxCopySize
+-- > = mconcat . map (fromByteStringWith maxCopySize) . L.toChunks
+--
+-- However, the left-hand-side is much more efficient, as it moves the
+-- end-of-buffer pointer out of the inner loop and provides the compiler with
+-- more strictness information.
+--
+fromLazyByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
+                       -> L.ByteString -- ^ Lazy 'L.ByteString' to serialize.
+                       -> Builder      -- ^ Resulting 'Builder'.
+fromLazyByteStringWith maximalCopySize = 
+    makeBuilder . L.toChunks
   where
     makeBuilder []  = mempty
     makeBuilder xs0 = Builder $ step xs0
@@ -130,7 +171,7 @@ fromLazyByteString = makeBuilder . L.toChunks
           where
             go []          !pf = k pf pe0
             go xs@(x':xs') !pf
-              | defaultMaximalCopySize < size    = 
+              | maximalCopySize < size = 
                   return $ ModifyByteStrings pf (x':) (step xs' k)
 
               | pf' <= pe0 = do
@@ -138,8 +179,33 @@ fromLazyByteString = makeBuilder . L.toChunks
                       copyBytes pf (pbuf `plusPtr` offset) size
                   go xs' pf'
 
-              | otherwise               = return $ BufferFull size pf (step xs k)
+              | otherwise              = return $ BufferFull size pf (step xs k)
               where
                 pf' = pf `plusPtr` size
                 (fpbuf, offset, size) = S.toForeignPtr x'
-{-# INLINE fromLazyByteString #-}
+{-# INLINE fromLazyByteStringWith #-}
+
+
+-- | /O(n)/. Serialize a lazy bytestring by copying /all/ chunks sequentially
+-- to the output buffer.
+--
+-- See 'copyByteString' for usage considerations.
+--
+copyLazyByteString :: L.ByteString -> Builder
+copyLazyByteString = fromWriteList writeByteString . L.toChunks
+{-# INLINE copyLazyByteString #-}
+
+-- | /O(n)/. Serialize a lazy bytestring by inserting /all/ its chunks directly
+-- into the output stream.
+--
+-- See 'insertByteString' for usage considerations.
+--
+-- For library developers, see the 'ModifyByteStrings' build signal, if you
+-- need an /O(1)/ lazy bytestring insert based on difference lists.
+--
+insertLazyByteString :: L.ByteString -> Builder
+insertLazyByteString lbs = Builder step
+  where
+    step k pf _ = return $ ModifyByteStrings pf (L.toChunks lbs ++) k
+{-# INLINE insertLazyByteString #-}
+
