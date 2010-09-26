@@ -1,38 +1,42 @@
--- | A module that extends the builder monoid from BlazeHtml with a number of
--- functions to insert unicode as UTF-8.
+-- | 'Write's and 'Builder's for serializing Unicode characters using the UTF-8
+-- encoding. 
 --
 module Text.Blaze.Builder.Char.Utf8
     ( 
-      -- * Custom writes to the builder
+      -- * Writing UTF-8 encoded characters to a buffer
       writeChar
 
-      -- * Creating builders
+      -- * Creating Builders from UTF-8 encoded characters
     , fromChar
     , fromString
     , fromShow
     , fromText
-    , fromTextFolded
-    , fromTextUnpacked
-    , fromTextEncoded
-    , fromTextSingleWrite
     ) where
 
 import Foreign
 import Data.Char (ord)
-import Data.Monoid (mempty, mappend)
 
 import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
+import qualified Data.Text          as T
+import qualified Data.Text.Encoding as T -- imported for documentation links
 
 import Text.Blaze.Builder.Core
-import Text.Blaze.Builder.Core.Internal
-import Text.Blaze.Builder.ByteString
 
--- | Write a Unicode character, encoding it as UTF-8.
+-- | Write a UTF-8 encoded Unicode character to a buffer.
 --
-writeChar :: Char   -- ^ Character to write
-          -> Write  -- ^ Resulting write
+-- Note that the control flow of 'writeChar' is more complicated than the one
+-- of 'writeWord8', as the size of the write depends on the 'Char' written.
+-- Therefore,
+--
+-- > fromWrite $ writeChar a `mappend` writeChar b
+--
+-- must not always be faster than
+--
+-- > fromChar a `mappend` fromChar b
+--
+-- Use benchmarking to make informed decisions.
+--
+writeChar :: Char -> Write
 writeChar = encodeCharUtf8 f1 f2 f3 f4
   where
     f1 x = Write 1 $ \ptr -> poke ptr x
@@ -80,66 +84,36 @@ encodeCharUtf8 f1 f2 f3 f4 c = case ord c of
            in f4 x1 x2 x3 x4
 {-# INLINE encodeCharUtf8 #-}
 
--- | An unescaped, utf8 encoded character.
+-- | /O(1)/. Serialize a Unicode character using the UTF-8 encoding.
 --
-fromChar :: Char     -- ^ 'Char' to insert
-         -> Builder  -- ^ Resulting 'Builder'
+fromChar :: Char -> Builder
 fromChar = fromWriteSingleton writeChar
 
--- | A list of unescaped, utf8 encoded characters.
+-- | /O(n)/. Serialize a Unicode 'String' using the UTF-8 encoding.
 --
-fromString :: String   -- ^ 'String' to insert
-           -> Builder  -- ^ Resulting 'Builder'
+fromString :: String -> Builder
 fromString = fromWriteList writeChar
--- fromWrite2List made things slightly worse for the blaze-html benchmarks
--- despite being better when serializing only a list.  Probably, the cache is
--- already occupied enough with dealing with the data from Html rendering.
+-- Performance note: ^^^
+--
+--   fromWrite2List made things slightly worse for the blaze-html benchmarks
+--   despite being better when serializing only a list.  Probably, the cache is
+--   already occupied enough with dealing with the data from Html rendering.
+--
 
 
--- | Serialize a value by 'Show'ing it and utf-8 encoding the resulting
--- characters.
+-- | /O(n)/. Serialize a value by 'Show'ing it and UTF-8 encoding the resulting
+-- 'String'.
 --
 fromShow :: Show a => a -> Builder
 fromShow = fromString . show
 
--- | Create an UTF-8 encoded 'Builder' from some 'Text'.
+-- | /O(n)/. Serialize a Unicode 'Text' using the UTF-8 encoding.
 --
-fromText :: Text     -- ^ 'Text' to insert
-         -> Builder  -- ^ Resulting 'Builder'
-fromText = fromTextUnpacked
+-- Note that this function is currently faster than 'T.encodeUtf8' provided by
+-- "Data.Text.Encoding". Moreover, 'fromText' is also lazy, while 'T.encodeUtf8'
+-- is strict.
+--
+fromText :: Text -> Builder
+fromText = fromString . T.unpack
+{-# INLINE fromText #-}
 
--- | Encode the 'Text' as UTF-8 by building a single write and writing all
--- characters in one go.
-fromTextSingleWrite :: Text -> Builder
-fromTextSingleWrite = 
-    fromWriteSingleton (T.foldl (\w c -> w `mappend` writeChar c) mempty)
-
--- | Encode the 'Text' as UTF-8 by folding it and filling the raw buffer
--- directly.
-fromTextFolded :: Text -> Builder
-fromTextFolded t = Builder $ \k -> T.foldr step k t
-  where
-    step c k pf pe
-      | pf' <= pe = do
-          io pf
-          k pf' pe  -- here it would be great, if we wouldn't have to pass
-                    -- around pe: requires a more powerful fold for Text.
-      | otherwise =
-          return $ BufferFull size pf $ \pfNew peNew -> do
-            let pfNew' = pfNew `plusPtr` size
-            io pfNew
-            k pfNew' peNew
-      where
-        pf' = pf `plusPtr` size
-        Write size io = writeChar c
-{-# INLINE fromTextFolded #-}
-
--- | Encode the 'Text' as UTF-8 by unpacking it and encoding the resulting
--- 'String'. This is currently the fastest method!
-fromTextUnpacked :: Text -> Builder
-fromTextUnpacked = fromString . T.unpack
-{-# INLINE fromTextUnpacked #-}
-
-fromTextEncoded :: Text -> Builder
-fromTextEncoded = fromByteString . T.encodeUtf8
-{-# INLINE fromTextEncoded #-}
