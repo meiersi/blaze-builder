@@ -2,7 +2,8 @@
   * custom serialization functions for lists of 'WordX's
       - use benchmarks to determine best chunk size
       - benchmark chunk size speedup for more complicated computations of list
-        elements.
+        elements => to be expected that we get no speedup anymore or even a
+        slowdown => adapt Text.Blaze.Builder.Word accordingly.
 
   * fast serialization for 'Text' values (currently unpacking to 'String' is
     the fastest :-/)
@@ -14,20 +15,21 @@
   * benchmarks
       - understand why the declarative blaze-builder version is the fastest
         serializer for Word64 little-endian and big-endian 
+      - check the cost of using `mappend` on builders instead of writes.
 
   * documentation
-      - test if {-# UNPACK #-} no longer disturbs haddock
-
-  * benchmark if it is beneficial to concatenate small bytestrings before compression
 
   * check portability to Hugs
-
-  * naming issue: modules for all the different encodings or names as in
-
-      Utf8.fromString   <--
-      fromStringAsUtf8
-      fromStringUtf8
 
   * performance:
       - perhaps we could improve performance by taking page size, page
         alignment, and memory access alignment into account.
+
+      - detect machine endianness and use host order writes for the supported
+        endianness.
+
+  * testing
+      - port tests from 'Data.Binary.Builder' to ensure that the word writes
+        and builders are working correctly. I may have missed some pitfalls
+        about word types in Haskell during porting the functions from
+        'Data.Binary.Builder'.
