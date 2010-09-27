@@ -1,3 +1,7 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-} 
+-- ignore warning from 'import Data.Text.Encoding'
+
+
 -- | 'Write's and 'Builder's for serializing Unicode characters using the UTF-8
 -- encoding. 
 --
