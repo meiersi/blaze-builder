@@ -14,7 +14,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Text.Blaze.Put (
+module Throughput.BlazePutMonad (
 
     -- * The Put type
       Put
@@ -141,7 +141,7 @@ flush               = tell B.flush
 
 -- | Efficiently write a byte into the output buffer
 putWord8            :: Word8 -> Put
-putWord8            = tell . B.singleton
+putWord8            = tell . B.fromWord8
 {-# INLINE putWord8 #-}
 
 -- | Execute a write on the output buffer.
