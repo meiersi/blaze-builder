@@ -19,7 +19,7 @@
 --
 -- Intuitively, a 'Builder' denotes the construction of a part of a lazy
 -- bytestring. Builders can either be created using one of the primitive
--- combinators in "Text.Blaze.Builder.Core" or by using one of the predefined
+-- combinators in "Text.Blaze.Builder.Write" or by using one of the predefined
 -- combinators for standard Haskell values (see the exposed modules of this
 -- package).  Concatenation of Builders is done using 'mappend' from the
 -- 'Monoid' typeclass.
@@ -60,9 +60,19 @@
 module Text.Blaze.Builder
     ( 
       -- * Builder combinators and constructors
-      module Text.Blaze.Builder.Core 
+      module Text.Blaze.Builder.Write 
     , module Text.Blaze.Builder.ByteString
     , module Text.Blaze.Builder.Word
+
+    , Builder
+    , flush
+
+    -- ** Obtaining the built chunks
+    , toLazyByteString
+    , toLazyByteStringWith
+    , toByteStringIO
+    , toByteStringIOWith
+    
 
       -- * Compatibility to Data.Binary.Builder from the binary package
       --
@@ -76,7 +86,8 @@ module Text.Blaze.Builder
     , append                  -- DEPRECATED: use 'mappend' instead
     ) where
 
-import Text.Blaze.Builder.Core
+import Text.Blaze.Builder.Internal
+import Text.Blaze.Builder.Write
 import Text.Blaze.Builder.ByteString
 import Text.Blaze.Builder.Word
 

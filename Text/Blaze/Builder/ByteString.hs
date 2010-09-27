@@ -26,8 +26,8 @@ module Text.Blaze.Builder.ByteString
 
     ) where
 
-import Text.Blaze.Builder.Core
-import Text.Blaze.Builder.Core.Internal
+import Text.Blaze.Builder.Write
+import Text.Blaze.Builder.Internal
 
 import Foreign
 import Data.Monoid

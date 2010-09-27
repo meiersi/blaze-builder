@@ -15,7 +15,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 import qualified Text.Blaze.Builder               as Blaze
-import qualified Text.Blaze.Builder.Core.Internal as Blaze
+import qualified Text.Blaze.Builder.Internal as Blaze
 import qualified Text.Blaze.Builder.Char.Utf8     as Blaze
 
 main :: IO ()

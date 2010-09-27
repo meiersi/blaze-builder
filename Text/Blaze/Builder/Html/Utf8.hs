@@ -25,9 +25,8 @@ import Data.ByteString.Char8 ()  -- for the 'IsString' instance of bytesrings
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import Text.Blaze.Builder.Core
+import Text.Blaze.Builder
 import Text.Blaze.Builder.Char.Utf8
-import Text.Blaze.Builder.ByteString
 
 -- | Write a HTML escaped and UTF-8 encoded Unicode character to a bufffer.
 --

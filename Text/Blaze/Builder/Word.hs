@@ -84,7 +84,8 @@ module Text.Blaze.Builder.Word
 
     ) where
 
-import Text.Blaze.Builder.Core
+import Text.Blaze.Builder.Internal
+import Text.Blaze.Builder.Write
 
 import Foreign
 

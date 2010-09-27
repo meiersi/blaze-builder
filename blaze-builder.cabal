@@ -26,7 +26,7 @@ Library
 
   -- Modules exported by the library.
   Exposed-modules:   Text.Blaze.Builder
-                     Text.Blaze.Builder.Core
+                     Text.Blaze.Builder.Write
                      Text.Blaze.Builder.Word
                      Text.Blaze.Builder.ByteString
                      Text.Blaze.Builder.Char.Utf8
@@ -34,7 +34,7 @@ Library
 
                      -- exposed for now, simplifies experimenting for
                      -- library users
-                     Text.Blaze.Builder.Core.Internal
+                     Text.Blaze.Builder.Internal
   
   -- Packages needed in order to build this package.
   Build-depends:     base >= 4 && < 5,

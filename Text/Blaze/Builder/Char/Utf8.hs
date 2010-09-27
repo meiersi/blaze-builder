@@ -20,7 +20,8 @@ import Data.Text (Text)
 import qualified Data.Text          as T
 import qualified Data.Text.Encoding as T -- imported for documentation links
 
-import Text.Blaze.Builder.Core
+import Text.Blaze.Builder.Internal
+import Text.Blaze.Builder.Write
 
 -- | Write a UTF-8 encoded Unicode character to a buffer.
 --
