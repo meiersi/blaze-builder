@@ -1,24 +1,45 @@
 {-# LANGUAGE CPP, BangPatterns #-}
 -- | Implementation of the 'Builder' monoid.
+--
+-- A standard library user must never import this module directly. Instead, he
+-- should import "Text.Blaze.Builder", which re-exports the 'Builder' type and
+-- the functions 'flush', 'toLazyByteStringWith', 'toLazyByteString',
+-- 'toByteStringIOWith', and 'toByteStringIO', which are defined here.
+--
+-- Developers of other libraries may import this module to gain access to the
+-- internal representation of builders. For example, in some cases, creating a
+-- 'Builder' with a custom low-level 'BuildStep' may improve performance
+-- considerably compared to the creating it using the public 'Builder'
+-- combinators (e.g., @'fromWrite1List'@ in "Text.Blaze.Builder.Write").
+-- Another example, is the use of 'runBuilderWith' or 'ModifyByteStrings' to
+-- efficiently wire the 'Builder' type with another library that generates lazy
+-- bytestrings.
+--
+-- In any case, whenever you import this module you /must/ reference the full
+-- version of the 'blaze-builder' package in your cabal file, as the
+-- implementation and the guarantees given in this file may change in any
+-- version! The release notes will tell, if this was the case.
+--
 module Text.Blaze.Builder.Internal
     ( 
-    -- * The Builder type
+    -- * The @Builder@ type
       Builder(..)
     , BuildStep
     , BuildSignal(..)
 
+    -- * Flushing the buffer
     , flush
 
-    -- ** Obtaining the built chunks
-    , toLazyByteString
+    -- * Executing builders
+    , runBuilderWith
     , toLazyByteStringWith
-    , toByteStringIO
+    , toLazyByteString
     , toByteStringIOWith
+    , toByteStringIO
 
-
-    -- * Default constants
+    -- * Default sizes
     , defaultBufferSize
-    , defaultMinimalChunkSize
+    , defaultMinimalBufferSize
     , defaultMaximalCopySize
     ) where
 
@@ -65,44 +86,61 @@ import qualified Data.ByteString.Internal as S
 -- implementation of builders and the predefined combinators. This should be
 -- amenable to the average Haskell programmer by reading the source code of
 -- this library. The guiding implementation principle was to reduce the
--- abstraction cost per byte output as much as possible. Therefore, try to keep
--- the control flow during the evaluation of a builder as simple as possible.
--- We also try to take the pressure off the memory bus by moving variables as
--- far out of loops as possible. This leads to some duplication of code, but
--- results in sometimes dramatic increases in performance. For example, see the
--- @'fromWord8s'@ function in "Text.Blaze.Builder.Word".
+-- abstraction cost per output byte. We use continuation passing to achieve
+-- a constant time append. The output buffer is filled by the individual builders
+-- as long as possible. They call each other directly when they are done and
+-- control is returned to the driver (e.g., 'toByteStringIOWith') only when the
+-- buffer is full, a bytestring needs to be inserted directly, or no more bytes
+-- can be written.  We also try to take the pressure off the cache by moving
+-- variables as far out of loops as possible. This leads to some duplication of
+-- code, but results in sometimes dramatic increases in performance. For
+-- example, see the @'fromWord8s'@ function in "Text.Blaze.Builder.Word".
 --
 newtype Builder = Builder (BuildStep -> BuildStep)
 
--- | A buildsignal is a signal returned from a write to the builder, it tells us
--- what should happen next.
+-- | A 'BuildSignal' signals to the driver of the 'Builder' execution the next
+-- step to be taken.
 --
-data BuildSignal
-  -- | Signal the completion of the write process.
-  = Done {-# UNPACK #-} !(Ptr Word8)  -- ^ Pointer to the next free byte
-  -- | Signal that the buffer is full and a new one needs to be allocated.
-  -- It contains the minimal size required for the next buffer, a pointer to the
-  -- next free byte, and a continuation.
+data BuildSignal =
+  -- | @Done pf@ signals that the 'BuildStep' is finished and data has been
+  -- written up to the next free byte @pf@.
+    Done {-# UNPACK #-} !(Ptr Word8) 
+  -- | @BufferFull newSize pf nextStep@ signals that the buffer is full and
+  -- data has been written up to the next free byte @pf@. Moreover, the next
+  -- build step to be executed @nextStep@ requires a buffer of at least size
+  -- @newSize@ to execute successfully.
+  --
+  -- A driver /must/ guarantee that the buffer used to call @nextStep@ is at
+  -- least of size @newSize@.
   | BufferFull
       {-# UNPACK #-} !Int
       {-# UNPACK #-} !(Ptr Word8)
       {-# UNPACK #-} !BuildStep
-  -- | Signal that a ByteString needs to be wrapped or inserted as is. The
-  -- concrete behaviour is up to the driver of the builder. Arguments:
-  -- The next free byte in the buffer, the ByteString modification,
-  -- and the next build step.
+  -- | @ModifyByteStrings pf fbs nextStep@ signals that the data written up
+  -- to the next free byte @pf@ must be output and the remaining stream of
+  -- strict bytestrings that is produced by executing @nextStep@ must be
+  -- modified using the function @fbs@.
+  --
+  -- This signal is used to insert bytestrings directly into the output stream.
+  -- It can also be used to efficiently hand over control to another library
+  -- for generating streams of strict bytestrings.
   | ModifyByteStrings
       {-# UNPACK #-} !(Ptr Word8) 
       {-# UNPACK #-} !([S.ByteString] -> [S.ByteString]) 
       {-# UNPACK #-} !BuildStep
 
--- | Type for a single build step. Every build step checks that
+-- | A 'BuildStep' fills a buffer from the given start pointer as long as
+-- possible and returns control to the caller using a 'BuildSignal', once it is
+-- required.
 --
--- > free + bytes-written <= last
---
-type BuildStep =  Ptr Word8       -- ^ Ptr to the next free byte in the buffer
-               -> Ptr Word8       -- ^ Ptr to the first byte AFTER the buffer
-               -> IO BuildSignal  -- ^ Signal the next step to be taken
+type BuildStep =  Ptr Word8       -- ^ Pointer to the next free byte in the
+                                  -- buffer. A 'BuildStep' must start writing
+                                  -- its data from this address.
+               -> Ptr Word8       -- ^ Pointer to the first byte /after/ the
+                                  -- buffer.  A 'BuildStep' must never write
+                                  -- data at or after this address.
+               -> IO BuildSignal  -- ^ Signal to the driver about the next step
+                                  -- to be taken.
 
 instance Monoid Builder where
     mempty = Builder id
@@ -116,47 +154,69 @@ instance Monoid Builder where
 -- Internal global constants.
 ------------------------------------------------------------------------------
 
--- | Copied from Data.ByteString.Lazy.
+-- | Default size (~32kb) for the buffer that becomes a chunk of the output
+-- stream once it is filled.
 --
 defaultBufferSize :: Int
-defaultBufferSize = 32 * k - overhead
+defaultBufferSize = 32 * k - overhead -- Copied from Data.ByteString.Lazy.
     where k = 1024
           overhead = 2 * sizeOf (undefined :: Int)
 
--- | The minimal length a buffer should have for it to be worth to be processed
--- further. For 4kb it is the case that a memcopy takes about as long as a
--- system call in Linux.
-defaultMinimalChunkSize :: Int
-defaultMinimalChunkSize = 4 * 1024
+-- | The minimal length (4kb) a buffer must have before filling it and
+-- outputting it as a chunk of the output stream. 
+--
+-- This size determines when a buffer is spilled after a 'flush' or a direct
+-- bytestring insertion.
+defaultMinimalBufferSize :: Int
+defaultMinimalBufferSize = 4 * 1024
 
--- | The maximal number of bytes where copying is cheaper than direct
--- insertion. This takes into account the fragmentation that may occur in the
--- output buffer due to the early flush.
+-- | The maximal number of bytes for that copying is cheaper than direct
+-- insertion into the output stream. This takes into account the fragmentation
+-- that may occur in the output buffer due to the early 'flush' implied by the
+-- direct bytestring insertion.
+--
+-- @'defaultMaximalCopySize' = 2 * 'defaultMinimalBufferSize'@
+--
 defaultMaximalCopySize :: Int
-defaultMaximalCopySize = 2 * defaultMinimalChunkSize
+defaultMaximalCopySize = 2 * defaultMinimalBufferSize
 
 ------------------------------------------------------------------------------
 -- Flushing and running a Builder
 ------------------------------------------------------------------------------
 
 
--- | Flush a 'Builder'. This means a new chunk will be started in the resulting
--- lazy 'L.ByteString'. The remaining part of the buffer is spilled.
+-- | Output all data written in the current buffer and start a new chunk.
+--
+-- When using 'toLazyByteString' to extract a lazy 'L.ByteString' from a
+-- 'Builder', this means that a new chunk will be started in the resulting lazy
+-- 'L.ByteString'. The remaining part of the buffer is spilled, if the
+-- reamining free space is smaller than the minimal desired buffer size.
 --
 flush :: Builder
-flush = Builder $ \f pf _ ->
-    return $ BufferFull 0 pf f
+flush = Builder $ \k pf _ -> return $ ModifyByteStrings pf id k
 
--- | Run the builder with buffers of at least the given size.
+-- | Run a 'Builder' with the given buffer sizes.
 --
--- Note that the builders should guarantee that on average the desired buffer
--- size is attained almost perfectly. "Almost" because builders may decide to
--- start a new buffer and not completely fill the existing buffer, if this is
--- faster. However, they should not spill too much of the buffer, if they
--- cannot compensate for it.
+-- Use this function for integrating the 'Builder' type with other libraries
+-- that generate lazy bytestrings.
 --
-runBuilderWith :: Int -> Builder -> [S.ByteString] -> [S.ByteString]
-runBuilderWith bufSize (Builder b) k = 
+-- Note that the builders should guarantee that on average the desired chunk
+-- size is attained. Builders may decide to start a new buffer and not
+-- completely fill the existing buffer, if this is faster. However, they should
+-- not spill too much of the buffer, if they cannot compensate for it.
+--
+runBuilderWith :: Int            -- ^ Buffer size (upper-bounds the resulting
+                                 -- chunk size).
+               -> Int            -- ^ Minimal free buffer space for continuing
+                                 -- filling the same buffer after a 'flush' or
+                                 -- a direct bytestring insertion. This
+                                 -- corresponds to the minimal desired chunk
+                                 -- size.
+               -> Builder        -- ^ Builder to run.
+               -> [S.ByteString] -- ^ Strict bytestrings to output after the
+                                 -- builder is finished.
+               -> [S.ByteString] -- ^ Resulting list of strict bytestrings.
+runBuilderWith bufSize minBufSize (Builder b) k = 
     inlinePerformIO $ fillNewBuffer bufSize (b finalStep)
   where
     finalStep pf _ = return $ Done pf
@@ -186,40 +246,73 @@ runBuilderWith bufSize (Builder b) k =
                         modifyByteStrings pf' bsk nextStep
               where
                 modifyByteStrings pf' bsk nextStep
-                    | pf' == pf                           =
+                    | pf' == pf                      =
                         return $ bsk (inlinePerformIO $ fill pf' nextStep)
-                    | defaultMinimalChunkSize < pe `minusPtr` pf' =
+                    | minBufSize < pe `minusPtr` pf' =
                         return $ bs : bsk (inlinePerformIO $ fill pf' nextStep)
-                    | otherwise                           =
+                    | otherwise                      =
                         return $ bs : 
                             bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep)
                   where
                     bs = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
                 {-# INLINE modifyByteStrings #-}
 
--- | /O(n)./ Extract the lazy 'L.ByteString' from the builder.
+
+-- | Extract the lazy 'L.ByteString' from the builder by running it with the
+-- given buffer sizes.
 --
--- > toLazyByteString (x `mappend` y) == toLazyByteString x `mappend` toLazyByteString y
---
-toLazyByteStringWith :: Int          -- ^ Desired chunk size
-                     -> Builder 
-                     -> L.ByteString
-toLazyByteStringWith bufSize = L.fromChunks . flip (runBuilderWith bufSize) []
+toLazyByteStringWith :: Int           -- ^ Buffer size (upper bounds the resulting
+                                      -- chunk size).
+                     -> Int           -- ^ Minimal free buffer space for continuing
+                                      -- filling the same buffer after a 'flush' or
+                                      -- a direct bytestring insertion. This
+                                      -- corresponds to the minimal desired chunk
+                                      -- size.
+                     -> Builder       -- ^ 'Builder' to run.
+                     -> L.ByteString  -- ^ Resulting lazy 'L.ByteString'.
+toLazyByteStringWith bufSize minBufSize = 
+  L.fromChunks . flip (runBuilderWith bufSize minBufSize) []
 {-# INLINE toLazyByteStringWith #-}
 
--- | /O(n)./ Extract the lazy 'L.ByteString' from the builder.
+-- | Extract the lazy 'L.ByteString' from the builder by running it with default
+-- buffer sizes. Use this function, if you do not have any special
+-- considerations with respect to buffer sizes.
 --
+-- @ 'toLazyByteString' = 'toLazyByteStringWith' 'defaultBufferSize' 'defaultMinimalBufferSize'@
+--
+-- Note that @'toLazyByteString'@ is a 'Monoid' homomorphism.
+--
+-- > toLazyByteString mempty          == mempty
 -- > toLazyByteString (x `mappend` y) == toLazyByteString x `mappend` toLazyByteString y
 --
+-- However, in the second equation, the left-hand-side is generally faster to
+-- execute.
+--
 toLazyByteString :: Builder -> L.ByteString
-toLazyByteString = toLazyByteStringWith defaultBufferSize
+toLazyByteString = 
+    toLazyByteStringWith defaultBufferSize defaultMinimalBufferSize
 {-# INLINE toLazyByteString #-}
 
--- | Run the builder with a buffer of at least the given size and execute
--- the given IO action whenever it is full.
+-- | @toByteStringIOWith bufSize io b@ runs the builder @b@ with a buffer of
+-- at least the size @bufSize@ and executes the 'IO' action @io@ whenever the
+-- buffer is full.
 --
+-- Compared to 'toLazyByteStringWith' this function requires less allocation,
+-- as the output buffer is only allocated once at the start of the
+-- serialization and whenever something bigger than the current buffer size has
+-- to be copied into the buffer, which should happen very seldomly for the
+-- default buffer size of 32kb. Hence, the pressure on the garbage collector is
+-- reduced, which can be an advantage when building long sequences of bytes.
 --
-toByteStringIOWith :: Int -> (S.ByteString -> IO ()) -> Builder -> IO ()
+toByteStringIOWith :: Int                      -- ^ Buffer size (upper bounds
+                                               -- the number of bytes forced
+                                               -- per call to the 'IO' action).
+                   -> (S.ByteString -> IO ())  -- ^ 'IO' action to execute per
+                                               -- full buffer, which is
+                                               -- referenced by a strict
+                                               -- 'S.ByteString'.
+                   -> Builder                  -- ^ 'Builder' to run.
+                   -> IO ()                    -- ^ Resulting 'IO' action.
 toByteStringIOWith bufSize io (Builder b) = 
     fillNewBuffer bufSize (b finalStep)
   where
@@ -250,9 +343,12 @@ toByteStringIOWith bufSize io (Builder b) =
                         mapM_ io (bsk [])
                         fill nextStep
 
--- | Run the builder with a 'defaultSize'd buffer and execute the given IO
+-- | Run the builder with a 'defaultBufferSize'd buffer and execute the given IO
 -- action whenever it is full.
 --
+-- This is a 'Monoid' homomorphism in the following sense.
+--
+-- > toByteStringIO io mempty          == return ()
 -- > toByteStringIO io (x `mappend` y) == toByteStringIO io x >> toByteStringIO io y
 --
 toByteStringIO :: (S.ByteString -> IO ()) -> Builder -> IO ()
