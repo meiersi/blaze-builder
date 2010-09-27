@@ -19,34 +19,47 @@ import Criterion.Main
 import Foreign (plusPtr)
 import qualified Data.ByteString      as S
 import qualified Data.ByteString.Lazy as L
-import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
+import qualified Data.Text               as TS
+import qualified Data.Text.Encoding      as TS
+import qualified Data.Text.Lazy          as TL
+import qualified Data.Text.Lazy.Encoding as TL
 
-import qualified Text.Blaze.Builder               as Blaze
-import qualified Text.Blaze.Builder.Internal as Blaze
-import qualified Text.Blaze.Builder.Char.Utf8     as Blaze
+import qualified Text.Blaze.Builder           as Blaze
+import qualified Text.Blaze.Builder.Internal  as Blaze
+import qualified Text.Blaze.Builder.Html.Utf8 as Blaze
 
 main :: IO ()
 main = defaultMain 
     [ bench "fromString :: String --[Utf8 encoding]--> L.ByteString" $ whnf
         (L.length . Blaze.toLazyByteString . Blaze.fromString) benchString
 
-    , bench "fromTextUnpacked :: Text --[Utf8 encoding]--> L.ByteString" $ whnf
-        (L.length . Blaze.toLazyByteString . fromTextUnpacked) benchText
+    , bench "fromStrictTextUnpacked :: StrictText --[Utf8 encoding]--> L.ByteString" $ whnf
+        (L.length . Blaze.toLazyByteString . Blaze.fromText) benchStrictText
      
-    , bench "fromTextFolded :: Text --[Utf8 encoding]--> L.ByteString" $ whnf
-        (L.length . Blaze.toLazyByteString . fromTextFolded) benchText
+    , bench "fromStrictTextFolded :: StrictText --[Utf8 encoding]--> L.ByteString" $ whnf
+        (L.length . Blaze.toLazyByteString . fromStrictTextFolded) benchStrictText
 
-    , bench "fromTextSingleWrite :: Text --[Utf8 encoding]--> L.ByteString" $ whnf
-        (L.length . Blaze.toLazyByteString . fromTextSingleWrite) benchText
+    , bench "TS.encodeUtf8 :: StrictText --[Utf8 encoding]--> S.ByteString" $ whnf
+        (TS.encodeUtf8) benchStrictText
 
-    , bench "fromTextEncoded :: Text --[Utf8 encoding]--> L.ByteString" $ whnf
-        (L.length . Blaze.toLazyByteString . fromTextEncoded) benchText
+    , bench "fromLazyTextUnpacked :: LazyText --[Utf8 encoding]--> L.ByteString" $ whnf
+        (L.length . Blaze.toLazyByteString . Blaze.fromLazyText) benchLazyText
 
-    , bench "encodeUtf8 :: Text --[Utf8 encoding]--> S.ByteString" $ whnf
-        (T.encodeUtf8) benchText
+    , bench "fromLazyTextFolded :: LazyText --[Utf8 encoding]--> L.ByteString" $ whnf
+        (L.length . Blaze.toLazyByteString . fromLazyTextFolded) benchLazyText
 
+    , bench "TL.encodeUtf8 :: LazyText --[Utf8 encoding]--> L.ByteString" $ whnf
+        (L.length . TL.encodeUtf8) benchLazyText
+
+    , bench "fromHtmlEscapedString :: String --[Html esc. & Utf8 encoding]--> L.ByteString" $ whnf
+        (L.length . Blaze.toLazyByteString . Blaze.fromHtmlEscapedString) benchString
+
+    , bench "fromHtmlEscapedStrictTextUnpacked :: StrictText --[HTML esc. & Utf8 encoding]--> L.ByteString" $ whnf
+        (L.length . Blaze.toLazyByteString . Blaze.fromHtmlEscapedText) benchStrictText
+     
+    , bench "fromHtmlEscapedLazyTextUnpacked :: LazyText --[HTML esc. & Utf8 encoding]--> L.ByteString" $ whnf
+        (L.length . Blaze.toLazyByteString . Blaze.fromHtmlEscapedLazyText) benchLazyText
+     
     ]
   where
     n :: Int
@@ -56,27 +69,25 @@ main = defaultMain
     benchString = take n $ concatMap show [(1::Int)..]
     {-# NOINLINE benchString #-}
 
-    benchText :: Text
-    benchText = T.pack benchString
-    {-# NOINLINE benchText #-}
+    benchStrictText :: TS.Text
+    benchStrictText = TS.pack benchString
+    {-# NOINLINE benchStrictText #-}
+
+    benchLazyText :: TL.Text
+    benchLazyText = TL.pack benchString
+    {-# NOINLINE benchLazyText #-}
 
 
--- | Encode the 'Text' as UTF-8 by building a single write and writing all
--- characters in one go.
-fromTextSingleWrite :: Text -> Blaze.Builder
-fromTextSingleWrite = 
-    Blaze.fromWriteSingleton (T.foldl (\w c -> w `mappend` Blaze.writeChar c) mempty)
-
--- | Encode the 'Text' as UTF-8 by folding it and filling the raw buffer
+-- | Encode the 'TS.Text' as UTF-8 by folding it and filling the raw buffer
 -- directly.
-fromTextFolded :: Text -> Blaze.Builder
-fromTextFolded t = Blaze.Builder $ \k -> T.foldr step k t
+fromStrictTextFolded :: TS.Text -> Blaze.Builder
+fromStrictTextFolded t = Blaze.Builder $ \k -> TS.foldr step k t
   where
     step c k pf pe
       | pf' <= pe = do
           io pf
           k pf' pe  -- here it would be great, if we wouldn't have to pass
-                    -- around pe: requires a more powerful fold for Text.
+                    -- around pe: requires a more powerful fold for StrictText.
       | otherwise =
           return $ Blaze.BufferFull size pf $ \pfNew peNew -> do
             let pfNew' = pfNew `plusPtr` size
@@ -85,14 +96,24 @@ fromTextFolded t = Blaze.Builder $ \k -> T.foldr step k t
       where
         pf' = pf `plusPtr` size
         Blaze.Write size io = Blaze.writeChar c
-{-# INLINE fromTextFolded #-}
+{-# INLINE fromStrictTextFolded #-}
 
--- | Encode the 'Text' as UTF-8 by unpacking it and encoding the resulting
--- 'String'. This is currently the fastest method!
-fromTextUnpacked :: Text -> Blaze.Builder
-fromTextUnpacked = Blaze.fromString . T.unpack
-{-# INLINE fromTextUnpacked #-}
-
-fromTextEncoded :: Text -> Blaze.Builder
-fromTextEncoded = Blaze.fromByteString . T.encodeUtf8
-{-# INLINE fromTextEncoded #-}
+-- | Encode the 'TL.Text' as UTF-8 by folding it and filling the raw buffer
+-- directly.
+fromLazyTextFolded :: TL.Text -> Blaze.Builder
+fromLazyTextFolded t = Blaze.Builder $ \k -> TL.foldr step k t
+  where
+    step c k pf pe
+      | pf' <= pe = do
+          io pf
+          k pf' pe  -- here it would be great, if we wouldn't have to pass
+                    -- around pe: requires a more powerful fold for StrictText.
+      | otherwise =
+          return $ Blaze.BufferFull size pf $ \pfNew peNew -> do
+            let pfNew' = pfNew `plusPtr` size
+            io pfNew
+            k pfNew' peNew
+      where
+        pf' = pf `plusPtr` size
+        Blaze.Write size io = Blaze.writeChar c
+{-# INLINE fromLazyTextFolded #-}
