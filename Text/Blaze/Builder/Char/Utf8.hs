@@ -23,14 +23,16 @@ module Text.Blaze.Builder.Char.Utf8
     , fromString
     , fromShow
     , fromText
+    , fromLazyText
     ) where
 
 import Foreign
 import Data.Char (ord)
 
-import Data.Text (Text)
-import qualified Data.Text          as T
-import qualified Data.Text.Encoding as T -- imported for documentation links
+import qualified Data.Text               as TS
+import qualified Data.Text.Encoding      as TS -- imported for documentation links
+import qualified Data.Text.Lazy          as TL
+import qualified Data.Text.Lazy.Encoding as TS -- imported for documentation links
 
 import Text.Blaze.Builder.Internal
 import Text.Blaze.Builder.Write
@@ -120,13 +122,22 @@ fromString = fromWrite1List writeChar
 fromShow :: Show a => a -> Builder
 fromShow = fromString . show
 
--- | /O(n)/. Serialize a Unicode 'Text' using the UTF-8 encoding.
+-- | /O(n)/. Serialize a strict Unicode 'TS.Text' value using the UTF-8 encoding.
 --
--- Note that this function is currently faster than 'T.encodeUtf8' provided by
--- "Data.Text.Encoding". Moreover, 'fromText' is also lazy, while 'T.encodeUtf8'
+-- Note that this function is currently faster than 'TS.encodeUtf8' provided by
+-- "Data.Text.Encoding". Moreover, 'fromText' is also lazy, while 'TL.encodeUtf8'
 -- is strict.
 --
-fromText :: Text -> Builder
-fromText = fromString . T.unpack
+fromText :: TS.Text -> Builder
+fromText = fromString . TS.unpack
 {-# INLINE fromText #-}
 
+
+-- | /O(n)/. Serialize a lazy Unicode 'TL.Text' value using the UTF-8 encoding.
+--
+-- Note that this function is currently faster than 'TL.encodeUtf8' provided by
+-- "Data.Text.Lazy.Encoding".
+--
+fromLazyText :: TL.Text -> Builder
+fromLazyText = fromString . TL.unpack
+{-# INLINE fromLazyText #-}

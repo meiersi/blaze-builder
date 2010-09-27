@@ -27,12 +27,13 @@ module Text.Blaze.Builder.Html.Utf8
     , fromHtmlEscapedString
     , fromHtmlEscapedShow
     , fromHtmlEscapedText
+    , fromHtmlEscapedLazyText
     ) where
 
 import Data.ByteString.Char8 ()  -- for the 'IsString' instance of bytesrings
 
-import Data.Text (Text)
-import qualified Data.Text as T
+import qualified Data.Text      as TS
+import qualified Data.Text.Lazy as TL
 
 import Text.Blaze.Builder
 import Text.Blaze.Builder.Char.Utf8
@@ -67,8 +68,14 @@ fromHtmlEscapedShow :: Show a => a -> Builder
 fromHtmlEscapedShow = fromHtmlEscapedString . show
 
 
--- | /O(n)/. Serialize a HTML escaped Unicode 'Text' using the UTF-8 encoding.
+-- | /O(n)/. Serialize a HTML escaped strict Unicode 'TS.Text' value using the
+-- UTF-8 encoding.
 --
-fromHtmlEscapedText :: Text -> Builder
-fromHtmlEscapedText = fromHtmlEscapedString . T.unpack
+fromHtmlEscapedText :: TS.Text -> Builder
+fromHtmlEscapedText = fromHtmlEscapedString . TS.unpack
+
+-- | /O(n)/. Serialize a HTML escaped Unicode 'TL.Text' using the UTF-8 encoding.
+--
+fromHtmlEscapedLazyText :: TL.Text -> Builder
+fromHtmlEscapedLazyText = fromHtmlEscapedString . TL.unpack
 
