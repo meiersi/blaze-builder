@@ -33,3 +33,7 @@
         and builders are working correctly. I may have missed some pitfalls
         about word types in Haskell during porting the functions from
         'Data.Binary.Builder'.
+
+  * portability
+      - port to Hugs
+      - test lower versions of GHC
