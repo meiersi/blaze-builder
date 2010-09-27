@@ -1,8 +1,16 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-} 
 -- ignore warning from 'import Data.Text.Encoding'
 
-
--- | 'Write's and 'Builder's for serializing Unicode characters using the UTF-8
+-- |
+-- Module      : Text.Blaze.Builder.Utf8
+-- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- 'Write's and 'Builder's for serializing Unicode characters using the UTF-8
 -- encoding. 
 --
 module Text.Blaze.Builder.Char.Utf8

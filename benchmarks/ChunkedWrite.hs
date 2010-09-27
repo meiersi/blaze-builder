@@ -1,7 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | Test different strategies for writing lists of simple values:
+-- |
+-- Module      : ChunkedWrite
+-- Copyright   : (c) 2010 Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- Test different strategies for writing lists of simple values:
 --
 --  1. Using 'mconcat . map from<Value>'
+--
 --  2. Using the specialized 'fromWrite<n>List' function where 'n' denotes
 --     the number of elements to write at the same time. Writing chunks of
 --     elements reduces the overhead from the buffer overflow test that has

@@ -1,5 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | 'Write's and 'Builder's for serializing HTML escaped and UTF-8 encoded
+-- |
+-- Module      : Text.Blaze.Builder.Html.Utf8
+-- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- 'Write's and 'Builder's for serializing HTML escaped and UTF-8 encoded
 -- characters.
 --
 -- This module is used by both the 'blaze-html' and the \'hamlet\' HTML

@@ -1,18 +1,27 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | A comparison between 'blaze-builder' and the Data.Binary.Builder from
+-- |
+-- Module      : BlazeVsBinary
+-- Copyright   : (c) 2010 Jasper Van der Jeught & Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- A comparison between 'blaze-builder' and the Data.Binary.Builder from
 -- 'binary'. The goal is to measure the performance on serializing dynamic
 -- data referenced by a list.
 --
---  Note that some of the benchmarks are a bit unfair with respect to
---  blaze-builder, as it does more than 'binary':
+-- Note that some of the benchmarks are a bit unfair with respect to
+-- blaze-builder, as it does more than 'binary':
 --
---    1. It encodes chars as utf-8 strings and does not just truncate bits
---       8-31.
+--   1. It encodes chars as utf-8 strings and does not just truncate character
+--      value to one byte.
 --
---    2. It does copy the contents of the lazy bytestring chunks if they are
---       shorter than 4kb. This ensures efficient processing of the resulting
---       lazy bytestring. 'binary' just inserts the chunks directly in the
---       resulting output stream.
+--   2. It copies the contents of the lazy bytestring chunks if they are
+--      shorter than 4kb. This ensures efficient processing of the resulting
+--      lazy bytestring. 'binary' just inserts the chunks directly in the
+--      resulting output stream.
 --
 module BlazeVsBinary where
 

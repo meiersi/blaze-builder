@@ -1,7 +1,15 @@
 {-# LANGUAGE CPP, BangPatterns, OverloadedStrings #-}
 
-
--- | 'Write's and 'Builder's for strict and lazy bytestrings.
+-- |
+-- Module      : Text.Blaze.Builder.ByteString
+-- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- 'Write's and 'Builder's for strict and lazy bytestrings.
 --
 -- We assume the following qualified imports in order to differentiate between
 -- strict and lazy bytestrings in the code examples.

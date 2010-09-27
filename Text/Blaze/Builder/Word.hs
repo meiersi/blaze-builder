@@ -1,9 +1,21 @@
-{-# LANGUAGE CPP #-}
-
 {-# OPTIONS_GHC -fglasgow-exts #-}
 -- for unboxed shifts
 
--- | 'Write's and 'Builder's for serializing words.
+{-# LANGUAGE CPP #-}
+-- |
+-- Module      : Text.Blaze.Builder
+-- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
+--
+--               Original serialization code from 'Data.Binary.Builder':
+--               (c) Lennart Kolmodin, Ross Patterson
+--
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- 'Write's and 'Builder's for serializing words.
 --
 -- Note that for serializing a three tuple @(x,y,z)@ of bytes (or other word
 -- values) you should use the expression 

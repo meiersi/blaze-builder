@@ -1,6 +1,15 @@
 {-# LANGUAGE CPP, BangPatterns #-}
 
--- | This module provides the 'Write' type, which abstracts direct writes to a
+-- |
+-- Module      : Text.Blaze.Builder.Write
+-- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- This module provides the 'Write' type, which abstracts direct writes to a
 -- buffer. 'Write's form the public interface for lifting direct buffer
 -- manipulations to 'Builder's.
 --

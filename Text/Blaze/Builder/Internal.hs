@@ -1,5 +1,14 @@
 {-# LANGUAGE CPP, BangPatterns #-}
--- | Implementation of the 'Builder' monoid.
+-- |
+-- Module      : Text.Blaze.Builder
+-- Copyright   : (c) 2010 Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- Implementation of the 'Builder' monoid.
 --
 -- A standard library user must never import this module directly. Instead, he
 -- should import "Text.Blaze.Builder", which re-exports the 'Builder' type and

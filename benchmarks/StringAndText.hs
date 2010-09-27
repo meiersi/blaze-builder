@@ -1,5 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | Benchmarking of String and Text serialization.
+-- |
+-- Module      : StringAndText
+-- Copyright   : (c) 2010 Simon Meier
+-- License     : BSD3-style (see LICENSE)
+-- 
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Stability   : experimental
+-- Portability : portable to Hugs and GHC
+--
+-- Benchmarking of String and Text serialization.
 module StringAndText (main)  where
 
 import Data.Char (ord)

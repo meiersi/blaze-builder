@@ -1,11 +1,10 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      : Text.Blaze.Builder
--- Copyright   : Jasper Van der Jeugt, Simon Meier
+-- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
--- Maintainer  : Jasper Van der Jeugt <jaspervdj@gmail.com>, 
---               Simon Meier <iridcode@gmail.com>
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : portable to Hugs and GHC
 --
