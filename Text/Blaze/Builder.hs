@@ -9,30 +9,30 @@
 -- Stability   : experimental
 -- Portability : portable to Hugs and GHC
 --
--- @'Text.Blaze.Builder'@ is the main module, which you should import as a user
--- of the library.
+-- "Text.Blaze.Builder" is the main module, which you should import as a user
+-- of the @blaze-builder@ library.
 --
 -- > import Text.Blaze.Builder
 -- 
 -- It provides you with a type 'Builder' that allows to efficiently construct
--- lazy bytestrings. 
+-- lazy bytestrings with a large average chunk size.
 --
 -- Intuitively, a 'Builder' denotes the construction of a part of a lazy
 -- bytestring. Builders can either be created using one of the primitive
 -- combinators in "Text.Blaze.Builder.Write" or by using one of the predefined
 -- combinators for standard Haskell values (see the exposed modules of this
--- package).  Concatenation of Builders is done using 'mappend' from the
+-- package).  Concatenation of builders is done using 'mappend' from the
 -- 'Monoid' typeclass.
 --
 -- Here is a small example that serializes a list of strings using the UTF-8
 -- encoding.
 --
--- > import Text.Blaze.Builder.Char.Utf8
+-- @ import "Text.Blaze.Builder.Char.Utf8"@
 --
 -- > strings :: [String]
 -- > strings = replicate 10000 "Hello there!"
 --
--- The function 'fromString' creates a 'Builder' denoting the UTF-8 encoded
+-- The function @'fromString'@ creates a 'Builder' denoting the UTF-8 encoded
 -- argument. Hence, UTF-8 encoding and concatenating all @strings@ can be done
 -- follows.
 --
@@ -49,25 +49,26 @@
 -- @\"Hello there!\"@ encoded using UTF-8. The corresponding 120000 bytes are
 -- distributed among three chunks of 32kb and a last chunk of 6kb.
 --
--- /A note on history./ This serialization library was inspired by the module
--- @Data.Binary.Builder@ provided by the @binary@ package. It was originally
--- developed with the specific needs of the @blaze-html@ package in mind. Since
--- then it has been restructured to serve as a drop-in replacement for
--- @Data.Binary.Builder@, which it improves upon both in speed as well as
+-- /A note on history./ This serialization library was inspired by the
+-- @Data.Binary.Builder@ module provided by the @binary@ package. It was
+-- originally developed with the specific needs of the @blaze-html@ package in
+-- mind. Since then it has been restructured to serve as a drop-in replacement
+-- for @Data.Binary.Builder@, which it improves upon both in speed as well as
 -- expressivity.
 -----------------------------------------------------------------------------
 
 module Text.Blaze.Builder
     ( 
-      -- * Builder combinators and constructors
-      module Text.Blaze.Builder.Write 
-    , module Text.Blaze.Builder.ByteString
-    , module Text.Blaze.Builder.Word
+      -- * The @Builder@ type
+      Builder
 
-    , Builder
+      -- * Creating builders
+    , module Text.Blaze.Builder.Write 
+    , module Text.Blaze.Builder.Word
+    , module Text.Blaze.Builder.ByteString
     , flush
 
-    -- ** Obtaining the built chunks
+      -- * Executing builders
     , toLazyByteString
     , toLazyByteStringWith
     , toByteStringIO

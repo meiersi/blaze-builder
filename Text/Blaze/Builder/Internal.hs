@@ -3,8 +3,7 @@
 --
 -- A standard library user must never import this module directly. Instead, he
 -- should import "Text.Blaze.Builder", which re-exports the 'Builder' type and
--- the functions 'flush', 'toLazyByteStringWith', 'toLazyByteString',
--- 'toByteStringIOWith', and 'toByteStringIO', which are defined here.
+-- its associated public functions defined in this module.
 --
 -- Developers of other libraries may import this module to gain access to the
 -- internal representation of builders. For example, in some cases, creating a
@@ -66,7 +65,7 @@ import qualified Data.ByteString.Internal as S
 -- | Intuitively, a builder denotes the construction of a lazy bytestring. 
 --
 -- Builders can be created from primitive buffer manipulations using the
--- 'Write' abstraction provided by in "Text.Blaze.Builder.Write". However for
+-- @'Write'@ abstraction provided by in "Text.Blaze.Builder.Write". However for
 -- many Haskell values, there exist predefined functions doing that already. 
 -- For example, UTF-8 encoding 'Char' and 'String' values is provided by the
 -- functions in "Text.Blaze.Builder.Char.Utf8". Concatenating builders is done
@@ -77,7 +76,7 @@ import qualified Data.ByteString.Internal as S
 -- bytes can be efficiently (in terms of CPU cycles) computed in an
 -- incremental, chunk-wise fashion such that the average chunk-size is large.
 -- Note that the large average chunk size allows to make good use of cache
--- prefetching in later processing steps (e.g. compression) or reduces the
+-- prefetching in later processing steps (e.g. compression) or to reduce the
 -- sytem call overhead when writing the resulting lazy bytestring to a file or
 -- sending it over the network.
 --
@@ -85,16 +84,18 @@ import qualified Data.ByteString.Internal as S
 -- benchmarking is unavoidable. Moreover, it also helps to understand the
 -- implementation of builders and the predefined combinators. This should be
 -- amenable to the average Haskell programmer by reading the source code of
--- this library. The guiding implementation principle was to reduce the
--- abstraction cost per output byte. We use continuation passing to achieve
--- a constant time append. The output buffer is filled by the individual builders
--- as long as possible. They call each other directly when they are done and
--- control is returned to the driver (e.g., 'toByteStringIOWith') only when the
--- buffer is full, a bytestring needs to be inserted directly, or no more bytes
--- can be written.  We also try to take the pressure off the cache by moving
--- variables as far out of loops as possible. This leads to some duplication of
--- code, but results in sometimes dramatic increases in performance. For
--- example, see the @'fromWord8s'@ function in "Text.Blaze.Builder.Word".
+-- "Text.Blaze.Builder.Internal" and the other modules of this library. 
+--
+-- The guiding implementation principle was to reduce the abstraction cost per
+-- output byte. We use continuation passing to achieve a constant time append.
+-- The output buffer is filled by the individual builders as long as possible.
+-- They call each other directly when they are done and control is returned to
+-- the driver (e.g., 'toLazyByteString') only when the buffer is full, a
+-- bytestring needs to be inserted directly, or no more bytes can be written.
+-- We also try to take the pressure off the cache by moving variables as far
+-- out of loops as possible. This leads to some duplication of code, but
+-- results in sometimes dramatic increases in performance. For example, see the
+-- @'fromWord8s'@ function in "Text.Blaze.Builder.Word".
 --
 newtype Builder = Builder (BuildStep -> BuildStep)
 
@@ -186,6 +187,11 @@ defaultMaximalCopySize = 2 * defaultMinimalBufferSize
 
 
 -- | Output all data written in the current buffer and start a new chunk.
+--
+-- The use uf this function depends on how the resulting bytestrings are
+-- consumed. 'flush' is possibly not very useful in non-interactive scenarios.
+-- However, it is kept for compatibility with the builder provided by
+-- Data.Binary.Builder.
 --
 -- When using 'toLazyByteString' to extract a lazy 'L.ByteString' from a
 -- 'Builder', this means that a new chunk will be started in the resulting lazy
@@ -343,8 +349,10 @@ toByteStringIOWith bufSize io (Builder b) =
                         mapM_ io (bsk [])
                         fill nextStep
 
--- | Run the builder with a 'defaultBufferSize'd buffer and execute the given IO
--- action whenever it is full.
+-- | Run the builder with a 'defaultBufferSize'd buffer and execute the given
+-- 'IO' action whenever the buffer is full or gets flushed.
+--
+-- @ 'toByteStringIO' = 'toByteStringIOWith' 'defaultBufferSize'@
 --
 -- This is a 'Monoid' homomorphism in the following sense.
 --
