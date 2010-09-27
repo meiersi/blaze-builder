@@ -49,7 +49,7 @@ fromHtmlEscapedChar = fromWriteSingleton writeHtmlEscapedChar
 -- encoding.
 --
 fromHtmlEscapedString :: String -> Builder
-fromHtmlEscapedString = fromWriteList writeHtmlEscapedChar
+fromHtmlEscapedString = fromWrite1List writeHtmlEscapedChar
 
 -- | /O(n)/. Serialize a value by 'Show'ing it and then, HTML escaping and
 -- UTF-8 encoding the resulting 'String'.

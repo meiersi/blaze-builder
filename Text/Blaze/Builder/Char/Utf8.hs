@@ -97,7 +97,7 @@ fromChar = fromWriteSingleton writeChar
 -- | /O(n)/. Serialize a Unicode 'String' using the UTF-8 encoding.
 --
 fromString :: String -> Builder
-fromString = fromWriteList writeChar
+fromString = fromWrite1List writeChar
 -- Performance note: ^^^
 --
 --   fromWrite2List made things slightly worse for the blaze-html benchmarks

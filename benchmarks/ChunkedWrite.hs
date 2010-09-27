@@ -25,7 +25,7 @@ import qualified Text.Blaze.Builder.Char.Utf8 as BB
 main = defaultMain 
     [ bench "mconcat . map fromByte: [Char] -> Builder -> L.ByteString" $ 
         whnf benchMConcatChars chars
-    , bench "fromWriteList: [Char] -> Builder -> L.ByteString" $ 
+    , bench "fromWrite1List: [Char] -> Builder -> L.ByteString" $ 
         whnf bench1Chars chars
     , bench "fromWrite2List: [Char] -> Builder -> L.ByteString" $ 
         whnf bench2Chars chars
@@ -38,7 +38,7 @@ main = defaultMain
 
     , bench "mconcat . map fromByte: [Word8] -> Builder -> L.ByteString" $ 
         whnf benchMConcatWord8s word8s
-    , bench "fromWriteList: [Word8] -> Builder -> L.ByteString" $ 
+    , bench "fromWrite1List: [Word8] -> Builder -> L.ByteString" $ 
         whnf bench1Word8s word8s
     , bench "fromWrite2List: [Word8] -> Builder -> L.ByteString" $ 
         whnf bench2Word8s word8s
@@ -51,7 +51,7 @@ main = defaultMain
 
     , bench "mconcat . map fromWord32host: [Word32] -> Builder -> L.ByteString" $ 
         whnf benchMConcatWord32s word32s
-    , bench "fromWriteList: [Word32] -> Builder -> L.ByteString" $ 
+    , bench "fromWrite1List: [Word32] -> Builder -> L.ByteString" $ 
         whnf bench1Word32s word32s
     , bench "fromWrite2List: [Word32] -> Builder -> L.ByteString" $ 
         whnf bench2Word32s word32s
@@ -83,7 +83,7 @@ benchMConcatChars :: [Char] -> Int64
 benchMConcatChars = L.length . BB.toLazyByteString . mconcat . map BB.fromChar
 
 bench1Chars :: [Char] -> Int64
-bench1Chars = L.length . BB.toLazyByteString . BB.fromWriteList BB.writeChar
+bench1Chars = L.length . BB.toLazyByteString . BB.fromWrite1List BB.writeChar
 
 bench2Chars :: [Char] -> Int64
 bench2Chars = L.length . BB.toLazyByteString . BB.fromWrite2List BB.writeChar
@@ -103,7 +103,7 @@ benchMConcatWord8s :: [Word8] -> Int64
 benchMConcatWord8s = L.length . BB.toLazyByteString . mconcat . map BB.fromWord8
 
 bench1Word8s :: [Word8] -> Int64
-bench1Word8s = L.length . BB.toLazyByteString . BB.fromWriteList BB.writeWord8
+bench1Word8s = L.length . BB.toLazyByteString . BB.fromWrite1List BB.writeWord8
 
 bench2Word8s :: [Word8] -> Int64
 bench2Word8s = L.length . BB.toLazyByteString . BB.fromWrite2List BB.writeWord8
@@ -123,7 +123,7 @@ benchMConcatWord32s :: [Word32] -> Int64
 benchMConcatWord32s = L.length . BB.toLazyByteString . mconcat . map BB.fromWord32host
 
 bench1Word32s :: [Word32] -> Int64
-bench1Word32s = L.length . BB.toLazyByteString . BB.fromWriteList BB.writeWord32host
+bench1Word32s = L.length . BB.toLazyByteString . BB.fromWrite1List BB.writeWord32host
 
 bench2Word32s :: [Word32] -> Int64
 bench2Word32s = L.length . BB.toLazyByteString . BB.fromWrite2List BB.writeWord32host

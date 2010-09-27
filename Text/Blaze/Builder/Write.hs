@@ -1,18 +1,17 @@
 {-# LANGUAGE CPP, BangPatterns #-}
 
--- | This module exports the two types 'Builder' and 'Write' as well as a set
--- of combinators relating them.
+-- | This module provides the 'Write' type, which abstracts direct writes to a
+-- buffer. 'Write's form the public interface for lifting direct buffer
+-- manipulations to 'Builder's.
 --
 module Text.Blaze.Builder.Write
     ( 
-    -- * The @Builder@ monoid for building lazy bytestrings
     -- * Atomic writes to a buffer
       Write (..)
 
-    -- ** Creating builders from atomic writes
+    -- * Creating builders from 'Write' abstractions
     , fromWrite
     , fromWriteSingleton
-    , fromWriteList
     , fromWrite1List
     , fromWrite2List
     , fromWrite4List
@@ -54,7 +53,7 @@ import Data.Monoid
 -- > writeThreeWord8 (x,y,z) = 
 -- >     writeWord8 x `mappend` writeWord8 y `mappend` writeWord8 z
 --
--- An expression that the compiler will optimize to the following efficient
+-- This expression will be optimized by the compiler to the following efficient
 -- 'Write'.
 --
 -- > writeThreeWord8 (x, y, z) = Write 3 $ \pf -> do
@@ -62,22 +61,26 @@ import Data.Monoid
 -- >     poke (pf `plusPtr` 1) y
 -- >     poke (pf `plusPtr` 2) z
 --
--- 
+-- Writes are /atomic/. This means that the written data cannot be wrapped
+-- over buffer boundaries as it can be done for builders. For writes it holds
+-- that either the buffer has enough free space and the write can proceed or a
+-- new buffer with a size larger or equal to the number of bytes to write has
+-- to be allocated.
 --
--- However, writes are /atomic/.
--- This means that the written data cannot be wrapped over buffer boundaries as
--- it can be done for builders. For writes it holds that either the buffer
--- has enough free space and the write can proceed or a new buffer with a
--- size larger or equal to the number of bytes to write has to be allocated.
+-- Moreover, for a 'Write', the size of the data to be written must be known
+-- before the data can be written. Hence, if this size is data-dependent, the
+-- control flow becomes complicated: first, all data must be forced and stored,
+-- then the size check happens, and only afterwards the stored data can be
+-- written. Therefore, because of cache misses, composing writes with
+-- data-dependent size computations may actually be slower than combining the
+-- resulting builders. Use benchmarking to make informed decisions.
 --
--- The difference between 'Write's
--- and 'Builder's is t
 data Write = Write
     {-# UNPACK #-} !Int  -- Number of bytes that will be written.
     (Ptr Word8 -> IO ()) -- Function to write the bytes starting from the given
                          -- pointer
 
--- A monoid interface for the write actions.
+-- A monoid interface for the 'Write' actions.
 instance Monoid Write where
     mempty = Write 0 (const $ return ())
     {-# INLINE mempty #-}
@@ -91,14 +94,20 @@ instance Monoid Write where
 -- Lifting Writes to Builders
 -----------------------------
 
--- | Construct a 'Builder' constructor from a single 'Write' constructor.
--- This constructor should be known /statically/ such that it can be
--- eliminated. Semantically it holds
+-- | Create a 'Builder' from a single write @w@. For good performance, @w@ must
+-- feature an outermost 'Write' constructor such that the pattern match can be
+-- eliminated during compilation.
+--
+-- Semantically, it holds that
 --
 -- > fromWrite . write = fromWriteSingleton write
 --
--- However, performance-wise the right-hand side is more efficient.
+-- However, performance-wise the right-hand side is more efficient due to
+-- currently unknown reasons. Use the second form, when
+-- defining functions for creating builders from writes of Haskell values.
 --
+-- (Use the standard benchmark in the @blaze-html@ package when investigating
+-- this phenomenon.)
 fromWrite :: Write -> Builder
 fromWrite (Write size io) =
     Builder step
@@ -111,7 +120,7 @@ fromWrite (Write size io) =
       | otherwise               = return $ BufferFull size pf (step k)
 {-# INLINE fromWrite #-}
 
--- | Construct a 'Builder' constructor from a single 'Write' constructor.
+-- | Create a 'Builder' constructor from a single 'Write' constructor.
 --
 fromWriteSingleton :: (a -> Write) -> a -> Builder   
 fromWriteSingleton write = makeBuilder
@@ -128,10 +137,10 @@ fromWriteSingleton write = makeBuilder
             Write size io = write x
 {-# INLINE fromWriteSingleton #-}
 
--- | Construct a builder writing a list of data from a write abstraction.
+-- | Construct a 'Builder' writing a list of data one element at a time from a 'Write' abstraction.
 --
-fromWriteList :: (a -> Write) -> [a] -> Builder
-fromWriteList write = makeBuilder
+fromWrite1List :: (a -> Write) -> [a] -> Builder
+fromWrite1List write = makeBuilder
   where
     makeBuilder []  = mempty
     makeBuilder xs0 = Builder $ step xs0
@@ -146,13 +155,10 @@ fromWriteList write = makeBuilder
               | otherwise = do return $ BufferFull size pf (step xs k)
               where
                 Write size io = write x'
-{-# INLINE fromWriteList #-}
+{-# INLINE fromWrite1List #-}
 
-fromWrite1List :: (a -> Write) -> [a] -> Builder
-fromWrite1List = fromWriteList
-
--- | Construct a builder writing a list of data two elements at a time from a
--- write abstraction.
+-- | Construct a 'Builder' writing a list of data two elements at a time from a
+-- 'Write' abstraction.
 --
 fromWrite2List :: (a -> Write) -> [a] -> Builder
 fromWrite2List write = makeBuilder
@@ -183,8 +189,8 @@ fromWrite2List write = makeBuilder
                 pf' = pf `plusPtr` size
 {-# INLINE fromWrite2List #-}
 
--- | Construct a builder writing a list of data four elements at a time from a
--- write abstraction.
+-- | Construct a 'Builder' writing a list of data four elements at a time from a
+-- 'Write' abstraction.
 --
 fromWrite4List :: (a -> Write) -> [a] -> Builder
 fromWrite4List write = makeBuilder
@@ -226,8 +232,8 @@ fromWrite4List write = makeBuilder
             go [] !pf = k pf pe0
 {-# INLINE fromWrite4List #-}
 
--- | Construct a builder writing a list of data eight elements at a time from a
--- write abstraction.
+-- | Construct a 'Builder' writing a list of data eight elements at a time from a
+-- 'Write' abstraction.
 --
 fromWrite8List :: (a -> Write) -> [a] -> Builder
 fromWrite8List write = makeBuilder
@@ -284,8 +290,8 @@ fromWrite8List write = makeBuilder
             go [] !pf = k pf pe0
 {-# INLINE fromWrite8List #-}
 
--- | Construct a builder writing a list of data 16 elements at a time from a
--- write abstraction.
+-- | Construct a 'Builder' writing a list of data 16 elements at a time from a
+-- 'Write' abstraction.
 --
 fromWrite16List :: (a -> Write) -> [a] -> Builder
 fromWrite16List write = makeBuilder

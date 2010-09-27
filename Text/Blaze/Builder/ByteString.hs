@@ -192,7 +192,7 @@ fromLazyByteStringWith maximalCopySize =
 -- See 'copyByteString' for usage considerations.
 --
 copyLazyByteString :: L.ByteString -> Builder
-copyLazyByteString = fromWriteList writeByteString . L.toChunks
+copyLazyByteString = fromWrite1List writeByteString . L.toChunks
 {-# INLINE copyLazyByteString #-}
 
 -- | /O(n)/. Serialize a lazy bytestring by inserting /all/ its chunks directly
