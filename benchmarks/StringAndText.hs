@@ -30,7 +30,13 @@ import qualified Text.Blaze.Builder.Html.Utf8 as Blaze
 
 main :: IO ()
 main = defaultMain 
-    [ bench "fromString :: String --[Utf8 encoding]--> L.ByteString" $ whnf
+    [ bench "TL.unpack :: LazyText -> String" $ nf
+        TL.unpack benchLazyText
+
+    , bench "TL.foldr  :: LazyText -> String" $ nf
+        (TL.foldr (:) []) benchLazyText
+    
+    , bench "fromString :: String --[Utf8 encoding]--> L.ByteString" $ whnf
         (L.length . Blaze.toLazyByteString . Blaze.fromString) benchString
 
     , bench "fromStrictTextUnpacked :: StrictText --[Utf8 encoding]--> L.ByteString" $ whnf
@@ -61,21 +67,21 @@ main = defaultMain
         (L.length . Blaze.toLazyByteString . Blaze.fromHtmlEscapedLazyText) benchLazyText
      
     ]
-  where
-    n :: Int
-    n = 100000
 
-    benchString :: String
-    benchString = take n $ concatMap show [(1::Int)..]
-    {-# NOINLINE benchString #-}
+n :: Int
+n = 100000
 
-    benchStrictText :: TS.Text
-    benchStrictText = TS.pack benchString
-    {-# NOINLINE benchStrictText #-}
+benchString :: String
+benchString = take n $ concatMap show [(1::Int)..]
+{-# NOINLINE benchString #-}
 
-    benchLazyText :: TL.Text
-    benchLazyText = TL.pack benchString
-    {-# NOINLINE benchLazyText #-}
+benchStrictText :: TS.Text
+benchStrictText = TS.pack benchString
+{-# NOINLINE benchStrictText #-}
+
+benchLazyText :: TL.Text
+benchLazyText = TL.pack benchString
+{-# NOINLINE benchLazyText #-}
 
 
 -- | Encode the 'TS.Text' as UTF-8 by folding it and filling the raw buffer
