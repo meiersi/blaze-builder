@@ -81,10 +81,18 @@ instance Show Builder where
     show = show . toLazyByteString
 
 instance Eq Builder where
-    b1 == b2 = toLazyByteString b1 == toLazyByteString b2
+    b1 == b2 = 
+        -- different and small buffer sizses for testing wrapping behaviour
+        toLazyByteStringWith  1024     1024 b1 == 
+        toLazyByteStringWith  2001     511  b2
+
+-- | Artificially scale up size to ensures that buffer wrapping behaviour is
+-- also tested.
+numRepetitions :: Int
+numRepetitions = 250
 
 instance Arbitrary Builder where
-    arbitrary = fromString <$> arbitrary
+    arbitrary = (mconcat . replicate numRepetitions . fromString) <$> arbitrary
 
 instance Arbitrary LB.ByteString where
-    arbitrary = LB.pack <$> arbitrary
+    arbitrary = (LB.concat . replicate numRepetitions . LB.pack) <$> arbitrary

@@ -62,4 +62,5 @@ bench-compression:
 ##############################################################################
 
 test:
-	runghc -itests tests/Tests.hs
+	ghc --make -O2 -itests -main-is Tests Tests
+	./tests/Tests
