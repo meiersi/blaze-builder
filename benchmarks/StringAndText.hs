@@ -6,7 +6,7 @@
 -- 
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
--- Portability : portable to Hugs and GHC
+-- Portability : tested on GHC only
 --
 -- Benchmarking of String and Text serialization.
 module StringAndText (main)  where

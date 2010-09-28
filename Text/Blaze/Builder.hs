@@ -6,7 +6,7 @@
 -- 
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
--- Portability : portable to Hugs and GHC
+-- Portability : tested on GHC only
 --
 -- "Text.Blaze.Builder" is the main module, which you should import as a user
 -- of the @blaze-builder@ library.

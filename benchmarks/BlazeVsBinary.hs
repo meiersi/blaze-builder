@@ -6,7 +6,7 @@
 -- 
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
--- Portability : portable to Hugs and GHC
+-- Portability : tested on GHC only
 --
 -- A comparison between 'blaze-builder' and the Data.Binary.Builder from
 -- 'binary'. The goal is to measure the performance on serializing dynamic

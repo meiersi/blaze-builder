@@ -7,7 +7,7 @@
 -- 
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
--- Portability : portable to Hugs and GHC
+-- Portability : tested on GHC only
 --
 -- This module provides the 'Write' type, which abstracts direct writes to a
 -- buffer. 'Write's form the public interface for lifting direct buffer

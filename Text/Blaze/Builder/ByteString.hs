@@ -7,7 +7,7 @@
 -- 
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
--- Portability : portable to Hugs and GHC
+-- Portability : tested on GHC only
 --
 -- 'Write's and 'Builder's for strict and lazy bytestrings.
 --

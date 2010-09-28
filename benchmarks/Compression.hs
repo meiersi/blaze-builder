@@ -5,7 +5,7 @@
 -- 
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
--- Portability : portable to Hugs and GHC
+-- Portability : tested on GHC only
 --
 -- Benchmark the effect of first compacting the input stream for the 'zlib'
 -- compression package.
