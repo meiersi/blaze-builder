@@ -3,13 +3,14 @@ Version:             0.2.0.0
 Synopsis:            Efficient serialization to lazy bytestrings.
 
 Description:         
-                     This library allows to efficiently serialize Haskell
-                     values to lazy bytestrings with a large average chunk
-                     size. The large average chunk size allows to make good use
-                     of cache prefetching in later processing steps (e.g.
-                     compression) and reduces the sytem call overhead when
-                     writing the resulting lazy bytestring to a file or sending
-                     it over the network.
+                     This library provides an abstraction of buffered output
+                     that allows to efficiently serialize Haskell values to
+                     lazy bytestrings with a large average chunk size. The
+                     large average chunk size allows to make good use of cache
+                     prefetching in later processing steps (e.g.  compression)
+                     and reduces the sytem call overhead when writing the
+                     resulting lazy bytestring to a file or sending it over the
+                     network.
 
 Homepage:            http://github.com/meiersi/blaze-builder
 Bug-Reports:         http://github.com/meiersi/blaze-builder/issues
@@ -20,11 +21,24 @@ Maintainer:          jaspervdj@gmail.com, iridcode@gmail.com
 Stability:           Experimental
 Category:            Text
 Build-type:          Simple
-Cabal-version:       >=1.2
+Cabal-version:       >= 1.6
+
+Extra-source-files:  
+                     Makefile
+                     README.markdown
+                     TODO
+
+                     benchmarks/*.hs
+                     benchmarks/Throughput/*.hs
+                     benchmarks/Throughput/*.h
+                     benchmarks/Throughput/*.c
+
+                     tests/*.hs
+
+
 Library
   Ghc-Options:       -Wall
 
-  -- Modules exported by the library.
   Exposed-modules:   Text.Blaze.Builder
                      Text.Blaze.Builder.Write
                      Text.Blaze.Builder.Word
@@ -32,11 +46,8 @@ Library
                      Text.Blaze.Builder.Char.Utf8
                      Text.Blaze.Builder.Html.Utf8
 
-                     -- exposed for now, simplifies experimenting for
-                     -- library users
                      Text.Blaze.Builder.Internal
   
-  -- Packages needed in order to build this package.
   Build-depends:     base >= 4 && < 5,
-                     text >= 0.7,
+                     text >= 0.9,
                      bytestring >= 0.9
