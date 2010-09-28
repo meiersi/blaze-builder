@@ -1,0 +1,34 @@
+
+* blaze-builder-0.2.0.0
+
+  Heavily restructured 'blaze-builder' such that 'Text.Blaze.Builder' serves as
+  a drop-in replacement of 'binary:Data.Binary.Builder' which it improves upon
+  with respect to both speed as well as expressivity. See the documentation and
+  the benchmarks for details on improvements and new functionality.
+
+  Changed module structure:
+    Text.Blaze.Builder.Core -> Text.Blaze.Builder
+    Text.Blaze.Builder.Utf8 -> Text.Blaze.Builder.Char.Utf8
+    Text.Blaze.Builder.Html -> Text.Blaze.Builder.Html.Utf8 
+
+  Changed function names:
+    writeByte     -> writeWord8
+    fromByte      -> fromWord8
+    fromWriteList -> fromWrite1List
+
+  Possibly performance sensitive implementation changes:
+    - 'fromByteString' and 'fromLazyByteString' check now if a direct insertion
+      of the bytestring(s) would be cheaper than copying it. See their
+      documentation on how to recover the old behaviour.
+
+  Deprecated functions:
+    'empty'    : use 'mempty' instead
+    'singleton': use 'fromWord8' instead
+    'append'   : use 'mappend' instead
+  
+
+* blaze-builder-0.1
+
+  This is the first version of 'blaze-builder'. It is explicitely targeted at
+  fast generation of UTF-8 encoded HTML documents in the 'blaze-html' and the
+  'hamlet' HTML templating libraries.

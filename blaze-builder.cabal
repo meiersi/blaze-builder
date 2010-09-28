@@ -27,6 +27,7 @@ Extra-source-files:
                      Makefile
                      README.markdown
                      TODO
+                     CHANGES
 
                      benchmarks/*.hs
                      benchmarks/Throughput/*.hs
