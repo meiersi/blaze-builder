@@ -40,3 +40,6 @@
   * portability
       - port to Hugs
       - test lower versions of GHC
+
+  * deployment
+      - add source repository to 'blaze-html' and 'blaze-builder' cabal files
