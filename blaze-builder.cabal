@@ -1,6 +1,6 @@
 Name:                blaze-builder
 Version:             0.2.0.0
-Synopsis:            Efficient serialization to lazy bytestrings.
+Synopsis:            Efficient construction of lazy bytestrings.
 
 Description:         
                      This library provides an abstraction of buffered output
