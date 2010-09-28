@@ -78,12 +78,23 @@ module Text.Blaze.Builder
       --
       -- | The following functions ensure that @"Text.Blaze.Builder"@ is a
       -- drop-in replacement for @Data.Binary.Builder@ from the @binary@
-      -- package. Note that these functions are deprecated and will be removed
+      -- package. Note that these functions are deprecated and may be removed
       -- in future versions of the @blaze-builder@ package.
       --
     , empty                   -- DEPRECATED: use 'mempty' instead
     , singleton               -- DEPRECATED: use 'fromByte' instead
     , append                  -- DEPRECATED: use 'mappend' instead
+                              
+    , putWord16be             -- DEPRECATED: use 'fromWord<n><endian>' instead
+    , putWord32be             --
+    , putWord64be             --
+    , putWord16le             --
+    , putWord32le             --
+    , putWord64le             --   for all these functions
+    , putWordhost             --
+    , putWord16host           --
+    , putWord32host           --
+    , putWord64host           --
     ) where
 
 import Text.Blaze.Builder.Internal
@@ -118,4 +129,74 @@ append = mappend
 singleton :: Word8 -> Builder
 singleton = fromWriteSingleton writeWord8
 {-# DEPRECATED singleton "Use 'fromWord8' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word16' in big endian format.
+--
+-- /Deprecated:/ use 'fromWord16be' instead.
+putWord16be :: Word16 -> Builder
+putWord16be = fromWord16be 
+{-# DEPRECATED putWord16be "Use 'fromWord16be' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word32' in big endian format.
+--
+-- /Deprecated:/ use 'fromWord32be' instead.
+putWord32be :: Word32 -> Builder
+putWord32be = fromWord32be
+{-# DEPRECATED putWord32be "Use 'fromWord32be' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word64' in big endian format.
+--
+-- /Deprecated:/ use 'fromWord64be' instead.
+putWord64be :: Word64 -> Builder
+putWord64be = fromWord64be
+{-# DEPRECATED putWord64be "Use 'fromWord64be' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word16' in little endian format.
+--
+-- /Deprecated:/ use 'fromWord16le' instead.
+putWord16le :: Word16 -> Builder
+putWord16le = fromWord16le
+{-# DEPRECATED putWord16le "Use 'fromWord16le' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word32' in little endian format.
+--
+-- /Deprecated:/ use 'fromWord32le' instead.
+putWord32le :: Word32 -> Builder
+putWord32le = fromWord32le
+{-# DEPRECATED putWord32le "Use 'fromWord32le' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word64' in little endian format.
+--
+-- /Deprecated:/ use 'fromWord64le' instead.
+putWord64le :: Word64 -> Builder
+putWord64le = fromWord64le
+{-# DEPRECATED putWord64le "Use 'fromWord64le' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word' in host endian format.
+--
+-- /Deprecated:/ use 'fromWordhost' instead.
+putWordhost :: Word -> Builder
+putWordhost = fromWordhost
+{-# DEPRECATED putWordhost "Use 'fromWordhost' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word16' in host endian format.
+--
+-- /Deprecated:/ use 'fromWord16host' instead.
+putWord16host :: Word16 -> Builder
+putWord16host = fromWord16host
+{-# DEPRECATED putWord16host "Use 'fromWord16host' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word32' in host endian format.
+--
+-- /Deprecated:/ use 'fromWord32host' instead.
+putWord32host :: Word32 -> Builder
+putWord32host = fromWord32host
+{-# DEPRECATED putWord32host "Use 'fromWord32host' instead." #-}
+
+-- | /O(1)/. Serialize a 'Word64' in host endian format.
+--
+-- /Deprecated:/ use 'fromWord64host' instead.
+putWord64host :: Word64 -> Builder
+putWord64host = fromWord64host
+{-# DEPRECATED putWord64host "Use 'fromWord64host' instead." #-}
 

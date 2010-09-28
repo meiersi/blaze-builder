@@ -40,6 +40,3 @@
   * portability
       - port to Hugs
       - test lower versions of GHC
-
-  * check that Text.Blaze.Builder is really a drop-in replacement for
-    Data.Binary.Builder
