@@ -1,5 +1,5 @@
 Name:                blaze-builder
-Version:             0.2
+Version:             0.2.0.0
 Synopsis:            Efficient serialization to lazy bytestrings.
 
 Description:         
@@ -11,8 +11,8 @@ Description:
                      writing the resulting lazy bytestring to a file or sending
                      it over the network.
 
-Homepage:            http://jaspervdj.be/blaze
-Bug-Reports:         http://github.com/jaspervdj/blaze-builder/issues
+Homepage:            http://github.com/meiersi/blaze-builder
+Bug-Reports:         http://github.com/meiersi/blaze-builder/issues
 License:             BSD3
 License-file:        LICENSE
 Author:              Jasper Van der Jeugt, Simon Meier
