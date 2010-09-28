@@ -17,7 +17,7 @@ import Test.QuickCheck
 import Test.HUnit hiding (Test)
 import Codec.Binary.UTF8.String (decode)
 
-import Text.Blaze.Builder.Write
+import Text.Blaze.Builder
 import Text.Blaze.Builder.Char.Utf8
 import Text.Blaze.Builder.Html.Utf8
 
