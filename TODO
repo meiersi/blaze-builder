@@ -21,6 +21,7 @@
       - show that using toByteStringIO has an advantage over toLazyByteString
 
   * documentation
+      - sort out formultion: "serialization" vs. "encoding"
 
   * check portability to Hugs
 
