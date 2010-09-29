@@ -2,7 +2,7 @@
 -- ignore warning from 'import Data.Text.Encoding'
 
 -- |
--- Module      : Text.Blaze.Builder.Utf8
+-- Module      : Text.Blaze.Builder.Char.Utf8
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 

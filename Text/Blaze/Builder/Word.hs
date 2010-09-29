@@ -3,7 +3,7 @@
 
 {-# LANGUAGE CPP #-}
 -- |
--- Module      : Text.Blaze.Builder
+-- Module      : Text.Blaze.Builder.Word
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 --
 --               Original serialization code from 'Data.Binary.Builder':

@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, BangPatterns #-}
 -- |
--- Module      : Text.Blaze.Builder
+-- Module      : Text.Blaze.Builder.Internal
 -- Copyright   : (c) 2010 Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
