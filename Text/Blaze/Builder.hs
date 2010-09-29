@@ -63,6 +63,7 @@ module Text.Blaze.Builder
 
       -- * Creating builders
     , module Text.Blaze.Builder.Write 
+    , module Text.Blaze.Builder.Int
     , module Text.Blaze.Builder.Word
     , module Text.Blaze.Builder.ByteString
     , flush
@@ -99,8 +100,9 @@ module Text.Blaze.Builder
 
 import Text.Blaze.Builder.Internal
 import Text.Blaze.Builder.Write
-import Text.Blaze.Builder.ByteString
+import Text.Blaze.Builder.Int
 import Text.Blaze.Builder.Word
+import Text.Blaze.Builder.ByteString
 
 import Data.Monoid
 import Data.Word

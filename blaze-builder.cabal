@@ -42,6 +42,7 @@ Library
 
   Exposed-modules:   Text.Blaze.Builder
                      Text.Blaze.Builder.Write
+                     Text.Blaze.Builder.Int
                      Text.Blaze.Builder.Word
                      Text.Blaze.Builder.ByteString
                      Text.Blaze.Builder.Char.Utf8
