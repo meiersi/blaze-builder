@@ -32,7 +32,6 @@
         alignment, and memory access alignment into account.
       - detect machine endianness and use host order writes for the supported
         endianness.
-      - loop over Chunks when inserting them directly into output.
 
   * testing
       - port tests from 'Data.Binary.Builder' to ensure that the word writes

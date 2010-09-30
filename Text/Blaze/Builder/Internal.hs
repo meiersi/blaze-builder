@@ -19,9 +19,8 @@
 -- 'Builder' with a custom low-level 'BuildStep' may improve performance
 -- considerably compared to the creating it using the public 'Builder'
 -- combinators (e.g., @'fromWrite1List'@ in "Text.Blaze.Builder.Write").
--- Another example, is the use of 'runBuilderWith' or 'ModifyByteStrings' to
--- efficiently wire the 'Builder' type with another library that generates lazy
--- bytestrings.
+-- Another example, is the use of 'ModifyChunks' to efficiently wire the
+-- 'Builder' type with another library that generates lazy bytestrings.
 --
 -- In any case, whenever you import this module you /must/ reference the full
 -- version of the 'blaze-builder' package in your cabal file, as the
@@ -39,7 +38,6 @@ module Text.Blaze.Builder.Internal
     , flush
 
     -- * Executing builders
-    , runBuilderWith
     , toLazyByteStringWith
     , toLazyByteString
     , toByteStringIOWith
@@ -61,9 +59,11 @@ import qualified Data.ByteString.Lazy as L
 #ifdef BYTESTRING_IN_BASE
 import Data.ByteString.Base (inlinePerformIO)
 import qualified Data.ByteString.Base as S
+import qualified Data.ByteString.Lazy.Base as L -- FIXME: is this the right module for access to 'Chunks'?
 #else
 import Data.ByteString.Internal (inlinePerformIO)
 import qualified Data.ByteString.Internal as S
+import qualified Data.ByteString.Lazy.Internal as L
 #endif
 
 
@@ -126,17 +126,17 @@ data BuildSignal =
       {-# UNPACK #-} !Int
       {-# UNPACK #-} !(Ptr Word8)
       {-# UNPACK #-} !BuildStep
-  -- | @ModifyByteStrings pf fbs nextStep@ signals that the data written up
-  -- to the next free byte @pf@ must be output and the remaining stream of
-  -- strict bytestrings that is produced by executing @nextStep@ must be
-  -- modified using the function @fbs@.
+  -- | @ModifyChunks pf fbs nextStep@ signals that the data written up to the
+  -- next free byte @pf@ must be output and the remaining lazy bytestring that
+  -- is produced by executing @nextStep@ must be modified using the function
+  -- @fbs@.
   --
   -- This signal is used to insert bytestrings directly into the output stream.
   -- It can also be used to efficiently hand over control to another library
   -- for generating streams of strict bytestrings.
-  | ModifyByteStrings
+  | ModifyChunks
       {-# UNPACK #-} !(Ptr Word8) 
-      {-# UNPACK #-} !([S.ByteString] -> [S.ByteString]) 
+      {-# UNPACK #-} !(L.ByteString -> L.ByteString) 
       {-# UNPACK #-} !BuildStep
 
 -- | A 'BuildStep' fills a buffer from the given start pointer as long as
@@ -208,7 +208,7 @@ defaultMaximalCopySize = 2 * defaultMinimalBufferSize
 -- reamining free space is smaller than the minimal desired buffer size.
 --
 flush :: Builder
-flush = Builder $ \k pf _ -> return $ ModifyByteStrings pf id k
+flush = Builder $ \k pf _ -> return $ ModifyChunks pf id k
 
 -- | Run a 'Builder' with the given buffer sizes.
 --
@@ -220,18 +220,17 @@ flush = Builder $ \k pf _ -> return $ ModifyByteStrings pf id k
 -- completely fill the existing buffer, if this is faster. However, they should
 -- not spill too much of the buffer, if they cannot compensate for it.
 --
-runBuilderWith :: Int            -- ^ Buffer size (upper-bounds the resulting
-                                 -- chunk size).
-               -> Int            -- ^ Minimal free buffer space for continuing
-                                 -- filling the same buffer after a 'flush' or
-                                 -- a direct bytestring insertion. This
-                                 -- corresponds to the minimal desired chunk
-                                 -- size.
-               -> Builder        -- ^ Builder to run.
-               -> [S.ByteString] -- ^ Strict bytestrings to output after the
-                                 -- builder is finished.
-               -> [S.ByteString] -- ^ Resulting list of strict bytestrings.
-runBuilderWith bufSize minBufSize (Builder b) k = 
+toLazyByteStringWith 
+    :: Int           -- ^ Buffer size (upper-bounds the resulting chunk size).
+    -> Int           -- ^ Minimal free buffer space for continuing filling
+                     -- the same buffer after a 'flush' or a direct bytestring
+                     -- insertion. This corresponds to the minimal desired
+                     -- chunk size.
+    -> Builder       -- ^ Builder to run.
+    -> L.ByteString  -- ^ Lazy bytestring to output after the builder is
+                     -- finished.
+    -> L.ByteString  -- ^ Resulting lazy bytestring
+toLazyByteStringWith bufSize minBufSize (Builder b) k = 
     inlinePerformIO $ fillNewBuffer bufSize (b finalStep)
   where
     finalStep pf _ = return $ Done pf
@@ -248,52 +247,38 @@ runBuilderWith bufSize minBufSize (Builder b) k =
                 case next of
                     Done pf' 
                       | pf' == pf -> return k
-                      | otherwise -> return $ 
-                          S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf) : k
+                      | otherwise -> do
+                          let bs = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
+                          return $ L.Chunk bs k
 
-                    BufferFull newSize pf' nextStep  ->
-                        return $ 
-                            S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf) : 
+                    BufferFull newSize pf' nextStep  -> do
+                        let bs = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
+                        return $ L.Chunk bs
                             (inlinePerformIO $ 
                                 fillNewBuffer (max newSize bufSize) nextStep)
                         
-                    ModifyByteStrings  pf' bsk nextStep  ->
+                    ModifyChunks  pf' bsk nextStep  ->
                         modifyByteStrings pf' bsk nextStep
               where
                 modifyByteStrings pf' bsk nextStep
                     | pf' == pf                      =
                         return $ bsk (inlinePerformIO $ fill pf' nextStep)
                     | minBufSize < pe `minusPtr` pf' =
-                        return $ bs : bsk (inlinePerformIO $ fill pf' nextStep)
+                        return $ L.Chunk bs 
+                            (bsk (inlinePerformIO $ fill pf' nextStep))
                     | otherwise                      =
-                        return $ bs : 
-                            bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep)
+                        return $ L.Chunk bs  
+                            (bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep))
                   where
                     bs = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
                 {-# INLINE modifyByteStrings #-}
 
 
--- | Extract the lazy 'L.ByteString' from the builder by running it with the
--- given buffer sizes.
---
-toLazyByteStringWith :: Int           -- ^ Buffer size (upper bounds the resulting
-                                      -- chunk size).
-                     -> Int           -- ^ Minimal free buffer space for continuing
-                                      -- filling the same buffer after a 'flush' or
-                                      -- a direct bytestring insertion. This
-                                      -- corresponds to the minimal desired chunk
-                                      -- size.
-                     -> Builder       -- ^ 'Builder' to run.
-                     -> L.ByteString  -- ^ Resulting lazy 'L.ByteString'.
-toLazyByteStringWith bufSize minBufSize = 
-  L.fromChunks . flip (runBuilderWith bufSize minBufSize) []
-{-# INLINE toLazyByteStringWith #-}
-
 -- | Extract the lazy 'L.ByteString' from the builder by running it with default
 -- buffer sizes. Use this function, if you do not have any special
 -- considerations with respect to buffer sizes.
 --
--- @ 'toLazyByteString' = 'toLazyByteStringWith' 'defaultBufferSize' 'defaultMinimalBufferSize'@
+-- @ 'toLazyByteString' = 'toLazyByteStringWith' 'defaultBufferSize' 'defaultMinimalBufferSize' L.empty@
 --
 -- Note that @'toLazyByteString'@ is a 'Monoid' homomorphism.
 --
@@ -304,8 +289,8 @@ toLazyByteStringWith bufSize minBufSize =
 -- execute.
 --
 toLazyByteString :: Builder -> L.ByteString
-toLazyByteString = 
-    toLazyByteStringWith defaultBufferSize defaultMinimalBufferSize
+toLazyByteString b = 
+    toLazyByteStringWith defaultBufferSize defaultMinimalBufferSize b L.empty
 {-# INLINE toLazyByteString #-}
 
 -- | @toByteStringIOWith bufSize io b@ runs the builder @b@ with a buffer of
@@ -353,9 +338,10 @@ toByteStringIOWith bufSize io (Builder b) =
                           then fillNewBuffer newSize nextStep
                           else fill nextStep
                         
-                    ModifyByteStrings  pf' bsk nextStep  -> do
+                    ModifyChunks  pf' bsk nextStep  -> do
                         unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
-                        mapM_ io (bsk [])
+                        -- was: mapM_ io $ L.toChunks (bsk L.empty)
+                        L.foldrChunks (\bs -> (io bs >>)) (return ()) (bsk L.empty)
                         fill nextStep
 
 -- | Run the builder with a 'defaultBufferSize'd buffer and execute the given

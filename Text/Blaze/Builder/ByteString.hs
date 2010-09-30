@@ -45,8 +45,10 @@ import qualified Data.ByteString.Lazy as L
 
 #ifdef BYTESTRING_IN_BASE
 import qualified Data.ByteString.Base as S
+import qualified Data.ByteString.Lazy.Base as L -- FIXME: check if this is the right module
 #else
 import qualified Data.ByteString.Internal as S
+import qualified Data.ByteString.Lazy.Internal as L
 #endif
 
 
@@ -98,7 +100,8 @@ fromByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
 fromByteStringWith maximalCopySize bs = Builder step
   where
     step k pf pe
-      | maximalCopySize < size  = return $ ModifyByteStrings pf (bs:) k
+      | maximalCopySize < size  = 
+          return $ ModifyChunks pf (L.Chunk bs) k
       | pf `plusPtr` size <= pe = do
           withForeignPtr fpbuf $ \pbuf -> 
               copyBytes pf (pbuf `plusPtr` offset) size
@@ -130,7 +133,7 @@ copyByteString = fromWriteSingleton writeByteString
 --
 insertByteString :: S.ByteString -> Builder
 insertByteString bs = Builder $ \ k pf _ ->
-    return $ ModifyByteStrings pf (bs:) k
+    return $ ModifyChunks pf (L.Chunk bs) k
 {-# INLINE insertByteString #-}
 
 
@@ -170,27 +173,27 @@ fromLazyByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                        -> L.ByteString -- ^ Lazy 'L.ByteString' to serialize.
                        -> Builder      -- ^ Resulting 'Builder'.
 fromLazyByteStringWith maximalCopySize = 
-    makeBuilder . L.toChunks
+    makeBuilder
   where
-    makeBuilder []  = mempty
-    makeBuilder xs0 = Builder $ step xs0
+    makeBuilder L.Empty  = mempty
+    makeBuilder lbs0     = Builder $ step lbs0
       where
-        step xs1 k pf0 pe0 = go xs1 pf0
+        step lbs1 k pf0 pe0 = go lbs1 pf0
           where
-            go []          !pf = k pf pe0
-            go xs@(x':xs') !pf
+            go L.Empty                !pf = k pf pe0
+            go lbs@(L.Chunk bs' lbs') !pf
               | maximalCopySize < size = 
-                  return $ ModifyByteStrings pf (x':) (step xs' k)
+                  return $ ModifyChunks pf (L.Chunk bs') (step lbs' k)
 
               | pf' <= pe0 = do
                   withForeignPtr fpbuf $ \pbuf -> 
                       copyBytes pf (pbuf `plusPtr` offset) size
-                  go xs' pf'
+                  go lbs' pf'
 
-              | otherwise              = return $ BufferFull size pf (step xs k)
+              | otherwise  = return $ BufferFull size pf (step lbs k)
               where
                 pf' = pf `plusPtr` size
-                (fpbuf, offset, size) = S.toForeignPtr x'
+                (fpbuf, offset, size) = S.toForeignPtr bs'
 {-# INLINE fromLazyByteStringWith #-}
 
 
@@ -208,12 +211,14 @@ copyLazyByteString = fromWrite1List writeByteString . L.toChunks
 --
 -- See 'insertByteString' for usage considerations.
 --
--- For library developers, see the 'ModifyByteStrings' build signal, if you
+-- For library developers, see the 'ModifyChunks' build signal, if you
 -- need an /O(1)/ lazy bytestring insert based on difference lists.
 --
 insertLazyByteString :: L.ByteString -> Builder
 insertLazyByteString lbs = Builder step
   where
-    step k pf _ = return $ ModifyByteStrings pf (L.toChunks lbs ++) k
+    step k pf _ = 
+        return $ ModifyChunks pf (\lbs' -> L.foldrChunks L.Chunk lbs' lbs) k
+
 {-# INLINE insertLazyByteString #-}
 
