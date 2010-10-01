@@ -8,9 +8,10 @@
   * fast serialization for 'Text' values (currently unpacking to 'String' is
     the fastest :-/)
 
-  * implement further encodings for 'Char'
-
-  * implement end-of-buffer wrapping when copying bytestrings
+  * implementation
+      - further encodings for 'Char'
+      - end-of-buffer wrapping when copying bytestrings
+      - toByteStringIO with accumulator capability => provide 'toByteStringIO_'
 
   * extend tests to new functions
 
@@ -19,6 +20,7 @@
         serializer for Word64 little-endian and big-endian 
       - check the cost of using `mappend` on builders instead of writes.
       - show that using toByteStringIO has an advantage over toLazyByteString
+      - check performance of toByteStringIO
 
   * documentation
       - sort out formultion: "serialization" vs. "encoding"
