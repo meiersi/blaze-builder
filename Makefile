@@ -32,8 +32,9 @@ ghci-throughput: benchmarks/Throughput/CBenchmark.o
 	ghci -O2 -fforce-recomp -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
 
 bench-throughput: benchmarks/Throughput/CBenchmark.o
-	ghc --make -O2 -fforce-recomp -fliberate-case-threshold=1000 -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
-	./benchmarks/BenchThroughput 100
+	ghc --make -O2 -fliberate-case-threshold=1000 -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
+	# ghc --make -O2 -fforce-recomp -fliberate-case-threshold=1000 -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
+	./benchmarks/BenchThroughput 1
 
 benchmarks/Throughput/CBenchmark.o: benchmarks/Throughput/CBenchmark.c
 	gcc -O3 -c $< -o $@
