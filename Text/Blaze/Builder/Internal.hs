@@ -125,7 +125,7 @@ data BuildSignal =
   | BufferFull
       {-# UNPACK #-} !Int
       {-# UNPACK #-} !(Ptr Word8)
-      {-# UNPACK #-} !BuildStep
+                     !BuildStep
   -- | @ModifyChunks pf fbs nextStep@ signals that the data written up to the
   -- next free byte @pf@ must be output and the remaining lazy bytestring that
   -- is produced by executing @nextStep@ must be modified using the function
@@ -136,8 +136,8 @@ data BuildSignal =
   -- for generating streams of strict bytestrings.
   | ModifyChunks
       {-# UNPACK #-} !(Ptr Word8) 
-      {-# UNPACK #-} !(L.ByteString -> L.ByteString) 
-      {-# UNPACK #-} !BuildStep
+                     !(L.ByteString -> L.ByteString) 
+                     !BuildStep
 
 -- | A 'BuildStep' fills a buffer from the given start pointer as long as
 -- possible and returns control to the caller using a 'BuildSignal', once it is
