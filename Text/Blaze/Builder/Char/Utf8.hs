@@ -51,6 +51,12 @@ import Text.Blaze.Builder.Write
 --
 -- Use benchmarking to make informed decisions.
 --
+
+-- FIXME: Use a Write that always checks if 4 bytes are available and only take
+-- care of the precise pointer advance once the data has been written. Either
+-- formulate it using continuation passing or returning the increment using the
+-- IO action. The latter is probably simpler and better understandable.
+--
 writeChar :: Char -> Write
 writeChar = encodeCharUtf8 f1 f2 f3 f4
   where
