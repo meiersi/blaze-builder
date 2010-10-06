@@ -1,0 +1,144 @@
+ghc-6.12.3 --make -O2 -fforce-recomp -ibenchmarks -main-is StringAndText StringAndText
+echo ghc-6.12.3
+ghc-6.12.3
+./benchmarks/StringAndText --resamples 10000
+warming up
+estimating clock resolution...
+mean is 17.04065 us (40001 iterations)
+found 3375 outliers among 39999 samples (8.4%)
+  131 (0.3%) low severe
+  1342 (3.4%) low mild
+  536 (1.3%) high mild
+  1366 (3.4%) high severe
+estimating cost of a clock call...
+mean is 1.461080 us (69 iterations)
+found 5 outliers among 69 samples (7.2%)
+  3 (4.3%) high mild
+  2 (2.9%) high severe
+
+benchmarking TL.unpack :: LazyText -> String
+collecting 100 samples, 1 iterations each, in estimated 5.718589 s
+bootstrapping with 10000 resamples
+mean: 10.14350 ms, lb 10.08825 ms, ub 10.26279 ms, ci 0.950
+std dev: 398.7148 us, lb 163.7693 us, ub 684.7091 us, ci 0.950
+found 5 outliers among 100 samples (5.0%)
+  3 (3.0%) high mild
+  2 (2.0%) high severe
+variance introduced by outliers: 0.999%
+variance is unaffected by outliers
+
+benchmarking TL.foldr  :: LazyText -> String
+collecting 100 samples, 8 iterations each, in estimated 1.847601 s
+bootstrapping with 10000 resamples
+mean: 2.350231 ms, lb 2.344587 ms, ub 2.360643 ms, ci 0.950
+std dev: 38.19062 us, lb 24.80574 us, ub 69.23253 us, ci 0.950
+found 4 outliers among 100 samples (4.0%)
+  2 (2.0%) high mild
+  2 (2.0%) high severe
+variance introduced by outliers: 0.994%
+variance is unaffected by outliers
+
+benchmarking fromString :: String --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 12 iterations each, in estimated 1.771420 s
+bootstrapping with 10000 resamples
+mean: 1.466368 ms, lb 1.462081 ms, ub 1.476564 ms, ci 0.950
+std dev: 31.84601 us, lb 16.71494 us, ub 67.74246 us, ci 0.950
+found 18 outliers among 100 samples (18.0%)
+  3 (3.0%) low mild
+  12 (12.0%) high mild
+  3 (3.0%) high severe
+variance introduced by outliers: 0.997%
+variance is unaffected by outliers
+
+benchmarking fromStrictTextUnpacked :: StrictText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 7 iterations each, in estimated 1.917475 s
+bootstrapping with 10000 resamples
+mean: 2.418367 ms, lb 2.377880 ms, ub 2.464558 ms, ci 0.950
+std dev: 224.0149 us, lb 206.1798 us, ub 254.8804 us, ci 0.950
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking fromStrictTextFolded :: StrictText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 5 iterations each, in estimated 1.773566 s
+bootstrapping with 10000 resamples
+mean: 3.671555 ms, lb 3.624497 ms, ub 3.727544 ms, ci 0.950
+std dev: 259.9134 us, lb 227.3164 us, ub 289.9409 us, ci 0.950
+found 1 outliers among 100 samples (1.0%)
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking TS.encodeUtf8 :: StrictText --[Utf8 encoding]--> S.ByteString
+collecting 100 samples, 2 iterations each, in estimated 1.885414 s
+bootstrapping with 10000 resamples
+mean: 9.717592 ms, lb 9.629451 ms, ub 9.832194 ms, ci 0.950
+std dev: 511.5830 us, lb 392.9119 us, ub 619.7238 us, ci 0.950
+found 15 outliers among 100 samples (15.0%)
+  3 (3.0%) high mild
+  12 (12.0%) high severe
+variance introduced by outliers: 0.999%
+variance is unaffected by outliers
+
+benchmarking fromLazyTextUnpacked :: LazyText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 2 iterations each, in estimated 2.057099 s
+bootstrapping with 10000 resamples
+mean: 10.64245 ms, lb 10.55541 ms, ub 10.76898 ms, ci 0.950
+std dev: 541.0501 us, lb 401.6060 us, ub 715.2630 us, ci 0.950
+found 13 outliers among 100 samples (13.0%)
+  2 (2.0%) high mild
+  11 (11.0%) high severe
+variance introduced by outliers: 0.999%
+variance is unaffected by outliers
+
+benchmarking fromLazyTextFolded :: LazyText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 4 iterations each, in estimated 1.883698 s
+bootstrapping with 10000 resamples
+mean: 4.942757 ms, lb 4.882399 ms, ub 5.015431 ms, ci 0.950
+std dev: 333.5807 us, lb 282.4905 us, ub 387.5383 us, ci 0.950
+found 22 outliers among 100 samples (22.0%)
+  2 (2.0%) high mild
+  20 (20.0%) high severe
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking TL.encodeUtf8 :: LazyText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 2 iterations each, in estimated 2.653909 s
+bootstrapping with 10000 resamples
+mean: 13.63214 ms, lb 13.54495 ms, ub 13.75497 ms, ci 0.950
+std dev: 535.2215 us, lb 426.5598 us, ub 645.6974 us, ci 0.950
+found 16 outliers among 100 samples (16.0%)
+  2 (2.0%) high mild
+  14 (14.0%) high severe
+variance introduced by outliers: 0.999%
+variance is unaffected by outliers
+
+benchmarking fromHtmlEscapedString :: String --[Html esc. & Utf8 encoding]--> L.ByteString
+collecting 100 samples, 10 iterations each, in estimated 1.706555 s
+bootstrapping with 10000 resamples
+mean: 1.693403 ms, lb 1.691002 ms, ub 1.697351 ms, ci 0.950
+std dev: 15.61157 us, lb 10.90432 us, ub 25.54673 us, ci 0.950
+found 4 outliers among 100 samples (4.0%)
+  2 (2.0%) high mild
+  2 (2.0%) high severe
+variance introduced by outliers: 0.990%
+variance is unaffected by outliers
+
+benchmarking fromHtmlEscapedStrictTextUnpacked :: StrictText --[HTML esc. & Utf8 encoding]--> L.ByteString
+collecting 100 samples, 8 iterations each, in estimated 1.894283 s
+bootstrapping with 10000 resamples
+mean: 2.300425 ms, lb 2.294907 ms, ub 2.307665 ms, ci 0.950
+std dev: 32.54546 us, lb 26.35558 us, ub 40.98003 us, ci 0.950
+found 5 outliers among 100 samples (5.0%)
+  5 (5.0%) high mild
+variance introduced by outliers: 0.992%
+variance is unaffected by outliers
+
+benchmarking fromHtmlEscapedLazyTextUnpacked :: LazyText --[HTML esc. & Utf8 encoding]--> L.ByteString
+collecting 100 samples, 2 iterations each, in estimated 2.188706 s
+bootstrapping with 10000 resamples
+mean: 10.58686 ms, lb 10.56533 ms, ub 10.62852 ms, ci 0.950
+std dev: 148.6497 us, lb 93.61102 us, ub 283.6501 us, ci 0.950
+found 3 outliers among 100 samples (3.0%)
+  2 (2.0%) high mild
+  1 (1.0%) high severe
+variance introduced by outliers: 0.992%
+variance is unaffected by outliers

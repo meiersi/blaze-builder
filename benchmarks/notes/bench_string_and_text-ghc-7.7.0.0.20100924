@@ -1,0 +1,146 @@
+ghc-7.0.0.20100924   --make -O2 -fforce-recomp -ibenchmarks -main-is StringAndText StringAndText
+[1 of 9] Compiling Text.Blaze.Builder.Internal ( Text/Blaze/Builder/Internal.hs, Text/Blaze/Builder/Internal.o )
+[2 of 9] Compiling Text.Blaze.Builder.Write ( Text/Blaze/Builder/Write.hs, Text/Blaze/Builder/Write.o )
+[3 of 9] Compiling Text.Blaze.Builder.Char.Utf8 ( Text/Blaze/Builder/Char/Utf8.hs, Text/Blaze/Builder/Char/Utf8.o )
+[4 of 9] Compiling Text.Blaze.Builder.Word ( Text/Blaze/Builder/Word.hs, Text/Blaze/Builder/Word.o )
+[5 of 9] Compiling Text.Blaze.Builder.Int ( Text/Blaze/Builder/Int.hs, Text/Blaze/Builder/Int.o )
+[6 of 9] Compiling Text.Blaze.Builder.ByteString ( Text/Blaze/Builder/ByteString.hs, Text/Blaze/Builder/ByteString.o )
+[7 of 9] Compiling Text.Blaze.Builder ( Text/Blaze/Builder.hs, Text/Blaze/Builder.o )
+[8 of 9] Compiling Text.Blaze.Builder.Html.Utf8 ( Text/Blaze/Builder/Html/Utf8.hs, Text/Blaze/Builder/Html/Utf8.o )
+[9 of 9] Compiling StringAndText    ( benchmarks/StringAndText.hs, benchmarks/StringAndText.o )
+echo ghc-7.0.0.20100924  
+ghc-7.0.0.20100924
+./benchmarks/StringAndText --resamples 10000
+warming up
+estimating clock resolution...
+mean is 16.76892 us (40001 iterations)
+found 2035 outliers among 39999 samples (5.1%)
+  9 (2.3e-2%) low severe
+  566 (1.4%) high mild
+  1289 (3.2%) high severe
+estimating cost of a clock call...
+mean is 1.358619 us (74 iterations)
+found 7 outliers among 74 samples (9.5%)
+  3 (4.1%) high mild
+  4 (5.4%) high severe
+
+benchmarking TL.unpack :: LazyText -> String
+collecting 100 samples, 1 iterations each, in estimated 2.255201 s
+bootstrapping with 10000 resamples
+mean: 3.164735 ms, lb 3.154731 ms, ub 3.180340 ms, ci 0.950
+std dev: 62.97029 us, lb 47.34048 us, ub 99.49904 us, ci 0.950
+found 10 outliers among 100 samples (10.0%)
+  7 (7.0%) high mild
+  3 (3.0%) high severe
+variance introduced by outliers: 0.996%
+variance is unaffected by outliers
+
+benchmarking TL.foldr  :: LazyText -> String
+collecting 100 samples, 5 iterations each, in estimated 1.784563 s
+bootstrapping with 10000 resamples
+mean: 3.503787 ms, lb 3.498655 ms, ub 3.510877 ms, ci 0.950
+std dev: 30.53936 us, lb 23.84759 us, ub 41.59179 us, ci 0.950
+found 6 outliers among 100 samples (6.0%)
+  4 (4.0%) high mild
+  2 (2.0%) high severe
+variance introduced by outliers: 0.990%
+variance is unaffected by outliers
+
+benchmarking fromString :: String --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 14 iterations each, in estimated 1.794976 s
+bootstrapping with 10000 resamples
+mean: 1.281082 ms, lb 1.277094 ms, ub 1.289682 ms, ci 0.950
+std dev: 29.39798 us, lb 15.70534 us, ub 55.49212 us, ci 0.950
+found 4 outliers among 100 samples (4.0%)
+  3 (3.0%) high severe
+variance introduced by outliers: 0.997%
+variance is unaffected by outliers
+
+benchmarking fromStrictTextUnpacked :: StrictText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 8 iterations each, in estimated 1.770401 s
+bootstrapping with 10000 resamples
+mean: 2.393703 ms, lb 2.359663 ms, ub 2.430232 ms, ci 0.950
+std dev: 179.9504 us, lb 170.0655 us, ub 187.6502 us, ci 0.950
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking fromStrictTextFolded :: StrictText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 4 iterations each, in estimated 1.892352 s
+bootstrapping with 10000 resamples
+mean: 4.343305 ms, lb 4.291738 ms, ub 4.406884 ms, ci 0.950
+std dev: 289.8338 us, lb 242.9020 us, ub 328.5388 us, ci 0.950
+found 20 outliers among 100 samples (20.0%)
+  20 (20.0%) high severe
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking TS.encodeUtf8 :: StrictText --[Utf8 encoding]--> S.ByteString
+collecting 100 samples, 7 iterations each, in estimated 1.906461 s
+bootstrapping with 10000 resamples
+mean: 2.543649 ms, lb 2.504738 ms, ub 2.585965 ms, ci 0.950
+std dev: 208.2177 us, lb 201.2286 us, ub 216.9054 us, ci 0.950
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking fromLazyTextUnpacked :: LazyText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 5 iterations each, in estimated 1.693502 s
+bootstrapping with 10000 resamples
+mean: 3.515107 ms, lb 3.469601 ms, ub 3.570989 ms, ci 0.950
+std dev: 260.7349 us, lb 228.6872 us, ub 291.3777 us, ci 0.950
+found 19 outliers among 100 samples (19.0%)
+  19 (19.0%) high mild
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking fromLazyTextFolded :: LazyText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 4 iterations each, in estimated 1.732302 s
+bootstrapping with 10000 resamples
+mean: 4.428189 ms, lb 4.375983 ms, ub 4.490870 ms, ci 0.950
+std dev: 295.6793 us, lb 250.2018 us, ub 333.3161 us, ci 0.950
+found 21 outliers among 100 samples (21.0%)
+  21 (21.0%) high severe
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking TL.encodeUtf8 :: LazyText --[Utf8 encoding]--> L.ByteString
+collecting 100 samples, 5 iterations each, in estimated 2.021313 s
+bootstrapping with 10000 resamples
+mean: 3.923355 ms, lb 3.832523 ms, ub 4.123685 ms, ci 0.950
+std dev: 661.0112 us, lb 274.1943 us, ub 1.148948 ms, ci 0.950
+found 3 outliers among 100 samples (3.0%)
+  2 (2.0%) high severe
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
+
+benchmarking fromHtmlEscapedString :: String --[Html esc. & Utf8 encoding]--> L.ByteString
+collecting 100 samples, 11 iterations each, in estimated 1.803237 s
+bootstrapping with 10000 resamples
+mean: 1.651575 ms, lb 1.649337 ms, ub 1.654994 ms, ci 0.950
+std dev: 13.90120 us, lb 10.29697 us, ub 20.96189 us, ci 0.950
+found 4 outliers among 100 samples (4.0%)
+  3 (3.0%) high mild
+  1 (1.0%) high severe
+variance introduced by outliers: 0.990%
+variance is unaffected by outliers
+
+benchmarking fromHtmlEscapedStrictTextUnpacked :: StrictText --[HTML esc. & Utf8 encoding]--> L.ByteString
+collecting 100 samples, 8 iterations each, in estimated 1.849508 s
+bootstrapping with 10000 resamples
+mean: 2.353983 ms, lb 2.342031 ms, ub 2.372174 ms, ci 0.950
+std dev: 73.59482 us, lb 54.07068 us, ub 98.35096 us, ci 0.950
+found 12 outliers among 100 samples (12.0%)
+  2 (2.0%) high mild
+  10 (10.0%) high severe
+variance introduced by outliers: 0.998%
+variance is unaffected by outliers
+
+benchmarking fromHtmlEscapedLazyTextUnpacked :: LazyText --[HTML esc. & Utf8 encoding]--> L.ByteString
+collecting 100 samples, 5 iterations each, in estimated 1.722440 s
+bootstrapping with 10000 resamples
+mean: 3.871486 ms, lb 3.746736 ms, ub 4.102136 ms, ci 0.950
+std dev: 844.5975 us, lb 529.5533 us, ub 1.291545 ms, ci 0.950
+found 10 outliers among 100 samples (10.0%)
+  2 (2.0%) high mild
+  8 (8.0%) high severe
+variance introduced by outliers: 1.000%
+variance is unaffected by outliers
