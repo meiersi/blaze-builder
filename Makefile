@@ -7,7 +7,10 @@
 #########
 
 GHC = ghc-6.12.3
-# GHC = ghc-7.0.0.20100924
+# GHC = ghc-7.0.0.20100924 -fllvm
+
+GHCI = ghci-6.12.3
+
 
 ## All benchmarks
 #################
@@ -71,3 +74,11 @@ bench-compression:
 test:
 	$(GHC) --make -O2 -itests -main-is Tests Tests
 	./tests/Tests
+
+ghci-llvm-segfault: 
+	$(GHCI) -itests -main-is LlvmSegfault tests/LlvmSegfault 
+
+test-llvm-segfault: 
+	ghc-7.0.0.20100924 --make -fllvm -itests -main-is LlvmSegfault tests/LlvmSegfault 
+	./tests/LlvmSegfault
+
