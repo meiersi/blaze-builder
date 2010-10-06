@@ -3,6 +3,12 @@
 ## Benchmarks
 ##############################################################################
 
+## Config
+#########
+
+GHC = ghc-6.12.3
+# GHC = ghc-7.0.0.20100924
+
 ## All benchmarks
 #################
 
@@ -24,15 +30,15 @@ clean-bench-all:
 
 # 'blaze-builder' vs. 'binary' comparision
 bench-blaze-vs-binary:
-	ghc --make -O2 -fforce-recomp -main-is BlazeVsBinary benchmarks/BlazeVsBinary.hs
+	$(GHC) --make -O2 -fforce-recomp -main-is BlazeVsBinary benchmarks/BlazeVsBinary.hs
 	./benchmarks/BlazeVsBinary --resamples 10000
 
 # throughput benchmarks: interactive development
 ghci-throughput: benchmarks/Throughput/CBenchmark.o 
-	ghci -O2 -fforce-recomp -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
+	$(GHCI) -O2 -fforce-recomp -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
 
 bench-throughput: benchmarks/Throughput/CBenchmark.o
-	ghc --make -O2 -fliberate-case-threshold=1000 -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
+	$(GHC) --make -O2 -fliberate-case-threshold=1000 -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
 	# ghc --make -O2 -fforce-recomp -fliberate-case-threshold=1000 -ibenchmarks -main-is BenchThroughput benchmarks/Throughput/CBenchmark.o benchmarks/BenchThroughput.hs
 	./benchmarks/BenchThroughput 1
 
@@ -41,7 +47,7 @@ benchmarks/Throughput/CBenchmark.o: benchmarks/Throughput/CBenchmark.c
 
 # Benchmark benefit of serializing several list elements at once
 bench-chunked-write:
-	ghc --make -O2 -fforce-recomp -main-is ChunkedWrite benchmarks/ChunkedWrite.hs
+	$(GHC) --make -O2 -fforce-recomp -main-is ChunkedWrite benchmarks/ChunkedWrite.hs
 	./benchmarks/ChunkedWrite --resamples 10000
 
 core-chunked-write:
@@ -49,12 +55,13 @@ core-chunked-write:
 
 # Benchmark best serialization techniques for 'String' and 'Text'
 bench-string-and-text:
-	ghc --make -O2 -fforce-recomp -ibenchmarks -main-is StringAndText StringAndText
+	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is StringAndText StringAndText
+	echo $(GHC)
 	./benchmarks/StringAndText --resamples 10000
 
 # Benchmark benefit of compaction before compression
 bench-compression:
-	ghc --make -O2 -fforce-recomp -ibenchmarks -main-is Compression Compression
+	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is Compression Compression
 	./benchmarks/Compression --resamples 10000
 
 
@@ -63,5 +70,5 @@ bench-compression:
 ##############################################################################
 
 test:
-	ghc --make -O2 -itests -main-is Tests Tests
+	$(GHC) --make -O2 -itests -main-is Tests Tests
 	./tests/Tests
