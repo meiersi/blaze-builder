@@ -202,6 +202,8 @@ fromLazyByteStringWith maximalCopySize =
 --
 -- See 'copyByteString' for usage considerations.
 --
+
+-- FIXME: Implement fused L.toChunks and fromWrite1List
 copyLazyByteString :: L.ByteString -> Builder
 copyLazyByteString = fromWrite1List writeByteString . L.toChunks
 {-# INLINE copyLazyByteString #-}
