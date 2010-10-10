@@ -13,8 +13,13 @@
 --
 -----------------------------------------------------------------------------
 
-module PlotTest (main) where
+module PlotTest where
 
+import Prelude hiding (lines)
+
+import Data.List (unfoldr)
+import Data.Word (Word8)
+import qualified System.Random as R
 
 import Data.Maybe
 import Data.Accessor
@@ -25,9 +30,88 @@ import Graphics.Rendering.Chart.Grid
 import Graphics.Rendering.Chart.Gtk
 
 
--- The different serialization functions
-----------------------------------------
+-- Plots to be generated
+------------------------
+
+{-
+
+Compression:
+  1 plot (title "compressing <n> MB of random data using 'zlib')
+    3 lines (direct, compacted using a Builder, compaction time) [chunk size/ms]
+
+
+ChunkedWrite:
+  1 plot (title "serializing a list of <n> elements")
+    1 line per type of element [chunk size/ms]
+
+
+Throughput:
+  5 x 3 plots (word type x endianness) (title "<n> MB of <type> (<endianness>)")
+    1 line per type of Word [chunk size/ MB/s]
+
+-}
+
+-- | A pseudo-random stream of 'Word8' always started from the same initial
+-- seed.
+randomWord8s :: [Word8]
+randomWord8s = map fromIntegral $ unfoldr (Just . R.next) (R.mkStdGen 666) 
+
+-- Main function
+----------------
+
+main :: IO ()
 main = undefined
+
+-- Plotting Infrastructure
+--------------------------
+
+colorPalette :: [Colour Double]
+colorPalette = [blue, green, red, yellow, magenta, cyan]
+
+lineStylePalette :: [CairoLineStyle]
+lineStylePalette = 
+    map (solidLine 1 . opaque)         colorPalette ++
+    map (dashedLine 1 [5, 5] . opaque) colorPalette
+
+
+-- | > ((title, xName, yName), [(lineName,[(x,y)])])
+type PlotData = ((String, String, String), [(String, [(Int, Double)])])
+
+layoutPlot :: PlotData -> Layout1 Int Double
+layoutPlot ((title, xName, yName), lines) =
+    layout1_plots ^= map (Right . toPlot) plots $ 
+    layout1_title ^= title $
+    layout1_bottom_axis ^= mkLinearAxis xName $
+    layout1_right_axis ^= mkLogAxis yName $
+    defaultLayout1
+  where
+    (linesName, linesData) = unzip lines
+    plots = zipWith3 plotLine linesName (cycle lineStylePalette) linesData
+
+-- | Plot a single named line using the given line style.
+plotLine :: String -> CairoLineStyle -> [(Int,Double)] -> PlotLines Int Double
+plotLine name style points = 
+    plot_lines_title ^= name $
+    plot_lines_style ^= style $
+    plot_lines_values ^= [points] $ 
+    defaultPlotLines
+
+mkLinearAxis :: String -> LayoutAxis Int
+mkLinearAxis name = laxis_title ^= name $ defaultLayoutAxis
+
+mkLogAxis :: String -> LayoutAxis Double
+mkLogAxis name = 
+  laxis_title ^= name $ 
+  laxis_generate ^= autoScaledLogAxis defaultLogAxis $
+  defaultLayoutAxis
+
+
+
+
+{-
+-- Plot Experiments
+-------------------
+
 
 testData :: [(Int,Double)]
 testData = zip xs (map (fromIntegral . (^2)) xs)
@@ -37,22 +121,10 @@ testData = zip xs (map (fromIntegral . (^2)) xs)
 blazeLineStyle = solidLine 1 . opaque
 binaryLineStyle = dashedLine 1 [5, 5] . opaque
 
-linePlot :: String -> Colour Double -> [(Int,Double)] -> PlotLines Int Double
-linePlot name colour points = 
-          plot_lines_title ^= name $
-          plot_lines_style ^= (solidLine 1 $ opaque colour) $
-          plot_lines_values ^= [points] $ 
-          defaultPlotLines
 
 plots :: [PlotLines Int Double]
-plots = [ linePlot [c] colour testData 
-        | (c, colour) <- zip ['a'..] [blue,red,green,yellow,gray,black] ]
-
-mkLinearAxis name = laxis_title ^= name $ defaultLayoutAxis
-mkLogAxis name = 
-  laxis_title ^= name $ 
-  laxis_generate ^= autoScaledLogAxis defaultLogAxis $
-  defaultLayoutAxis
+plots = [ plotLine [c] style testData 
+        | (c, style) <- zip ['a'..] (cycle lineStylePalette) ]
 
 
 mkLayout xname yname title p = 
@@ -69,6 +141,7 @@ testGrid = aboveN $ map (besideN . map (flip tspan (1,1) . toRenderable)) [l1,l2
   (l1,l2) = splitAt 3 layouts
 
 testIt = renderableToWindow (gridToRenderable testGrid) 640 480
+-}
 
 {-
 mkChart :: [((String,CairoLineStyle,a), [(Int, IO (Maybe Double))])] -> IO ()
