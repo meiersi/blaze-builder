@@ -1,6 +1,5 @@
   
   * custom serialization functions for lists of 'WordX's
-      - use benchmarks to determine best chunk size
       - benchmark chunk size speedup for more complicated computations of list
         elements => to be expected that we get no speedup anymore or even a
         slowdown => adapt Text.Blaze.Builder.Word accordingly.
@@ -34,6 +33,10 @@
         alignment, and memory access alignment into account.
       - detect machine endianness and use host order writes for the supported
         endianness.
+      - introduce a type 'BoundedWrite' that encapsulates a 'Write' generator
+        with a bound on the number of bytes maximally written by the write.
+        This way we can achieve data independence for the size check by
+        sacrificing just a little bit of buffer space at buffer ends.
 
   * testing
       - port tests from 'Data.Binary.Builder' to ensure that the word writes
