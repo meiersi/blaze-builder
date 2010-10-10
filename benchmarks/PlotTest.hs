@@ -19,16 +19,29 @@ import Prelude hiding (lines)
 
 import Data.List (unfoldr)
 import Data.Word (Word8)
-import qualified System.Random as R
 
 import Data.Maybe
 import Data.Accessor
 import Data.Colour
 import Data.Colour.Names
+
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Grid
 import Graphics.Rendering.Chart.Gtk
 
+import Criterion
+import Criterion.Environment
+import Criterion.Monad
+import Criterion.Types
+import Criterion.Config
+
+import Control.Monad
+import Control.Monad.Trans
+import Control.Monad.Trans.Reader
+
+import Statistics.Types
+
+import qualified System.Random as R
 
 -- Plots to be generated
 ------------------------
@@ -62,6 +75,40 @@ randomWord8s = map fromIntegral $ unfoldr (Just . R.next) (R.mkStdGen 666)
 main :: IO ()
 main = undefined
 
+
+-- Benchmarking Infrastructure
+------------------------------
+
+type MyCriterion a = ReaderT Environment Criterion a
+
+-- | Run a list of benchmarks; flattening benchmark groups to a path of strings.
+runFlattenedBenchmarks :: [Benchmark] -> MyCriterion [([String],Sample)]
+runFlattenedBenchmarks = 
+    (concat `liftM`) . mapM (go id)
+  where
+    go path (Benchmark name b)   = do
+      env <- ask
+      sample <- lift $ runBenchmark env b
+      return [(path [name], sample)]
+    go path (BenchGroup name bs) = 
+      concat `liftM` mapM (go (path . (name:))) bs
+
+-- | Run a benchmark for a series of data points; e.g. to measure scalability
+-- properties.
+runSeriesBenchmark :: (a -> Benchmark) -> [a] -> MyCriterion [(a,Sample)]
+runSeriesBenchmark mkBench xs =
+    (zip xs . map snd) `liftM` runFlattenedBenchmarks (map mkBench xs)
+
+
+-- | Use the given config to measure the environment and then run the embedded
+-- criterion operation with this information about the environment.
+runMyCriterion :: Config -> MyCriterion a -> IO a
+runMyCriterion config criterion = do
+    env <- withConfig config measureEnvironment
+    withConfig config (runReaderT criterion env)
+    
+
+
 -- Plotting Infrastructure
 --------------------------
 
@@ -72,7 +119,6 @@ lineStylePalette :: [CairoLineStyle]
 lineStylePalette = 
     map (solidLine 1 . opaque)         colorPalette ++
     map (dashedLine 1 [5, 5] . opaque) colorPalette
-
 
 -- | > ((title, xName, yName), [(lineName,[(x,y)])])
 type PlotData = ((String, String, String), [(String, [(Int, Double)])])
