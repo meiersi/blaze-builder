@@ -33,18 +33,8 @@ import qualified Text.Blaze.Builder           as BB
 import qualified Text.Blaze.Builder.Char.Utf8 as BB
 
 main = defaultMain 
-    [ bench "mconcat . map fromByte: [Char] -> Builder -> L.ByteString" $ 
-        whnf benchMConcatChars chars
-    , bench "fromWrite1List: [Char] -> Builder -> L.ByteString" $ 
-        whnf bench1Chars chars
-    , bench "fromWrite2List: [Char] -> Builder -> L.ByteString" $ 
-        whnf bench2Chars chars
-    , bench "fromWrite4List: [Char] -> Builder -> L.ByteString" $ 
-        whnf bench4Chars chars
-    , bench "fromWrite8List: [Char] -> Builder -> L.ByteString" $ 
-        whnf bench8Chars chars
-    , bench "fromWrite16List: [Char] -> Builder -> L.ByteString" $ 
-        whnf bench16Chars chars
+    [ bench "L.pack: [Word8] -> L.ByteString" $ 
+        whnf (L.length . L.pack) word8s
 
     , bench "mconcat . map fromByte: [Word8] -> Builder -> L.ByteString" $ 
         whnf benchMConcatWord8s word8s
@@ -58,6 +48,19 @@ main = defaultMain
         whnf bench8Word8s word8s
     , bench "fromWrite16List: [Word8] -> Builder -> L.ByteString" $ 
         whnf bench16Word8s word8s
+
+    , bench "mconcat . map fromByte: [Char] -> Builder -> L.ByteString" $ 
+        whnf benchMConcatChars chars
+    , bench "fromWrite1List: [Char] -> Builder -> L.ByteString" $ 
+        whnf bench1Chars chars
+    , bench "fromWrite2List: [Char] -> Builder -> L.ByteString" $ 
+        whnf bench2Chars chars
+    , bench "fromWrite4List: [Char] -> Builder -> L.ByteString" $ 
+        whnf bench4Chars chars
+    , bench "fromWrite8List: [Char] -> Builder -> L.ByteString" $ 
+        whnf bench8Chars chars
+    , bench "fromWrite16List: [Char] -> Builder -> L.ByteString" $ 
+        whnf bench16Chars chars
 
     , bench "mconcat . map fromWord32host: [Word32] -> Builder -> L.ByteString" $ 
         whnf benchMConcatWord32s word32s
