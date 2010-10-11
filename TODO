@@ -13,6 +13,12 @@
       - toByteStringIO with accumulator capability => provide 'toByteStringIO_'
       - allow buildr/foldr deforestation to happen for input to 'fromWrite<n>List'
         (or whatever stream fusion framework is in place for lists)
+      - implement 'toByteString' with an amortized O(n) runtime using the
+        exponentional scaling trick. If the start size is chosen wisely this
+        may even be faster than 'S.pack', as the one copy per element is
+        cheaper than one list thunk per element. It is even likely that we can
+        amortize three copies per element, which allows to avoid spilling any
+        buffer space by doing a last compaction copy.
 
   * extend tests to new functions
 
