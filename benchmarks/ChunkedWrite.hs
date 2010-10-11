@@ -19,21 +19,27 @@
 --
 module ChunkedWrite where
 
-import Data.Char (chr, ord)
+import Data.Char (chr)
 import Data.Int (Int64)
 import Data.Word (Word8, Word32)
-import Data.Monoid (mconcat, mappend)
+import Data.Monoid
 
 import Criterion.Main
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as S
-import qualified Data.Text as T
 
 import qualified Text.Blaze.Builder           as BB
 import qualified Text.Blaze.Builder.Char.Utf8 as BB
 
+main :: IO ()
 main = defaultMain 
-    [ bench "L.pack: [Word8] -> L.ByteString" $ 
+    [ bench "S.pack: [Word8] -> S.ByteString" $ 
+        whnf (S.pack) word8s
+
+    , bench "toByteString . fromWord8s: [Word8] -> Builder -> S.ByteString" $ 
+        whnf (BB.toByteString . BB.fromWord8s) word8s
+
+    , bench "L.pack: [Word8] -> L.ByteString" $ 
         whnf (L.length . L.pack) word8s
 
     , bench "mconcat . map fromByte: [Word8] -> Builder -> L.ByteString" $ 
