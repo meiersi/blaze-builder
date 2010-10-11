@@ -71,6 +71,7 @@ module Text.Blaze.Builder
       -- * Executing builders
     , toLazyByteString
     , toLazyByteStringWith
+    , toByteString
     , toByteStringIO
     , toByteStringIOWith
     
