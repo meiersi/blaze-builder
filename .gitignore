@@ -7,3 +7,5 @@ benchmarks/ChunkedWrite
 benchmarks/BenchThroughput
 benchmarks/StringAndText
 benchmarks/Compression
+
+tests/LlvmSegfault

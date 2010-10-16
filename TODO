@@ -1,6 +1,5 @@
   
   * custom serialization functions for lists of 'WordX's
-      - use benchmarks to determine best chunk size
       - benchmark chunk size speedup for more complicated computations of list
         elements => to be expected that we get no speedup anymore or even a
         slowdown => adapt Text.Blaze.Builder.Word accordingly.
@@ -14,6 +13,12 @@
       - toByteStringIO with accumulator capability => provide 'toByteStringIO_'
       - allow buildr/foldr deforestation to happen for input to 'fromWrite<n>List'
         (or whatever stream fusion framework is in place for lists)
+      - implement 'toByteString' with an amortized O(n) runtime using the
+        exponentional scaling trick. If the start size is chosen wisely this
+        may even be faster than 'S.pack', as the one copy per element is
+        cheaper than one list thunk per element. It is even likely that we can
+        amortize three copies per element, which allows to avoid spilling any
+        buffer space by doing a last compaction copy.
 
   * extend tests to new functions
 
@@ -37,6 +42,10 @@
         alignment, and memory access alignment into account.
       - detect machine endianness and use host order writes for the supported
         endianness.
+      - introduce a type 'BoundedWrite' that encapsulates a 'Write' generator
+        with a bound on the number of bytes maximally written by the write.
+        This way we can achieve data independence for the size check by
+        sacrificing just a little bit of buffer space at buffer ends.
       - investigate where we would profit from static bounds on number of bytes
         written (e.g. to make the control flow more linear)
 

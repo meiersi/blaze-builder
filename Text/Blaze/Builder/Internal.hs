@@ -40,6 +40,7 @@ module Text.Blaze.Builder.Internal
     -- * Executing builders
     , toLazyByteStringWith
     , toLazyByteString
+    , toByteString
     , toByteStringIOWith
     , toByteStringIO
 
@@ -125,7 +126,7 @@ data BuildSignal =
   | BufferFull
       {-# UNPACK #-} !Int
       {-# UNPACK #-} !(Ptr Word8)
-      {-# UNPACK #-} !BuildStep
+                     !BuildStep
   -- | @ModifyChunks pf fbs nextStep@ signals that the data written up to the
   -- next free byte @pf@ must be output and the remaining lazy bytestring that
   -- is produced by executing @nextStep@ must be modified using the function
@@ -136,8 +137,8 @@ data BuildSignal =
   -- for generating streams of strict bytestrings.
   | ModifyChunks
       {-# UNPACK #-} !(Ptr Word8) 
-      {-# UNPACK #-} !(L.ByteString -> L.ByteString) 
-      {-# UNPACK #-} !BuildStep
+                     !(L.ByteString -> L.ByteString) 
+                     !BuildStep
 
 -- | A 'BuildStep' fills a buffer from the given start pointer as long as
 -- possible and returns control to the caller using a 'BuildSignal', once it is
@@ -292,6 +293,35 @@ toLazyByteString :: Builder -> L.ByteString
 toLazyByteString b = 
     toLazyByteStringWith defaultBufferSize defaultMinimalBufferSize b L.empty
 {-# INLINE toLazyByteString #-}
+
+-- | Pack the chunks of a lazy bytestring into a single strict bytestring.
+packChunks :: L.ByteString -> S.ByteString
+packChunks lbs = do
+    S.unsafeCreate (fromIntegral $ L.length lbs) (copyChunks lbs)
+  where
+    copyChunks !L.Empty                         !_pf = return ()
+    copyChunks !(L.Chunk (S.PS fpbuf o l) lbs') !pf  = do
+        withForeignPtr fpbuf $ \pbuf ->
+            copyBytes pf (pbuf `plusPtr` o) l
+        copyChunks lbs' (pf `plusPtr` l)
+
+-- | Run the builder to construct a strict bytestring containing the sequence
+-- of bytes denoted by the builder. This is done by first serializing to a lazy bytestring and then packing its
+-- chunks to a appropriately sized strict bytestring.
+--
+-- > toByteString = packChunks . toLazyByteString
+--
+-- Note that @'toByteString'@ is a 'Monoid' homomorphism.
+--
+-- > toByteString mempty          == mempty
+-- > toByteString (x `mappend` y) == toByteString x `mappend` toByteString y
+--
+-- However, in the second equation, the left-hand-side is generally faster to
+-- execute.
+--
+toByteString :: Builder -> S.ByteString
+toByteString = packChunks . toLazyByteString
+
 
 -- | @toByteStringIOWith bufSize io b@ runs the builder @b@ with a buffer of
 -- at least the size @bufSize@ and executes the 'IO' action @io@ whenever the

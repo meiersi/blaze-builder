@@ -36,7 +36,8 @@ import qualified Data.ByteString as S
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
 
-import qualified Text.Blaze.Builder as Blaze
+import qualified Text.Blaze.Builder           as Blaze
+import qualified Text.Blaze.Builder.Char.Utf8 as Blaze
 
 main :: IO ()
 main = defaultMain $ concat
