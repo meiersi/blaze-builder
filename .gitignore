@@ -8,4 +8,6 @@ benchmarks/BenchThroughput
 benchmarks/StringAndText
 benchmarks/Compression
 
+Criterion/ScalingBenchmark
+
 tests/LlvmSegfault

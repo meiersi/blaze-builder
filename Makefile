@@ -66,6 +66,14 @@ bench-compression:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is Compression Compression
 	./benchmarks/Compression --resamples 10000
 
+##############################################################################
+## Plots
+##############################################################################
+
+plot-all:
+	$(GHC) --make -O2 -fforce-recomp -main-is Criterion.ScalingBenchmark Criterion.ScalingBenchmark
+	./Criterion/ScalingBenchmark --resamples 10000
+
 
 ##############################################################################
 ## Tests

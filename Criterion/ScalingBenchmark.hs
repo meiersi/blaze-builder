@@ -50,12 +50,18 @@ import qualified Data.ByteString.Lazy as L
 
 import qualified System.Random as R
 
+{-
 -- | A pseudo-random stream of 'Word8' always started from the same initial
 -- seed.
 randomWord8s :: [Word8]
 randomWord8s = map fromIntegral $ unfoldr (Just . R.next) (R.mkStdGen 666) 
+-}
 
 mapDataPoints f (ScalingSample info samples) = ScalingSample info (map (first f) samples)
+
+-- | An infinite list of 'Word8'.
+word8s :: [Word8]
+word8s = cycle [0..]
 
 -- Main function
 ----------------
@@ -67,23 +73,23 @@ main = do
     samples <- withConfig config (runScalingBenchmarks env benchs testPoints)
     let samples' :: [ScalingSample String Double Sample]
         samples' = map (mapDataPoints fromIntegral) samples
-        renderable = renderScalingMeans "Packing lists of bytes" "bytes" samples'
+        renderable = renderScalingMeans "Packing [Word8]" "bytes" samples'
     renderableToWindow renderable 640 480
   where
     testPoints :: [Int]
-    testPoints = map (2^) [0..10]
+    testPoints = map (2^) [0..22]
     benchs =
-      [ ScalingBenchmark "S.pack"     (\x-> whnf S.pack                (take x randomWord8s))
-      , ScalingBenchmark "packStrict" (\x-> whnf packStrict            (take x randomWord8s))
-      , ScalingBenchmark "L.pack"     (\x-> whnf (L.length . L.pack)   (take x randomWord8s))
-      , ScalingBenchmark "packLazy"   (\x-> whnf (L.length . packLazy) (take x randomWord8s))
+      [ ScalingBenchmark "S.pack"     (\x-> whnf S.pack                (take x word8s))
+      , ScalingBenchmark "L.pack"     (\x-> whnf (L.length . L.pack)   (take x word8s))
+      , ScalingBenchmark "packStrict" (\x-> whnf packStrict            (take x word8s))
+      , ScalingBenchmark "packLazy"   (\x-> whnf (L.length . packLazy) (take x word8s))
       ]
 
 packLazy :: [Word8] -> L.ByteString
 packLazy = toLazyByteString . fromWord8s
 
 packStrict :: [Word8] -> S.ByteString
-packStrict = toStrictByteString . fromWord8s
+packStrict = toByteString . fromWord8s
 
     
 
@@ -164,7 +170,7 @@ renderScalingMeans title xaxis samples =
 --------------------------
 
 colorPalette :: [Colour Double]
-colorPalette = [blue, green, red, yellow, magenta, cyan]
+colorPalette = [blue, green, red, cyan, magenta, yellow]
 
 lineStylePalette :: [CairoLineStyle]
 lineStylePalette = 
