@@ -20,6 +20,8 @@ import Prelude hiding (lines)
 import Data.List (unfoldr)
 import Data.Word (Word8)
 
+import Text.Blaze.Builder
+
 import Data.Maybe
 import Data.Accessor
 import Data.Colour
@@ -35,14 +37,58 @@ import Criterion.Monad
 import Criterion.Types
 import Criterion.Config
 
+import Control.Arrow (first, second)
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Trans.Reader
 
 import Statistics.Types
+import Statistics.Sample
+
+import qualified Data.ByteString as S
+import qualified Data.ByteString.Lazy as L
 
 import qualified System.Random as R
 
+-- | A pseudo-random stream of 'Word8' always started from the same initial
+-- seed.
+randomWord8s :: [Word8]
+randomWord8s = map fromIntegral $ unfoldr (Just . R.next) (R.mkStdGen 666) 
+
+mapDataPoints f (ScalingSample info samples) = ScalingSample info (map (first f) samples)
+
+-- Main function
+----------------
+
+main :: IO ()
+main = do
+    let config = defaultConfig
+    env <- withConfig config measureEnvironment
+    samples <- withConfig config (runScalingBenchmarks env benchs testPoints)
+    let samples' :: [ScalingSample String Double Sample]
+        samples' = map (mapDataPoints fromIntegral) samples
+        renderable = renderScalingMeans "Packing lists of bytes" "bytes" samples'
+    renderableToWindow renderable 640 480
+  where
+    testPoints :: [Int]
+    testPoints = map (2^) [0..10]
+    benchs =
+      [ ScalingBenchmark "S.pack"     (\x-> whnf S.pack                (take x randomWord8s))
+      , ScalingBenchmark "packStrict" (\x-> whnf packStrict            (take x randomWord8s))
+      , ScalingBenchmark "L.pack"     (\x-> whnf (L.length . L.pack)   (take x randomWord8s))
+      , ScalingBenchmark "packLazy"   (\x-> whnf (L.length . packLazy) (take x randomWord8s))
+      ]
+
+packLazy :: [Word8] -> L.ByteString
+packLazy = toLazyByteString . fromWord8s
+
+packStrict :: [Word8] -> S.ByteString
+packStrict = toStrictByteString . fromWord8s
+
+    
+
+-- Scaling Benchmark Infrastructure
+-----------------------------------
 
 -- | A scaling benchmark denotes a named benchmark constructor, which can be
 -- used to investigate the scaling behaviour of a 'Benchmarkable' function.
@@ -50,41 +96,98 @@ data ScalingBenchmark i a where
     ScalingBenchmark :: (Benchmarkable b)
                      => i                   -- ^ Additional benchmark information
                      -> (a -> b)            -- ^ Benchmark constructor
-                     -> ScalingBenchmark a  -- ^ Scaling benchmark
+                     -> ScalingBenchmark i a  -- ^ Scaling benchmark
 
-data ScalingSample i a where
+data ScalingSample i a s where
     ScalingSample :: i                -- ^ Additional benchmark information
-                  -> [(a,Sample)]     -- ^ Test points annotated with measured sample
-                  -> ScalingSample a  -- ^ Scaling sample
-
--- scalingBench
+                  -> [(a,s)]          -- ^ Test points annotated with measured sample
+                  -> ScalingSample i a s -- ^ Scaling sample
 
 -- | Run a 'ScalingBenchmark'.
 runScalingBenchmark :: Environment                   -- ^ Criterion environment
-                    -> [a]                           -- ^ Test points to run benchmark on
                     -> ScalingBenchmark i a          -- ^ Scaling benchmark
-                    -> Criterion (ScalingSample i a) -- ^ Measured scaling sample
-runScalingBenchmark env xs (ScalingBenchmark info mkBench) = do
+                    -> [a]                           -- ^ Test points to run benchmark on
+                    -> Criterion (ScalingSample i a Sample) -- ^ Measured scaling sample
+runScalingBenchmark env (ScalingBenchmark info mkBench) xs = do
     samples <- mapM (runBenchmark env . mkBench) xs
     return $ ScalingSample info (zip xs samples)
 
 
 -- | Run a series of 'ScalingBenchmark's on the same test points.
 runScalingBenchmarks :: Environment                   -- ^ Criterion environment
-                     -> [a]                           -- ^ Test points to run benchmark on
                      -> [ScalingBenchmark i a]        -- ^ Scaling benchmarks
-                     -> Criterion [ScalingSample i a] -- ^ Measured scaling samples
-runScalingBenchmarks env xs = mapM (runScalingBenchmark env xs)
+                     -> [a]                           -- ^ Test points to run benchmark on
+                     -> Criterion [ScalingSample i a Sample] -- ^ Measured scaling samples
+runScalingBenchmarks env bs xs = 
+    sequence [runScalingBenchmark env b xs | b <- bs]
 
--- Plotting scaling bencmarks.
+-- Transforming scaling samples
+-------------------------------
+
+instance Functor (ScalingSample i a) where
+    fmap f (ScalingSample info samples) = 
+        ScalingSample info (map (second f) samples)
+
+-- | Access the info of a 'ScalingSample'.
+scalingInfo :: ScalingSample i a s -> i
+scalingInfo (ScalingSample info _) = info
+
+-- | Access the samples of a 'ScalingSample'.
+scalingSamples :: ScalingSample i a s -> [(a,s)]
+scalingSamples (ScalingSample _ samples) = samples
+
+
+-- Plotting scaling benchmarks.
 ------------------------------
 
-renderScalingMeans :: Floating a 
-                   => String                -- ^ Bottom axis description
-                   -> String                -- ^ Plot title
-                   -> [ScalingSample i a]   -- ^ Samples whose mean we want to plot
+-- NOTE: Data points should also be annotated with their unit.
+
+
+renderScalingMeans :: (RealFloat a, PlotValue a)
+                   => String               -- ^ Plot title
+                   -> String               -- ^ Bottom axis description
+                   -> [ScalingSample String a Sample]   -- ^ Samples whose mean we want to plot
                    -> Renderable ()
-renderScalingMeans 
+renderScalingMeans title xaxis samples = 
+    toRenderable $
+      layout1_plots ^= map (Right . toPlot) plots $ 
+      layout1_title ^= title $
+      layout1_bottom_axis ^= mkLogAxis xaxis $
+      layout1_right_axis ^= mkLogAxis "seconds" $
+      defaultLayout1
+  where
+    linesName = map scalingInfo samples
+    linesData = map (scalingSamples . fmap mean) samples
+    plots = zipWith3 plotLine linesName (cycle lineStylePalette) linesData
+
+-- Plotting Infrastructure
+--------------------------
+
+colorPalette :: [Colour Double]
+colorPalette = [blue, green, red, yellow, magenta, cyan]
+
+lineStylePalette :: [CairoLineStyle]
+lineStylePalette = 
+    map (solidLine 1 . opaque)         colorPalette ++
+    map (dashedLine 1 [5, 5] . opaque) colorPalette
+
+-- | Plot a single named line using the given line style.
+plotLine :: String -> CairoLineStyle -> [(a,b)] -> PlotLines a b
+plotLine name style points = 
+    plot_lines_title ^= name $
+    plot_lines_style ^= style $
+    plot_lines_values ^= [points] $ 
+    defaultPlotLines
+
+mkLinearAxis :: PlotValue x => String -> LayoutAxis x
+mkLinearAxis name = laxis_title ^= name $ defaultLayoutAxis
+
+mkLogAxis :: (RealFloat x, PlotValue x) => String -> LayoutAxis x
+mkLogAxis name = 
+  laxis_title ^= name $ 
+  laxis_generate ^= autoScaledLogAxis defaultLogAxis $
+  defaultLayoutAxis
+
 
 
 {-
@@ -108,17 +211,6 @@ Throughput:
     1 line per type of Word [chunk size/ MB/s]
 
 -}
-
--- | A pseudo-random stream of 'Word8' always started from the same initial
--- seed.
-randomWord8s :: [Word8]
-randomWord8s = map fromIntegral $ unfoldr (Just . R.next) (R.mkStdGen 666) 
-
--- Main function
-----------------
-
-main :: IO ()
-main = undefined
 
 
 -- Benchmarking Infrastructure
@@ -152,49 +244,6 @@ runMyCriterion config criterion = do
     env <- withConfig config measureEnvironment
     withConfig config (runReaderT criterion env)
     
-
-
--- Plotting Infrastructure
---------------------------
-
-colorPalette :: [Colour Double]
-colorPalette = [blue, green, red, yellow, magenta, cyan]
-
-lineStylePalette :: [CairoLineStyle]
-lineStylePalette = 
-    map (solidLine 1 . opaque)         colorPalette ++
-    map (dashedLine 1 [5, 5] . opaque) colorPalette
-
--- | > ((title, xName, yName), [(lineName,[(x,y)])])
-type PlotData = ((String, String, String), [(String, [(Int, Double)])])
-
-layoutPlot :: PlotData -> Layout1 Int Double
-layoutPlot ((title, xName, yName), lines) =
-    layout1_plots ^= map (Right . toPlot) plots $ 
-    layout1_title ^= title $
-    layout1_bottom_axis ^= mkLinearAxis xName $
-    layout1_right_axis ^= mkLogAxis yName $
-    defaultLayout1
-  where
-    (linesName, linesData) = unzip lines
-    plots = zipWith3 plotLine linesName (cycle lineStylePalette) linesData
-
--- | Plot a single named line using the given line style.
-plotLine :: String -> CairoLineStyle -> [(Int,Double)] -> PlotLines Int Double
-plotLine name style points = 
-    plot_lines_title ^= name $
-    plot_lines_style ^= style $
-    plot_lines_values ^= [points] $ 
-    defaultPlotLines
-
-mkLinearAxis :: String -> LayoutAxis Int
-mkLinearAxis name = laxis_title ^= name $ defaultLayoutAxis
-
-mkLogAxis :: String -> LayoutAxis Double
-mkLogAxis name = 
-  laxis_title ^= name $ 
-  laxis_generate ^= autoScaledLogAxis defaultLogAxis $
-  defaultLayoutAxis
 
 
 
