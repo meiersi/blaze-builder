@@ -171,7 +171,7 @@ runScalingComparison env sc = do
         "mean " ++ secs (mean sample) ++ 
         " (2p " ++ secs p2 ++ 
         ", 98p " ++ secs p98 ++
-        ", o " ++ rightAlign 2 (show outliers) ++
+        ", out " ++ rightAlign 2 (show outliers) ++
         ")"
       where
         -- percentiles
