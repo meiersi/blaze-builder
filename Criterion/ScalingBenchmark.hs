@@ -40,6 +40,7 @@ import Criterion.Monad
 import Criterion.Types
 import Criterion.Config
 import Criterion.Measurement (secs)
+import Criterion.Analysis (countOutliers, classifyOutliers)
 
 import Control.Arrow (first, second)
 import Control.Monad
@@ -73,7 +74,7 @@ main :: IO ()
 main = do
     let config = defaultConfig
     env <- withConfig config measureEnvironment
-    samples <- withConfig config (runScalingComparison env comparison)
+    comparison' <- withConfig config (runScalingComparison env comparison)
     return ()
     {-
     let samples' :: [ScalingSample String Double Sample]
@@ -160,8 +161,8 @@ runScalingComparison env sc = do
     quickAnalysis samples = do
         let indent = length (show $ length samples + 1) + 2
             extent = maximum (map (length . fst) samples) + 2
-        mapM (printStatistics indent extent) 
-             (zip [1..] $ sortBy (compare `on` (mean . snd)) samples)
+        mapM_ (printStatistics indent extent) 
+              (zip [1..] $ sortBy (compare `on` (mean . snd)) samples)
  
     printStatistics :: Int -> Int -> (Int, (String, Sample)) -> IO ()
     printStatistics indent extent (i, (info, sample)) = putStrLn $
@@ -170,11 +171,14 @@ runScalingComparison env sc = do
         "mean " ++ secs (mean sample) ++ 
         " (2p " ++ secs p2 ++ 
         ", 98p " ++ secs p98 ++
+        ", o " ++ rightAlign 2 (show outliers) ++
         ")"
       where
         -- percentiles
         p2  = continuousBy medianUnbiased  2 100 sample
         p98 = continuousBy medianUnbiased 98 100 sample
+        -- outliers
+        outliers = countOutliers . classifyOutliers $ sample
 
     rightAlign n cs = take (n - length cs) (repeat ' ') ++ cs
     leftAlign  n cs = cs ++ take (n - length cs) (repeat ' ')
