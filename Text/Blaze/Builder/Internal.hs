@@ -232,7 +232,7 @@ toLazyByteStringWith
                      -- finished.
     -> L.ByteString  -- ^ Resulting lazy bytestring
 toLazyByteStringWith bufSize minBufSize (Builder b) k = 
-    inlinePerformIO $ fillNewBuffer bufSize (b finalStep)
+    inlinePerformIO $ fillNewBuffer minBufSize (b finalStep)
   where
     finalStep pf _ = return $ Done pf
 
