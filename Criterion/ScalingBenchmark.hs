@@ -38,7 +38,7 @@ import Criterion
 import Criterion.Environment
 import Criterion.Monad
 import Criterion.Types
-import Criterion.Config
+import Criterion.Config hiding (Plot)
 import Criterion.Measurement (secs)
 import Criterion.Analysis (countOutliers, classifyOutliers)
 
@@ -49,7 +49,8 @@ import Control.Monad.Trans.Reader
 
 import Statistics.Types
 import Statistics.Sample
-import Statistics.Quantile (continuousBy, medianUnbiased)
+import Statistics.Quantile as Statistics 
+import Statistics.Function as Statistics
 
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
@@ -75,20 +76,15 @@ main = do
     let config = defaultConfig
     env <- withConfig config measureEnvironment
     comparison' <- withConfig config (runScalingComparison env comparison)
-    return ()
-    {-
-    let samples' :: [ScalingSample String Double Sample]
-        samples' = map (mapDataPoints fromIntegral) samples
-        renderable = renderScalingMeans "Packing [Word8]" "bytes" samples'
+    let renderable = renderScalingComparison (fromIntegral :: Int -> Double) comparison'
     renderableToWindow renderable 640 480
-    -}
   where
     vs :: [Int]
-    vs = map (2^) [0..2]
+    vs =  [20..40] -- map (2^) [5..8]
     comparison = compareBenchmarks "Packing [Word8]" "bytes" vs $
         [ ScalingBenchmark "S.pack"     (\x-> whnf S.pack                (take x word8s))
-        , ScalingBenchmark "L.pack"     (\x-> whnf (L.length . L.pack)   (take x word8s))
-        , ScalingBenchmark "packStrict" (\x-> whnf packStrict            (take x word8s))
+        -- , ScalingBenchmark "L.pack"     (\x-> whnf (L.length . L.pack)   (take x word8s))
+        -- , ScalingBenchmark "packStrict" (\x-> whnf packStrict            (take x word8s))
         , ScalingBenchmark "packLazy"   (\x-> whnf (L.length . packLazy) (take x word8s))
         ]
 
@@ -98,7 +94,48 @@ packLazy = toLazyByteString . fromWord8s
 packStrict :: [Word8] -> S.ByteString
 packStrict = toByteString . fromWord8s
 
+-- BoxPlots
+-----------
     
+data BoxPlot = BoxPlot
+       { bpMean               :: Double
+       , bpHighSevereOutliers :: Sample
+       , bpHighMildOutliers   :: Sample
+       , bpHighWhisker        :: Double
+       , bpHighQuartile       :: Double
+       , bpMedian             :: Double
+       , bpLowQuartile        :: Double
+       , bpLowWhisker         :: Double
+       , bpLowMildOutliers    :: Sample
+       , bpLowSevereOutliers  :: Sample
+       }
+
+boxPlot :: Sample -> BoxPlot
+boxPlot sa = BoxPlot
+    { bpMean               = mean ssa
+    , bpHighSevereOutliers = V.filter (hiS <) ssa
+    , bpHighMildOutliers   = V.filter (\x -> hiM < x && x <= hiS) ssa
+    , bpHighWhisker        = fromMaybe hiM $ V.find (hiM >=) (V.reverse ssa)
+    , bpHighQuartile       = q3
+    , bpMedian             = Statistics.weightedAvg 2 4 ssa
+    , bpLowQuartile        = q1
+    , bpLowWhisker         = fromMaybe loM $ V.find (loM <=) ssa
+    , bpLowMildOutliers    = V.filter (\x -> loS <= x && x < loM) ssa
+    , bpLowSevereOutliers  = V.filter (< loS) ssa
+    }
+  where
+    ssa = Statistics.sort sa
+    loS = q1 - (iqr * 3)
+    loM = q1 - (iqr * 1.5)
+    hiM = q3 + (iqr * 1.5)
+    hiS = q3 + (iqr * 3)
+    q1  = Statistics.weightedAvg 1 4 ssa
+    q3  = Statistics.weightedAvg 3 4 ssa
+    iqr = q3 - q1
+
+-- | Compute the k-th percentile of a sample.
+percentile :: Int -> Sample -> Double
+percentile k = Statistics.weightedAvg k 100
 
 -- Scaling Benchmark Infrastructure
 -----------------------------------
@@ -110,6 +147,10 @@ data ScalingBenchmark a where
                      => String              -- ^ Benchmark name
                      -> (a -> b)            -- ^ Benchmark constructor
                      -> ScalingBenchmark a  -- ^ Scaling benchmark
+
+-- | Extract the name of a 'ScalingBenchmark'.
+scalingBenchmarkName :: ScalingBenchmark a -> String
+scalingBenchmarkName (ScalingBenchmark name _) = name
 
 -- | A comparison of several benchmarks on a common set of test points.
 data ScalingComparison a = ScalingComparison
@@ -131,10 +172,12 @@ compareBenchmarks name unit vs bs =
     ScalingComparison name unit vs bs []
 
 -- | Annotate the measurements stored in a 'ScalingComparison'.
-annotateMeasurements :: ScalingComparison a 
-                     -> [(ScalingBenchmark a, [(a,Sample)])]
-annotateMeasurements sc =
-    zip (scBenchmarks sc) (map (zip (scTestValues sc)) (scMeasurements sc))
+annotateMeasurements :: (a -> b)
+                     -> ScalingComparison a 
+                     -> [(String, [(b,Sample)])]
+annotateMeasurements f sc =
+    zip (map scalingBenchmarkName $ scBenchmarks sc) 
+        (map (zip (map f $ scTestValues sc)) (scMeasurements sc))
 
 -- | Run a 'ScalingComparison'.
 runScalingComparison :: Show a
@@ -175,16 +218,71 @@ runScalingComparison env sc = do
         ")"
       where
         -- percentiles
-        p2  = continuousBy medianUnbiased  2 100 sample
-        p98 = continuousBy medianUnbiased 98 100 sample
+        p2  = percentile  2 sample
+        p98 = percentile 98 sample
         -- outliers
         outliers = countOutliers . classifyOutliers $ sample
 
     rightAlign n cs = take (n - length cs) (repeat ' ') ++ cs
     leftAlign  n cs = cs ++ take (n - length cs) (repeat ' ')
 
-renderScalingComparison :: ScalingComparison a -> Renderable ()
-renderScalingComparison = undefined
+renderScalingComparison :: (PlotValue b, RealFloat b) 
+                        => (a -> b) -> ScalingComparison a -> Renderable ()
+renderScalingComparison f sc = 
+    toRenderable $
+      layout1_plots ^= plots $
+      layout1_title ^= scName sc $
+      layout1_bottom_axis ^= mkLogAxis (scTestUnit sc) $
+      layout1_right_axis ^= mkLogAxis "seconds" $
+      defaultLayout1
+  where
+    plots = concat $ zipWith plotAnnotatedSamples
+      (map opaque $ colorPalette)
+      (annotateMeasurements f sc)
+
+
+
+-- | Plot the annotated samples with several lines for the 
+--
+plotAnnotatedSamples :: AlphaColour Double 
+                     -> (String, [(a,Sample)]) 
+                     -> [Either (Plot a Double) (Plot a Double)]
+plotAnnotatedSamples colour (name, points) =
+    map (Right . uncurry (line (solidLine 1)))
+        [ (0.2, bpLowWhisker)
+        , (0.4, bpLowQuartile)
+        , (0.9, bpMedian)
+        , (0.4, bpHighQuartile)
+        , (0.2, bpHighWhisker)
+        ]
+  where
+    points' = map (second boxPlot) points
+    -- line :: Double -> (Sample -> Double) -> Plot a Double
+    line style trans proj = toPlot $ plotLine name
+        (solidLine 1 $ dissolve trans colour)
+        (map (second proj) points')
+
+-- | Plot a single named line using the given line style.
+plotLine :: String -> CairoLineStyle -> [(a,b)] -> PlotLines a b
+plotLine name style points = 
+    plot_lines_title ^= name $
+    plot_lines_style ^= style $
+    plot_lines_values ^= [points] $ 
+    defaultPlotLines
+
+colorPalette :: [Colour Double]
+colorPalette = [blue, green, red, cyan, magenta, yellow]
+
+mkLinearAxis :: PlotValue x => String -> LayoutAxis x
+mkLinearAxis name = laxis_title ^= name $ defaultLayoutAxis
+
+mkLogAxis :: (RealFloat x, PlotValue x) => String -> LayoutAxis x
+mkLogAxis name = 
+  laxis_title ^= name $ 
+  laxis_generate ^= autoScaledLogAxis defaultLogAxis $
+  defaultLayoutAxis
+
+
 
 {-
 
@@ -296,15 +394,6 @@ plotLine name style points =
     plot_lines_style ^= style $
     plot_lines_values ^= [points] $ 
     defaultPlotLines
-
-mkLinearAxis :: PlotValue x => String -> LayoutAxis x
-mkLinearAxis name = laxis_title ^= name $ defaultLayoutAxis
-
-mkLogAxis :: (RealFloat x, PlotValue x) => String -> LayoutAxis x
-mkLogAxis name = 
-  laxis_title ^= name $ 
-  laxis_generate ^= autoScaledLogAxis defaultLogAxis $
-  defaultLayoutAxis
 
 
 
