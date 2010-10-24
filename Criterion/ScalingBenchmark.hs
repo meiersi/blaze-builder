@@ -18,12 +18,13 @@ module Criterion.ScalingBenchmark where
 import Prelude hiding (lines)
 
 import Data.Function (on)
-import Data.List (unfoldr, transpose, sortBy)
+import Data.List (unfoldr, group, transpose, sortBy)
 import Data.Word (Word8)
 
 import qualified Data.Vector.Generic as V
 
 import Text.Blaze.Builder
+import Text.Blaze.Builder.Internal
 
 import Data.Maybe
 import Data.Accessor
@@ -80,11 +81,12 @@ main = do
     renderableToWindow renderable 640 480
   where
     vs :: [Int]
-    vs =  [20..40] -- map (2^) [5..8]
+    vs =  map head . group . map round . takeWhile (<= 200) $ iterate (*(1.5::Double)) 1
+    -- vs =  [0..19] -- map (2^) [5..8]
     comparison = compareBenchmarks "Packing [Word8]" "bytes" vs $
         [ ScalingBenchmark "S.pack"     (\x-> whnf S.pack                (take x word8s))
         -- , ScalingBenchmark "L.pack"     (\x-> whnf (L.length . L.pack)   (take x word8s))
-        -- , ScalingBenchmark "packStrict" (\x-> whnf packStrict            (take x word8s))
+        , ScalingBenchmark "packStrict" (\x-> whnf packStrict            (take x word8s))
         , ScalingBenchmark "packLazy"   (\x-> whnf (L.length . packLazy) (take x word8s))
         ]
 
@@ -254,13 +256,28 @@ plotAnnotatedSamples colour (name, points) =
         , (0.9, bpMedian)
         , (0.4, bpHighQuartile)
         , (0.2, bpHighWhisker)
-        ]
+        ] ++
+    map Right
+        [ toPlot $ plotPoints name meanStyle (map (second bpMean) points')
+        , outliers severeOutStyle bpHighSevereOutliers
+        , outliers severeOutStyle bpLowSevereOutliers
+        , outliers mildOutStyle bpHighMildOutliers
+        , outliers mildOutStyle bpLowMildOutliers
+        ] 
   where
     points' = map (second boxPlot) points
     -- line :: Double -> (Sample -> Double) -> Plot a Double
     line style trans proj = toPlot $ plotLine name
         (solidLine 1 $ dissolve trans colour)
         (map (second proj) points')
+
+    outliers style proj = toPlot $ plotPoints name style
+        (concat [zip (repeat x) (V.toList $ proj bp) | (x, bp) <- points'])
+
+    severeOutStyle = filledCircles 2   (dissolve 0.4 colour)
+    mildOutStyle   = hollowCircles 2 1 (dissolve 0.4 colour)
+    meanStyle      = exes 3 1 colour
+
 
 -- | Plot a single named line using the given line style.
 plotLine :: String -> CairoLineStyle -> [(a,b)] -> PlotLines a b
@@ -269,6 +286,15 @@ plotLine name style points =
     plot_lines_style ^= style $
     plot_lines_values ^= [points] $ 
     defaultPlotLines
+
+-- | Plot a single named line using the given line style.
+plotPoints :: String -> CairoPointStyle -> [(a,b)] -> PlotPoints a b
+plotPoints name style points = 
+    plot_points_title ^= name $
+    plot_points_style ^= style $
+    plot_points_values ^= points $ 
+    defaultPlotPoints
+
 
 colorPalette :: [Colour Double]
 colorPalette = [blue, green, red, cyan, magenta, yellow]
