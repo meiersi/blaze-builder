@@ -175,6 +175,9 @@ fromLazyByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
 fromLazyByteStringWith maximalCopySize = 
     makeBuilder
   where
+    -- FIXME: Justify this first case split. Can we justify it at all? I seem
+    -- to remember that its idea was to enable a partial inlining; i.e. sharing
+    -- of 'step' between different calls to 'fromLazyByteStringWith'.
     makeBuilder L.Empty  = mempty
     makeBuilder lbs0     = Builder $ step lbs0
       where
