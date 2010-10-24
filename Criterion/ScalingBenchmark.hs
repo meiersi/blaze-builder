@@ -296,14 +296,14 @@ plotAnnotatedSamples :: AlphaColour Double
                      -> (String, [(a,Sample)]) 
                      -> [Either (Plot a Double) (Plot a Double)]
 plotAnnotatedSamples colour (name, points) =
-    map (Right . uncurry (line (solidLine 1)))
+    map (Right . noLegend . uncurry (line (solidLine 1)))
         [ (0.2, bpLowWhisker)
         , (0.4, bpLowQuartile)
-        , (0.9, bpMedian)
         , (0.4, bpHighQuartile)
         , (0.2, bpHighWhisker)
         ] ++
-    map Right
+        [ Right $ line (solidLine 1) 0.9 bpMedian] ++
+    map (Right . noLegend)
         [ toPlot $ plotPoints name meanStyle (map (second bpMean) points')
         , outliers severeOutStyle bpHighSevereOutliers
         , outliers severeOutStyle bpLowSevereOutliers
@@ -324,6 +324,9 @@ plotAnnotatedSamples colour (name, points) =
     mildOutStyle   = hollowCircles 2 1 (dissolve 0.4 colour)
     meanStyle      = exes 3 1 colour
 
+
+noLegend :: Plot x y -> Plot x y
+noLegend = plot_legend ^= []
 
 -- | Plot a single named line using the given line style.
 plotLine :: String -> CairoLineStyle -> [(a,b)] -> PlotLines a b
