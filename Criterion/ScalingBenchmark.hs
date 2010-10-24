@@ -20,11 +20,15 @@ import Prelude hiding (lines)
 import Data.Function (on)
 import Data.List (unfoldr, group, transpose, sortBy)
 import Data.Word (Word8)
+import Data.Monoid
+import Data.Int (Int64)
 
 import qualified Data.Vector.Generic as V
 
 import Text.Blaze.Builder
 import Text.Blaze.Builder.Internal
+
+import qualified Data.Binary.Builder as B
 
 import Data.Maybe
 import Data.Accessor
@@ -56,18 +60,9 @@ import Statistics.Function as Statistics
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 
+import Codec.Compression.GZip
+
 import qualified System.Random as R
-
-{-
--- | A pseudo-random stream of 'Word8' always started from the same initial
--- seed.
-randomWord8s :: [Word8]
-randomWord8s = map fromIntegral $ unfoldr (Just . R.next) (R.mkStdGen 666) 
--}
-
--- | An infinite list of 'Word8'.
-word8s :: [Word8]
-word8s = cycle [0..]
 
 -- Main function
 ----------------
@@ -76,25 +71,76 @@ main :: IO ()
 main = do
     let config = defaultConfig
     env <- withConfig config measureEnvironment
-    comparison' <- withConfig config (runScalingComparison env comparison)
-    let renderable = renderScalingComparison (fromIntegral :: Int -> Double) comparison'
+    comparison <- withConfig config (runScalingComparison env compressComparison)
+    let renderable = renderScalingComparison (fromIntegral :: Int -> Double) comparison
     renderableToWindow renderable 640 480
+  where
+
+
+-- | Comparison of different implementations of packing [Word8].
+packComparison :: ScalingComparison Int
+packComparison = compareBenchmarks "Packing [Word8]" "bytes" vs $
+    [ ScalingBenchmark "S.pack"           (\x-> whnf S.pack                      (take x word8s))
+    , ScalingBenchmark "L.pack"           (\x-> whnf (L.length . L.pack)         (take x word8s))
+    , ScalingBenchmark "packStrict"       (\x-> whnf packStrict                  (take x word8s))
+    , ScalingBenchmark "packLazy"         (\x-> whnf (L.length . packLazy)       (take x word8s))
+    , ScalingBenchmark "Binary.packLazy"  (\x-> whnf (L.length . binaryPackLazy) (take x word8s))
+    ]
   where
     vs :: [Int]
     vs =  map head . group . map round . takeWhile (<= 200) $ iterate (*(1.5::Double)) 1
     -- vs =  [0..19] -- map (2^) [5..8]
-    comparison = compareBenchmarks "Packing [Word8]" "bytes" vs $
-        [ ScalingBenchmark "S.pack"     (\x-> whnf S.pack                (take x word8s))
-        -- , ScalingBenchmark "L.pack"     (\x-> whnf (L.length . L.pack)   (take x word8s))
-        , ScalingBenchmark "packStrict" (\x-> whnf packStrict            (take x word8s))
-        , ScalingBenchmark "packLazy"   (\x-> whnf (L.length . packLazy) (take x word8s))
-        ]
 
-packLazy :: [Word8] -> L.ByteString
-packLazy = toLazyByteString . fromWord8s
+    packLazy :: [Word8] -> L.ByteString
+    packLazy = toLazyByteString . fromWord8s
 
-packStrict :: [Word8] -> S.ByteString
-packStrict = toByteString . fromWord8s
+    packStrict :: [Word8] -> S.ByteString
+    packStrict = toByteString . fromWord8s
+
+    binaryPackLazy :: [Word8] -> L.ByteString
+    binaryPackLazy = B.toLazyByteString . mconcat . map B.singleton
+
+    word8s :: [Word8]
+    word8s = cycle [0..]
+    {-# NOINLINE word8s #-}
+
+
+chunk :: Int -> [a] -> [[a]]
+chunk size xs = c : case xs' of [] -> []; _ -> chunk size xs'
+  where
+    (c, xs') = splitAt size xs
+
+-- | Compare compressing a chunked sequence of bytes with and without
+-- compaction on redundant and random data.
+compressComparison :: ScalingComparison Int
+compressComparison = compareBenchmarks ("Compressing "++show kb++"kb of data") "chunk size in bytes" vs $
+    [ ScalingBenchmark "random / direct"             (whnf compressDirectly  . randomByteStrings)
+    , ScalingBenchmark "random / with compaction"    (whnf compressCompacted . randomByteStrings)
+    , ScalingBenchmark "redundant / direct"          (whnf compressDirectly  . redundantByteStrings)
+    , ScalingBenchmark "redundant / with compaction" (whnf compressCompacted . redundantByteStrings)
+    ]
+  where
+    kb = 200
+    n = kb * 1024
+
+    vs :: [Int]
+    vs = takeWhile (<= 100000) $ iterate (2*) 1
+
+    randomWord8s = map fromIntegral . take n $ unfoldr (Just . R.next) (R.mkStdGen 666) 
+    randomByteStrings c = L.fromChunks . map S.pack . chunk c $ randomWord8s
+    {-# NOINLINE randomByteStrings #-}
+
+    redundantWord8s = take n $ cycle [0..]
+    redundantByteStrings c = L.fromChunks . map S.pack . chunk c $ redundantWord8s
+    {-# NOINLINE redundantByteStrings #-}
+
+    compressDirectly :: L.ByteString -> Int64
+    compressDirectly = L.length . compress
+
+    compressCompacted :: L.ByteString -> Int64
+    compressCompacted = 
+      L.length . compress . toLazyByteString . fromLazyByteString
+
 
 -- BoxPlots
 -----------
