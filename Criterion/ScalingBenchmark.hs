@@ -76,28 +76,43 @@ main :: IO ()
 main = do
     let config = defaultConfig
     env <- withConfig config measureEnvironment
-    runAndPlot config env compressComparison
-    runAndPlot config env packComparison
+    mapM_ (runAndPlot config env)
+      [compressComparison, packComparison, zoomedPackComparison]
   where
     runAndPlot config env sc = do
       sc' <- withConfig config $ runScalingComparison env sc
       let conv = fromIntegral :: Int -> Double
-      plotScalingComparison (PDF 555 416) conv sc'
-      plotScalingComparison (PNG 640 480) conv sc'
+      plotScalingComparison (PDF 1280 1024) conv sc'
+      plotScalingComparison (PNG 800 600) conv sc'
 
 -- | Comparison of different implementations of packing [Word8].
-packComparison :: ScalingComparison Int
-packComparison = compareBenchmarks "Packing [Word8]" "bytes" vs $
-    [ ScalingBenchmark "S.pack"           (\x-> whnf S.pack                      (take x word8s))
-    , ScalingBenchmark "L.pack"           (\x-> whnf (L.length . L.pack)         (take x word8s))
-    , ScalingBenchmark "packStrict"       (\x-> whnf packStrict                  (take x word8s))
-    , ScalingBenchmark "packLazy"         (\x-> whnf (L.length . packLazy)       (take x word8s))
-    , ScalingBenchmark "Binary.packLazy"  (\x-> whnf (L.length . binaryPackLazy) (take x word8s))
-    ]
+packComparison, zoomedPackComparison :: ScalingComparison Int
+(packComparison, zoomedPackComparison) = 
+  ( cmp "Packing [Word8]"             broadVs (bsFaster ++ bsSlower)
+  , cmp "Packing short [Word8] lists" zoomedVs (bsFaster)
+  )
   where
-    vs :: [Int]
-    vs =  map head . group . map round . takeWhile (<= 200) $ iterate (*(1.5::Double)) 1
-    -- vs =  [0..19] -- map (2^) [5..8]
+    cmp name = compareBenchmarks name "bytes"
+
+    bsFaster = 
+      [ ScalingBenchmark "S.pack"               (\x-> whnf S.pack                          (take x word8s))
+      , ScalingBenchmark "packLazy"             (\x-> whnf (L.length . packLazy)           (take x word8s))
+      , ScalingBenchmark "packStrict"           (\x-> whnf packStrict                      (take x word8s))
+      ]
+
+    bsSlower = 
+      [ ScalingBenchmark "L.pack"               (\x-> whnf (L.length . L.pack)             (take x word8s))
+      , ScalingBenchmark "declPackLazy"         (\x-> whnf (L.length . declPackLazy)       (take x word8s))
+      , ScalingBenchmark "Binary.declPackLazy"  (\x-> whnf (L.length . binaryDeclPackLazy) (take x word8s))
+      ]
+    
+    mkLogVs :: Double -> Double -> [Int]
+    mkLogVs factor upperBound = 
+      map head . group . map round . takeWhile (<= upperBound) $ 
+      iterate (*factor) 1
+
+    broadVs  = mkLogVs 1.5 (200 * 1024)
+    zoomedVs = mkLogVs 1.1  128
 
     packLazy :: [Word8] -> L.ByteString
     packLazy = toLazyByteString . fromWord8s
@@ -105,8 +120,11 @@ packComparison = compareBenchmarks "Packing [Word8]" "bytes" vs $
     packStrict :: [Word8] -> S.ByteString
     packStrict = toByteString . fromWord8s
 
-    binaryPackLazy :: [Word8] -> L.ByteString
-    binaryPackLazy = B.toLazyByteString . mconcat . map B.singleton
+    declPackLazy :: [Word8] -> L.ByteString
+    declPackLazy = toLazyByteString . mconcat . map fromWord8
+
+    binaryDeclPackLazy :: [Word8] -> L.ByteString
+    binaryDeclPackLazy = B.toLazyByteString . mconcat . map B.singleton
 
     word8s :: [Word8]
     word8s = cycle [0..]
@@ -122,10 +140,10 @@ chunk size xs = c : case xs' of [] -> []; _ -> chunk size xs'
 -- compaction on redundant and random data.
 compressComparison :: ScalingComparison Int
 compressComparison = compareBenchmarks ("Compressing "++show kb++"kb of data") "chunk size in bytes" vs $
-    [ ScalingBenchmark "random / direct"             (whnf compressDirectly  . randomByteStrings)
-    , ScalingBenchmark "random / with compaction"    (whnf compressCompacted . randomByteStrings)
-    , ScalingBenchmark "redundant / direct"          (whnf compressDirectly  . redundantByteStrings)
-    , ScalingBenchmark "redundant / with compaction" (whnf compressCompacted . redundantByteStrings)
+    [ ScalingBenchmark "rnd. data / direct"             (whnf compressDirectly  . randomByteStrings)
+    , ScalingBenchmark "rnd. data / with compaction"    (whnf compressCompacted . randomByteStrings)
+    , ScalingBenchmark "red. data / direct"          (whnf compressDirectly  . redundantByteStrings)
+    , ScalingBenchmark "red. data / with compaction" (whnf compressCompacted . redundantByteStrings)
     ]
   where
     kb = 200
