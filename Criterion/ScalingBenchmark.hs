@@ -34,6 +34,10 @@ import Data.Maybe
 import Data.Accessor
 import Data.Colour
 import Data.Colour.Names
+import Data.Char (isSpace, toLower)
+
+import qualified Data.ByteString as S
+import qualified Data.ByteString.Lazy as L
 
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Grid
@@ -57,8 +61,9 @@ import Statistics.Sample
 import Statistics.Quantile as Statistics 
 import Statistics.Function as Statistics
 
-import qualified Data.ByteString as S
-import qualified Data.ByteString.Lazy as L
+import System.FilePath
+
+import Text.Printf (printf)
 
 import Codec.Compression.GZip
 
@@ -71,11 +76,14 @@ main :: IO ()
 main = do
     let config = defaultConfig
     env <- withConfig config measureEnvironment
-    comparison <- withConfig config (runScalingComparison env compressComparison)
-    let renderable = renderScalingComparison (fromIntegral :: Int -> Double) comparison
-    renderableToWindow renderable 640 480
+    runAndPlot config env compressComparison
+    runAndPlot config env packComparison
   where
-
+    runAndPlot config env sc = do
+      sc' <- withConfig config $ runScalingComparison env sc
+      let conv = fromIntegral :: Int -> Double
+      plotScalingComparison (PDF 555 416) conv sc'
+      plotScalingComparison (PNG 640 480) conv sc'
 
 -- | Comparison of different implementations of packing [Word8].
 packComparison :: ScalingComparison Int
@@ -274,6 +282,32 @@ runScalingComparison env sc = do
     rightAlign n cs = take (n - length cs) (repeat ' ') ++ cs
     leftAlign  n cs = cs ++ take (n - length cs) (repeat ' ')
 
+
+-- | Plot a scaling comparison.
+plotScalingComparison :: (PlotValue b, RealFloat b) 
+                      => PlotOutput           -- ^ Output format.
+                      -> (a -> b)             -- ^ Test point conversion function.
+                      -> ScalingComparison a  -- ^ Comparison to plot.
+                      -> IO ()
+
+plotScalingComparison (PDF x y) conv sc =
+  renderableToPDFFile (renderScalingComparison conv sc) x y
+                      (mangle $ printf "%s scaling %dx%d.pdf" (scName sc) x y)
+
+plotScalingComparison (PNG x y) conv sc =
+  renderableToPNGFile (renderScalingComparison conv sc) x y
+                      (mangle $ printf "%s scaling %dx%d.png" (scName sc) x y)
+
+plotScalingComparison (SVG x y) conv sc =
+  renderableToSVGFile (renderScalingComparison conv sc) x y
+                      (mangle $ printf "%s scaling %dx%d.svg" (scName sc) x y)
+
+plotScalingComparison (Window x y) conv sc =
+  renderableToWindow (renderScalingComparison conv sc) x y
+
+
+-- | Render a scaling comparison using an adaption of the boxplot technique to
+-- lineplots.
 renderScalingComparison :: (PlotValue b, RealFloat b) 
                         => (a -> b) -> ScalingComparison a -> Renderable ()
 renderScalingComparison f sc = 
@@ -357,240 +391,18 @@ mkLogAxis name =
   laxis_generate ^= autoScaledLogAxis defaultLogAxis $
   defaultLayoutAxis
 
+-- Filehandling 
+---------------
 
 
-{-
+-- | Get rid of spaces and other potentially troublesome characters
+-- from output.
+--
+-- Copied from: Criterion.Plot
+mangle :: String -> FilePath
+mangle = concatMap (replace ((==) '-' . head) "-")
+       . group
+       . map (replace isSpace '-' . replace (==pathSeparator) '-' . toLower)
+    where replace p r c | p c       = r
+                        | otherwise = c
 
-data ScalingSample i a s where
-    ScalingSample :: i                -- ^ Additional benchmark information
-                  -> TestPoints a     -- ^ Test points used for this sample
-                  -> [s]              -- ^ Measurements for every test point
-                  -> ScalingSample i a s -- ^ Scaling sample
-
-
-{-
--- | Run a 'ScalingBenchmark'.
-runScalingBenchmark :: Environment                   -- ^ Criterion environment
-                    -> ScalingBenchmark i a          -- ^ Scaling benchmark
-                    -> TestPoints a                  -- ^ Test points to run benchmark on
-                    -> Criterion (ScalingSample i a Sample) -- ^ Measured scaling sample
-runScalingBenchmark env (ScalingBenchmark info mkBench) tp = do
-    samples <- mapM (runBenchmark env . mkBench) xs
-    return $ ScalingSample info (zip xs samples)
--}
-
-
--- | Run a series of 'ScalingBenchmark's on the same test points.
-runScalingBenchmarks :: Environment                   -- ^ Criterion environment
-                     -> [ScalingBenchmark String a]        -- ^ Scaling benchmarks
-                     -> TestPoints a                  -- ^ Test points to run benchmark on
-                     -> Criterion [ScalingSample String a Sample] -- ^ Measured scaling samples
-runScalingBenchmarks env bs tp = do
-      samples <- transpose `liftM` mapM runBenchmarks (testPoints tp)
-      return $ zipWith3 ScalingSample (map 
-    where
-      runBenchmarks x = do
-          liftIO $ putStrLn $ "running benchmarks for " ++ show x ++ " " ++ testUnit tp
-        samples <- sequence 
-            [ ((,) info) `liftM` runBenchmark env (mkBench x) 
-            | ScalingBenchmark info mkBench <- bs ]
-        quickAnalysis samples
-        return $ map snd samples
-
-    quickAnalysis samples = do
-        let indent = length (show $ length samples + 1) + 2
-        mapM (printStatistics indent) 
-             (zipWith [1..] $ sortBy (compare `on` (mean . snd)) samples)
-
-    printStatistics indent (i, (info, sample)) = liftIO $ putStrLn $
-        rightAlign indent (show i) ++ ". " ++
-        info ++ ": " ++
-        show (mean sample) ++ "s"
-        
-
-rightAlign :: Int -> String -> String
-rightAlign n cs = take (n - length cs) (replicate ' ') ++ cs
-
-
--- Transforming scaling samples
--------------------------------
-
-instance Functor (ScalingSample i a) where
-    fmap f (ScalingSample info samples) = 
-        ScalingSample info (map (second f) samples)
-
--- | Access the info of a 'ScalingSample'.
-scalingInfo :: ScalingSample i a s -> i
-scalingInfo (ScalingSample info _) = info
-
--- | Access the samples of a 'ScalingSample'.
-scalingSamples :: ScalingSample i a s -> [(a,s)]
-scalingSamples (ScalingSample _ samples) = samples
-
-
--- Plotting scaling benchmarks.
-------------------------------
-
--- NOTE: Data points should also be annotated with their unit.
-
-
-renderScalingMeans :: (RealFloat a, PlotValue a)
-                   => String               -- ^ Plot title
-                   -> String               -- ^ Bottom axis description
-                   -> [ScalingSample String a Sample]   -- ^ Samples whose mean we want to plot
-                   -> Renderable ()
-renderScalingMeans title xaxis samples = 
-    toRenderable $
-      layout1_plots ^= map (Right . toPlot) plots $ 
-      layout1_title ^= title $
-      layout1_bottom_axis ^= mkLogAxis xaxis $
-      layout1_right_axis ^= mkLogAxis "seconds" $
-      defaultLayout1
-  where
-    linesName = map scalingInfo samples
-    linesData = map (scalingSamples . fmap mean) samples
-    plots = zipWith3 plotLine linesName (cycle lineStylePalette) linesData
-
--- Plotting Infrastructure
---------------------------
-
-colorPalette :: [Colour Double]
-colorPalette = [blue, green, red, cyan, magenta, yellow]
-
-lineStylePalette :: [CairoLineStyle]
-lineStylePalette = 
-    map (solidLine 1 . opaque)         colorPalette ++
-    map (dashedLine 1 [5, 5] . opaque) colorPalette
-
--- | Plot a single named line using the given line style.
-plotLine :: String -> CairoLineStyle -> [(a,b)] -> PlotLines a b
-plotLine name style points = 
-    plot_lines_title ^= name $
-    plot_lines_style ^= style $
-    plot_lines_values ^= [points] $ 
-    defaultPlotLines
-
-
-
-{-
--- Plots to be generated
-------------------------
-
-{-
-
-Compression:
-  1 plot (title "compressing <n> MB of random data using 'zlib')
-    3 lines (direct, compacted using a Builder, compaction time) [chunk size/ms]
-
-
-ChunkedWrite:
-  1 plot (title "serializing a list of <n> elements")
-    1 line per type of element [chunk size/ms]
-
-
-Throughput:
-  5 x 3 plots (word type x endianness) (title "<n> MB of <type> (<endianness>)")
-    1 line per type of Word [chunk size/ MB/s]
-
--}
-
-
--- Benchmarking Infrastructure
-------------------------------
-
-type MyCriterion a = ReaderT Environment Criterion a
-
--- | Run a list of benchmarks; flattening benchmark groups to a path of strings.
-runFlattenedBenchmarks :: [Benchmark] -> MyCriterion [([String],Sample)]
-runFlattenedBenchmarks = 
-    (concat `liftM`) . mapM (go id)
-  where
-    go path (Benchmark name b)   = do
-      env <- ask
-      sample <- lift $ runBenchmark env b
-      return [(path [name], sample)]
-    go path (BenchGroup name bs) = 
-      concat `liftM` mapM (go (path . (name:))) bs
-
--- | Run a benchmark for a series of data points; e.g. to measure scalability
--- properties.
-runSeriesBenchmark :: (a -> Benchmark) -> [a] -> MyCriterion [(a,Sample)]
-runSeriesBenchmark mkBench xs =
-    (zip xs . map snd) `liftM` runFlattenedBenchmarks (map mkBench xs)
-
-
--- | Use the given config to measure the environment and then run the embedded
--- criterion operation with this information about the environment.
-runMyCriterion :: Config -> MyCriterion a -> IO a
-runMyCriterion config criterion = do
-    env <- withConfig config measureEnvironment
-    withConfig config (runReaderT criterion env)
-    
-
-
-
-
-{-
--- Plot Experiments
--------------------
-
-
-testData :: [(Int,Double)]
-testData = zip xs (map (fromIntegral . (^2)) xs)
-  where xs = [1,2,4,8,16,32]
-
-
-blazeLineStyle = solidLine 1 . opaque
-binaryLineStyle = dashedLine 1 [5, 5] . opaque
-
-
-plots :: [PlotLines Int Double]
-plots = [ plotLine [c] style testData 
-        | (c, style) <- zip ['a'..] (cycle lineStylePalette) ]
-
-
-mkLayout xname yname title p = 
-    layout1_plots ^= [Right p] $ 
-    layout1_title ^= title $
-    layout1_bottom_axis ^= mkLinearAxis xname $
-    layout1_right_axis ^= mkLogAxis yname $
-    defaultLayout1
-
-layouts = zipWith (mkLayout "chunksize" "MB/s") (map return ['A'..]) (map toPlot plots)
-
-testGrid = aboveN $ map (besideN . map (flip tspan (1,1) . toRenderable)) [l1,l2]
-  where
-  (l1,l2) = splitAt 3 layouts
-
-testIt = renderableToWindow (gridToRenderable testGrid) 640 480
--}
-
-{-
-mkChart :: [((String,CairoLineStyle,a), [(Int, IO (Maybe Double))])] -> IO ()
-mkChart task = do
-  lines <- catMaybes `liftM` mapM measureSerializer task
-  let plottedLines = flip map lines $ \ ((name,lineStyle,_), points) ->
-          plot_lines_title ^= name $
-          plot_lines_style ^= lineStyle $
-          plot_lines_values ^= [points] $ 
-          defaultPlotLines
-  let layout = 
-        defaultLayout1
-          { layout1_plots_ = map (Right . toPlot) plottedLines }
-  renderableToWindow (toRenderable layout) 640 480  
-
-
-measureSerializer :: (a, [(Int, IO (Maybe Double))]) -> IO (Maybe (a, [(Int,Double)]))
-measureSerializer (info, tests) = do
-  optPoints <- forM tests $ \ (x, test) -> do
-    optY <- test
-    case optY of 
-      Nothing -> return Nothing
-      Just y  -> return $ Just (x, y)
-  case catMaybes optPoints of
-    []     -> return Nothing
-    points -> return $ Just (info, points)
-
--}
--}
--}
