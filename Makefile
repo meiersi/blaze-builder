@@ -7,7 +7,7 @@
 #########
 
 GHC = ghc-6.12.3
-# GHC = ghc-7.0.0.20100924 -fllvm
+# GHC = ghc-7.0.0.20100924
 
 GHCI = ghci-6.12.3
 
@@ -65,6 +65,14 @@ bench-string-and-text:
 bench-compression:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is Compression Compression
 	./benchmarks/Compression --resamples 10000
+
+##############################################################################
+## Plots
+##############################################################################
+
+plot-all:
+	$(GHC) --make -O2 -fforce-recomp -main-is Criterion.ScalingBenchmark Criterion.ScalingBenchmark
+	./Criterion/ScalingBenchmark --resamples 10000
 
 
 ##############################################################################

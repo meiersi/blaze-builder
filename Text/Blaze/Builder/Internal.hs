@@ -243,7 +243,7 @@ flush = Builder $ \k pf _ -> return $ ModifyChunks pf id k
 -- is no longer copied but allocated and filled directly. Hence, setting
 -- 'firstBufSize = bufSize' means that all chunks will use an underlying buffer
 -- of size 'bufSize'. This is recommended, if you know that you always output
--- more than 'minBufSize' bytes and need maximal speed.
+-- more than 'minBufSize' bytes.
 toLazyByteStringWith 
     :: Int           -- ^ Buffer size (upper-bounds the resulting chunk size).
     -> Int           -- ^ Minimal free buffer space for continuing filling
