@@ -26,7 +26,8 @@ clean-bench-all:
 	rm -f Text/Blaze/Builder/Html/*.o Text/Blaze/Builder/Html/*.hi
 	rm -f Text/Blaze/Builder/Core/*.o Text/Blaze/Builder/Core/*.hi
 	rm -f benchmarks/Compression benchmarks/StringAndText benchmarks/BenchThroughput benchmarks/ChunkedWrite benchmarks/BlazeVsBinary
-
+	rm -f Criterion/*.o Criterion/*.hi
+	rm -f Criterion/ScalingBenchmark
 
 ## Individual benchmarks
 ########################
@@ -83,6 +84,9 @@ test:
 	$(GHC) --make -O2 -itests -main-is Tests Tests
 	./tests/Tests
 
+clean-tests:
+	rm -f tests/Tests tests/*.o tests/*.hi
+
 ghci-llvm-segfault: 
 	$(GHCI) -itests -main-is LlvmSegfault tests/LlvmSegfault 
 
@@ -90,3 +94,8 @@ test-llvm-segfault:
 	ghc-7.0.0.20100924 --make -fllvm -itests -main-is LlvmSegfault tests/LlvmSegfault 
 	./tests/LlvmSegfault
 
+##############################################################################
+## All inclusive targets
+##############################################################################
+
+clean: clean-tests clean-bench-all
