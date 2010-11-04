@@ -52,8 +52,8 @@ module Throughput.BlazePutMonad (
   ) where
 
 import Data.Monoid
-import Text.Blaze.Builder (Builder, toLazyByteString)
-import qualified Text.Blaze.Builder as B
+import Blaze.ByteString.Builder (Builder, toLazyByteString)
+import qualified Blaze.ByteString.Builder as B
 
 import Data.Word
 import qualified Data.ByteString      as S

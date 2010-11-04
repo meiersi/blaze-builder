@@ -3,7 +3,7 @@
 
 {-# LANGUAGE CPP #-}
 -- |
--- Module      : Text.Blaze.Builder.Word
+-- Module      : Blaze.ByteString.Builder.Word
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 --
 --               Original serialization code from 'Data.Binary.Builder':
@@ -35,7 +35,7 @@
 #include "MachDeps.h"
 #endif
 
-module Text.Blaze.Builder.Word
+module Blaze.ByteString.Builder.Word
     ( 
     -- * Writing words to a buffer
 
@@ -96,8 +96,8 @@ module Text.Blaze.Builder.Word
 
     ) where
 
-import Text.Blaze.Builder.Internal
-import Text.Blaze.Builder.Write
+import Blaze.ByteString.Builder.Internal
+import Blaze.ByteString.Builder.Write
 
 import Foreign
 

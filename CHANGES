@@ -1,15 +1,15 @@
 
 * blaze-builder-0.2.0.0
 
-  Heavily restructured 'blaze-builder' such that 'Text.Blaze.Builder' serves as
+  Heavily restructured 'blaze-builder' such that 'Blaze.ByteString.Builder' serves as
   a drop-in replacement of 'binary:Data.Binary.Builder' which it improves upon
   with respect to both speed as well as expressivity. See the documentation and
   the benchmarks for details on improvements and new functionality.
 
   Changed module structure:
-    Text.Blaze.Builder.Core -> Text.Blaze.Builder
-    Text.Blaze.Builder.Utf8 -> Text.Blaze.Builder.Char.Utf8
-    Text.Blaze.Builder.Html -> Text.Blaze.Builder.Html.Utf8 
+    Blaze.ByteString.Builder.Core -> Blaze.ByteString.Builder
+    Blaze.ByteString.Builder.Utf8 -> Blaze.ByteString.Builder.Char.Utf8
+    Blaze.ByteString.Builder.Html -> Blaze.ByteString.Builder.Html.Utf8 
 
   Changed function names:
     writeByte     -> writeWord8

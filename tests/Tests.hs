@@ -17,9 +17,9 @@ import Test.QuickCheck
 import Test.HUnit hiding (Test)
 import Codec.Binary.UTF8.String (decode)
 
-import Text.Blaze.Builder
-import Text.Blaze.Builder.Char.Utf8
-import Text.Blaze.Builder.Html.Utf8
+import Blaze.ByteString.Builder
+import Blaze.ByteString.Builder.Char.Utf8
+import Blaze.ByteString.Builder.Html.Utf8
 
 main :: IO ()
 main = defaultMain $ return $ testGroup "Tests" tests

@@ -23,7 +23,7 @@ or run the list serialization comparison benchmark
 
   make bench-blaze-vs-binary
 
-Checkout the combinators in the module "Text.Blaze.Builder.Write" to see
+Checkout the combinators in the module "Blaze.ByteString.Builder.Write" to see
 the improvements in expressivity. This module allows to incorporate efficient
 primitive buffer manipulations as parts of a builder. We use this facility
 in the 'blaze-html' HTML templating library to allow for the efficient

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- |
--- Module      : Text.Blaze.Builder.Html.Utf8
+-- Module      : Blaze.ByteString.Builder.Html.Utf8
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
@@ -15,9 +15,9 @@
 -- templating libraries. If the 'Builder' from 'blaze-builder' replaces the
 -- 'Data.Binary.Builder' implementation, this module will most likely keep its
 -- place, as it provides a set of very specialized functions.
-module Text.Blaze.Builder.Html.Utf8
+module Blaze.ByteString.Builder.Html.Utf8
     ( 
-      module Text.Blaze.Builder.Char.Utf8
+      module Blaze.ByteString.Builder.Char.Utf8
 
       -- * Writing HTML escaped and UTF-8 encoded characters to a buffer
     , writeHtmlEscapedChar
@@ -35,8 +35,8 @@ import Data.ByteString.Char8 ()  -- for the 'IsString' instance of bytesrings
 import qualified Data.Text      as TS
 import qualified Data.Text.Lazy as TL
 
-import Text.Blaze.Builder
-import Text.Blaze.Builder.Char.Utf8
+import Blaze.ByteString.Builder
+import Blaze.ByteString.Builder.Char.Utf8
 
 -- | Write a HTML escaped and UTF-8 encoded Unicode character to a bufffer.
 --

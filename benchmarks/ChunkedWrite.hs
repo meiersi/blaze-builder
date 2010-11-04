@@ -28,8 +28,8 @@ import Criterion.Main
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as S
 
-import qualified Text.Blaze.Builder           as BB
-import qualified Text.Blaze.Builder.Char.Utf8 as BB
+import qualified Blaze.ByteString.Builder           as BB
+import qualified Blaze.ByteString.Builder.Char.Utf8 as BB
 
 main :: IO ()
 main = defaultMain 

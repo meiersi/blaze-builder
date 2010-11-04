@@ -24,7 +24,7 @@ import Criterion.Main
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as S
 
-import qualified Text.Blaze.Builder as B
+import qualified Blaze.ByteString.Builder as B
 import Codec.Compression.GZip
 
 main = defaultMain 

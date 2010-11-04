@@ -7,7 +7,7 @@ import Data.Monoid
 import Data.Word
 import qualified Data.ByteString.Lazy as L
 
-import Text.Blaze.Builder
+import Blaze.ByteString.Builder
 
 import Throughput.Utils
 

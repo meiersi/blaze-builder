@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 -- |
--- Module      : Text.Blaze.Builder.Int
+-- Module      : Blaze.ByteString.Builder.Int
 -- Copyright   : (c) 2010 Simon Meier
 --
 -- License     : BSD3-style (see LICENSE)
@@ -11,14 +11,14 @@
 --
 -- 'Write's and 'Builder's for serializing integers.
 --
--- See "Text.Blaze.Builder.Word" for information about how to best write several
+-- See "Blaze.ByteString.Builder.Word" for information about how to best write several
 -- integers at once.
 --
 #if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
 #include "MachDeps.h"
 #endif
 
-module Text.Blaze.Builder.Int
+module Blaze.ByteString.Builder.Int
     ( 
     -- * Writing integers to a buffer
 
@@ -79,9 +79,9 @@ module Text.Blaze.Builder.Int
 
     ) where
 
-import Text.Blaze.Builder.Internal
-import Text.Blaze.Builder.Write
-import Text.Blaze.Builder.Word
+import Blaze.ByteString.Builder.Internal
+import Blaze.ByteString.Builder.Write
+import Blaze.ByteString.Builder.Word
 
 import Foreign
 

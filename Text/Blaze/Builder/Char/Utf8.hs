@@ -2,7 +2,7 @@
 -- ignore warning from 'import Data.Text.Encoding'
 
 -- |
--- Module      : Text.Blaze.Builder.Char.Utf8
+-- Module      : Blaze.ByteString.Builder.Char.Utf8
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
@@ -13,7 +13,7 @@
 -- 'Write's and 'Builder's for serializing Unicode characters using the UTF-8
 -- encoding. 
 --
-module Text.Blaze.Builder.Char.Utf8
+module Blaze.ByteString.Builder.Char.Utf8
     ( 
       -- * Writing UTF-8 encoded characters to a buffer
       writeChar
@@ -34,8 +34,8 @@ import qualified Data.Text.Encoding      as TS -- imported for documentation lin
 import qualified Data.Text.Lazy          as TL
 import qualified Data.Text.Lazy.Encoding as TS -- imported for documentation links
 
-import Text.Blaze.Builder.Internal
-import Text.Blaze.Builder.Write
+import Blaze.ByteString.Builder.Internal
+import Blaze.ByteString.Builder.Write
 
 -- | Write a UTF-8 encoded Unicode character to a buffer.
 --

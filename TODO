@@ -2,7 +2,7 @@
   * custom serialization functions for lists of 'WordX's
       - benchmark chunk size speedup for more complicated computations of list
         elements => to be expected that we get no speedup anymore or even a
-        slowdown => adapt Text.Blaze.Builder.Word accordingly.
+        slowdown => adapt Blaze.ByteString.Builder.Word accordingly.
 
   * fast serialization for 'Text' values (currently unpacking to 'String' is
     the fastest :-/)

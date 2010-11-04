@@ -40,15 +40,15 @@ Extra-source-files:
 Library
   Ghc-Options:       -Wall
 
-  Exposed-modules:   Text.Blaze.Builder
-                     Text.Blaze.Builder.Write
-                     Text.Blaze.Builder.Int
-                     Text.Blaze.Builder.Word
-                     Text.Blaze.Builder.ByteString
-                     Text.Blaze.Builder.Char.Utf8
-                     Text.Blaze.Builder.Html.Utf8
+  Exposed-modules:   Blaze.ByteString.Builder
+                     Blaze.ByteString.Builder.Write
+                     Blaze.ByteString.Builder.Int
+                     Blaze.ByteString.Builder.Word
+                     Blaze.ByteString.Builder.ByteString
+                     Blaze.ByteString.Builder.Char.Utf8
+                     Blaze.ByteString.Builder.Html.Utf8
 
-                     Text.Blaze.Builder.Internal
+                     Blaze.ByteString.Builder.Internal
   
   Build-depends:     base >= 4 && < 5,
                      text >= 0.9,

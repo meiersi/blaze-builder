@@ -11,7 +11,7 @@ import qualified Data.ByteString.Lazy as L
 
 import Foreign
 
-import Text.Blaze.Builder.Internal
+import Blaze.ByteString.Builder.Internal
 
 
 

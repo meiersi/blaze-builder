@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP, BangPatterns #-}
 
 -- |
--- Module      : Text.Blaze.Builder.Write
+-- Module      : Blaze.ByteString.Builder.Write
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
@@ -13,7 +13,7 @@
 -- buffer. 'Write's form the public interface for lifting direct buffer
 -- manipulations to 'Builder's.
 --
-module Text.Blaze.Builder.Write
+module Blaze.ByteString.Builder.Write
     ( 
     -- * Atomic writes to a buffer
       Write (..)
@@ -29,7 +29,7 @@ module Text.Blaze.Builder.Write
 
     ) where
 
-import Text.Blaze.Builder.Internal
+import Blaze.ByteString.Builder.Internal
 
 import Foreign
 import Data.Monoid 
@@ -45,7 +45,7 @@ import Data.Monoid
 -- must ensure that @n@ bytes are free starting from @pf@.
 --
 -- For example, the function @'writeWord8'@ provided by
--- "Text.Blaze.Builder.Word" creates a 'Write' that writes a single fixed byte
+-- "Blaze.ByteString.Builder.Word" creates a 'Write' that writes a single fixed byte
 -- to a buffer.
 --
 -- > writeWord8   :: Word8 -> Write

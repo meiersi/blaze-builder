@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP, BangPatterns, OverloadedStrings #-}
 
 -- |
--- Module      : Text.Blaze.Builder.ByteString
+-- Module      : Blaze.ByteString.Builder.ByteString
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
@@ -17,7 +17,7 @@
 -- > import qualified Data.ByteString      as S
 -- > import qualified Data.ByteString.Lazy as L
 --
-module Text.Blaze.Builder.ByteString
+module Blaze.ByteString.Builder.ByteString
     ( 
     -- * Strict bytestrings
       writeByteString
@@ -34,8 +34,8 @@ module Text.Blaze.Builder.ByteString
 
     ) where
 
-import Text.Blaze.Builder.Write
-import Text.Blaze.Builder.Internal
+import Blaze.ByteString.Builder.Write
+import Blaze.ByteString.Builder.Internal
 
 import Foreign
 import Data.Monoid

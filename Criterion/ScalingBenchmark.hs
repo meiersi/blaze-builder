@@ -25,8 +25,8 @@ import Data.Int (Int64)
 
 import qualified Data.Vector.Generic as V
 
-import Text.Blaze.Builder
-import Text.Blaze.Builder.Internal
+import Blaze.ByteString.Builder
+import Blaze.ByteString.Builder.Internal
 
 import qualified Data.Binary.Builder as B
 

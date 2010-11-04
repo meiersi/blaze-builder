@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      : Text.Blaze.Builder
+-- Module      : Blaze.ByteString.Builder
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
@@ -8,17 +8,17 @@
 -- Stability   : experimental
 -- Portability : tested on GHC only
 --
--- "Text.Blaze.Builder" is the main module, which you should import as a user
+-- "Blaze.ByteString.Builder" is the main module, which you should import as a user
 -- of the @blaze-builder@ library.
 --
--- > import Text.Blaze.Builder
+-- > import Blaze.ByteString.Builder
 -- 
 -- It provides you with a type 'Builder' that allows to efficiently construct
 -- lazy bytestrings with a large average chunk size.
 --
 -- Intuitively, a 'Builder' denotes the construction of a part of a lazy
 -- bytestring. Builders can either be created using one of the primitive
--- combinators in "Text.Blaze.Builder.Write" or by using one of the predefined
+-- combinators in "Blaze.ByteString.Builder.Write" or by using one of the predefined
 -- combinators for standard Haskell values (see the exposed modules of this
 -- package).  Concatenation of builders is done using 'mappend' from the
 -- 'Monoid' typeclass.
@@ -26,7 +26,7 @@
 -- Here is a small example that serializes a list of strings using the UTF-8
 -- encoding.
 --
--- @ import "Text.Blaze.Builder.Char.Utf8"@
+-- @ import "Blaze.ByteString.Builder.Char.Utf8"@
 --
 -- > strings :: [String]
 -- > strings = replicate 10000 "Hello there!"
@@ -56,16 +56,16 @@
 -- expressivity.
 -----------------------------------------------------------------------------
 
-module Text.Blaze.Builder
+module Blaze.ByteString.Builder
     ( 
       -- * The @Builder@ type
       Builder
 
       -- * Creating builders
-    , module Text.Blaze.Builder.Write 
-    , module Text.Blaze.Builder.Int
-    , module Text.Blaze.Builder.Word
-    , module Text.Blaze.Builder.ByteString
+    , module Blaze.ByteString.Builder.Write 
+    , module Blaze.ByteString.Builder.Int
+    , module Blaze.ByteString.Builder.Word
+    , module Blaze.ByteString.Builder.ByteString
     , flush
 
       -- * Executing builders
@@ -78,7 +78,7 @@ module Text.Blaze.Builder
 
       -- * Compatibility to Data.Binary.Builder from the binary package
       --
-      -- | The following functions ensure that @"Text.Blaze.Builder"@ is a
+      -- | The following functions ensure that @"Blaze.ByteString.Builder"@ is a
       -- drop-in replacement for @Data.Binary.Builder@ from the @binary@
       -- package. Note that these functions are deprecated and may be removed
       -- in future versions of the @blaze-builder@ package.
@@ -99,11 +99,11 @@ module Text.Blaze.Builder
     , putWord64host           --
     ) where
 
-import Text.Blaze.Builder.Internal
-import Text.Blaze.Builder.Write
-import Text.Blaze.Builder.Int
-import Text.Blaze.Builder.Word
-import Text.Blaze.Builder.ByteString
+import Blaze.ByteString.Builder.Internal
+import Blaze.ByteString.Builder.Write
+import Blaze.ByteString.Builder.Int
+import Blaze.ByteString.Builder.Word
+import Blaze.ByteString.Builder.ByteString
 
 import Data.Monoid
 import Data.Word

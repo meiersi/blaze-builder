@@ -1,12 +1,12 @@
 ghc-7.0.0.20100924   --make -O2 -fforce-recomp -ibenchmarks -main-is StringAndText StringAndText
-[1 of 9] Compiling Text.Blaze.Builder.Internal ( Text/Blaze/Builder/Internal.hs, Text/Blaze/Builder/Internal.o )
-[2 of 9] Compiling Text.Blaze.Builder.Write ( Text/Blaze/Builder/Write.hs, Text/Blaze/Builder/Write.o )
-[3 of 9] Compiling Text.Blaze.Builder.Char.Utf8 ( Text/Blaze/Builder/Char/Utf8.hs, Text/Blaze/Builder/Char/Utf8.o )
-[4 of 9] Compiling Text.Blaze.Builder.Word ( Text/Blaze/Builder/Word.hs, Text/Blaze/Builder/Word.o )
-[5 of 9] Compiling Text.Blaze.Builder.Int ( Text/Blaze/Builder/Int.hs, Text/Blaze/Builder/Int.o )
-[6 of 9] Compiling Text.Blaze.Builder.ByteString ( Text/Blaze/Builder/ByteString.hs, Text/Blaze/Builder/ByteString.o )
-[7 of 9] Compiling Text.Blaze.Builder ( Text/Blaze/Builder.hs, Text/Blaze/Builder.o )
-[8 of 9] Compiling Text.Blaze.Builder.Html.Utf8 ( Text/Blaze/Builder/Html/Utf8.hs, Text/Blaze/Builder/Html/Utf8.o )
+[1 of 9] Compiling Blaze.ByteString.Builder.Internal ( Text/Blaze/Builder/Internal.hs, Text/Blaze/Builder/Internal.o )
+[2 of 9] Compiling Blaze.ByteString.Builder.Write ( Text/Blaze/Builder/Write.hs, Text/Blaze/Builder/Write.o )
+[3 of 9] Compiling Blaze.ByteString.Builder.Char.Utf8 ( Text/Blaze/Builder/Char/Utf8.hs, Text/Blaze/Builder/Char/Utf8.o )
+[4 of 9] Compiling Blaze.ByteString.Builder.Word ( Text/Blaze/Builder/Word.hs, Text/Blaze/Builder/Word.o )
+[5 of 9] Compiling Blaze.ByteString.Builder.Int ( Text/Blaze/Builder/Int.hs, Text/Blaze/Builder/Int.o )
+[6 of 9] Compiling Blaze.ByteString.Builder.ByteString ( Text/Blaze/Builder/ByteString.hs, Text/Blaze/Builder/ByteString.o )
+[7 of 9] Compiling Blaze.ByteString.Builder ( Text/Blaze/Builder.hs, Text/Blaze/Builder.o )
+[8 of 9] Compiling Blaze.ByteString.Builder.Html.Utf8 ( Text/Blaze/Builder/Html/Utf8.hs, Text/Blaze/Builder/Html/Utf8.o )
 [9 of 9] Compiling StringAndText    ( benchmarks/StringAndText.hs, benchmarks/StringAndText.o )
 echo ghc-7.0.0.20100924  
 ghc-7.0.0.20100924

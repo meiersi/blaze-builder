@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, BangPatterns #-}
 -- |
--- Module      : Text.Blaze.Builder.Internal
+-- Module      : Blaze.ByteString.Builder.Internal
 -- Copyright   : (c) 2010 Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
@@ -11,14 +11,14 @@
 -- Implementation of the 'Builder' monoid.
 --
 -- A standard library user must never import this module directly. Instead, he
--- should import "Text.Blaze.Builder", which re-exports the 'Builder' type and
+-- should import "Blaze.ByteString.Builder", which re-exports the 'Builder' type and
 -- its associated public functions defined in this module.
 --
 -- Developers of other libraries may import this module to gain access to the
 -- internal representation of builders. For example, in some cases, creating a
 -- 'Builder' with a custom low-level 'BuildStep' may improve performance
 -- considerably compared to the creating it using the public 'Builder'
--- combinators (e.g., @'fromWrite1List'@ in "Text.Blaze.Builder.Write").
+-- combinators (e.g., @'fromWrite1List'@ in "Blaze.ByteString.Builder.Write").
 -- Another example, is the use of 'ModifyChunks' to efficiently wire the
 -- 'Builder' type with another library that generates lazy bytestrings.
 --
@@ -27,7 +27,7 @@
 -- implementation and the guarantees given in this file may change in any
 -- version! The release notes will tell, if this was the case.
 --
-module Text.Blaze.Builder.Internal
+module Blaze.ByteString.Builder.Internal
     ( 
     -- * The @Builder@ type
       Builder(..)
@@ -75,10 +75,10 @@ import qualified Data.ByteString.Lazy.Internal as L
 -- | Intuitively, a builder denotes the construction of a lazy bytestring. 
 --
 -- Builders can be created from primitive buffer manipulations using the
--- @'Write'@ abstraction provided by in "Text.Blaze.Builder.Write". However for
+-- @'Write'@ abstraction provided by in "Blaze.ByteString.Builder.Write". However for
 -- many Haskell values, there exist predefined functions doing that already. 
 -- For example, UTF-8 encoding 'Char' and 'String' values is provided by the
--- functions in "Text.Blaze.Builder.Char.Utf8". Concatenating builders is done
+-- functions in "Blaze.ByteString.Builder.Char.Utf8". Concatenating builders is done
 -- using their 'Monoid' instance.
 --
 -- Semantically, builders are nothing special. They just denote a sequence of
@@ -94,7 +94,7 @@ import qualified Data.ByteString.Lazy.Internal as L
 -- benchmarking is unavoidable. Moreover, it also helps to understand the
 -- implementation of builders and the predefined combinators. This should be
 -- amenable to the average Haskell programmer by reading the source code of
--- "Text.Blaze.Builder.Internal" and the other modules of this library. 
+-- "Blaze.ByteString.Builder.Internal" and the other modules of this library. 
 --
 -- The guiding implementation principle was to reduce the abstraction cost per
 -- output byte. We use continuation passing to achieve a constant time append.
@@ -105,7 +105,7 @@ import qualified Data.ByteString.Lazy.Internal as L
 -- We also try to take the pressure off the cache by moving variables as far
 -- out of loops as possible. This leads to some duplication of code, but
 -- results in sometimes dramatic increases in performance. For example, see the
--- @'fromWord8s'@ function in "Text.Blaze.Builder.Word".
+-- @'fromWord8s'@ function in "Blaze.ByteString.Builder.Word".
 --
 newtype Builder = Builder (BuildStep -> BuildStep)
 
