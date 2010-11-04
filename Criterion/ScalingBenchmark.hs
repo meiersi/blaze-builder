@@ -112,7 +112,7 @@ packComparison, zoomedPackComparison :: ScalingComparison Int
       iterate (*factor) 1
 
     broadVs  = mkLogVs 1.5 (200 * 1024)
-    zoomedVs = mkLogVs 1.1  128
+    zoomedVs = mkLogVs 1.1  256
 
     packLazy :: [Word8] -> L.ByteString
     packLazy = toLazyByteString . fromWord8s
