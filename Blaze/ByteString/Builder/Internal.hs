@@ -229,28 +229,29 @@ flush = Builder $ \k pf _ -> return $ ModifyChunks pf id k
 -- completely fill the existing buffer, if this is faster. However, they should
 -- not spill too much of the buffer, if they cannot compensate for it.
 --
--- A call 'toLazyByteStringWith bufSize minBufSize firstBufSize' will generate
+-- A call @toLazyByteStringWith bufSize minBufSize firstBufSize@ will generate
 -- a lazy bytestring according to the following strategy. First, we allocate
--- a buffer of size 'firstBufSize' and start filling it. If it overflows, we
--- allocate a buffer of size 'minBufSize' and *copy* the first buffer to it in
+-- a buffer of size @firstBufSize@ and start filling it. If it overflows, we
+-- allocate a buffer of size @minBufSize@ and copy the first buffer to it in
 -- order to avoid generating a too small chunk. Finally, every next buffer will
--- be of size 'bufSize'. This, slow startup strategy is required to achieve
+-- be of size @bufSize@. This, slow startup strategy is required to achieve
 -- good speed for short (<200 bytes) resulting bytestrings, as for them the
 -- allocation cost is of a large buffer cannot be compensated. Moreover, this
--- strategy also allows us to avoid spilling too much memory.
+-- strategy also allows us to avoid spilling too much memory for short
+-- resulting bytestrings.
 --
--- Note that setting 'firstBufSize >= minBufSize' implies that the first buffer
+-- Note that setting @firstBufSize >= minBufSize@ implies that the first buffer
 -- is no longer copied but allocated and filled directly. Hence, setting
--- 'firstBufSize = bufSize' means that all chunks will use an underlying buffer
--- of size 'bufSize'. This is recommended, if you know that you always output
--- more than 'minBufSize' bytes.
+-- @firstBufSize = bufSize@ means that all chunks will use an underlying buffer
+-- of size @bufSize@. This is recommended, if you know that you always output
+-- more than @minBufSize@ bytes.
 toLazyByteStringWith 
     :: Int           -- ^ Buffer size (upper-bounds the resulting chunk size).
     -> Int           -- ^ Minimal free buffer space for continuing filling
                      -- the same buffer after a 'flush' or a direct bytestring
                      -- insertion. This corresponds to the minimal desired
                      -- chunk size.
-    -> Int           -- Size of the first buffer to be used and copied for
+    -> Int           -- ^ Size of the first buffer to be used and copied for
                      -- larger resulting sequences
     -> Builder       -- ^ Builder to run.
     -> L.ByteString  -- ^ Lazy bytestring to output after the builder is
@@ -326,7 +327,7 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Builder b) k =
 -- buffer sizes. Use this function, if you do not have any special
 -- considerations with respect to buffer sizes.
 --
--- @ 'toLazyByteString' = 'toLazyByteStringWith' 'defaultBufferSize' 'defaultMinimalBufferSize' L.empty@
+-- @ 'toLazyByteString' b = 'toLazyByteStringWith' 'defaultBufferSize' 'defaultMinimalBufferSize' 'defaultFirstBufferSize' b L.empty@
 --
 -- Note that @'toLazyByteString'@ is a 'Monoid' homomorphism.
 --
