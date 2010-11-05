@@ -13,8 +13,8 @@ Description:
                      when writing the resulting lazy bytestring to a file or
                      sending it over the network.
 
-Homepage:            http://github.com/meiersi/blaze-builder
-Bug-Reports:         http://github.com/meiersi/blaze-builder/issues
+Homepage:            http://github.com/jaspervdj/blaze-builder
+Bug-Reports:         http://github.com/jaspervdj/blaze-builder/issues
 License:             BSD3
 License-file:        LICENSE
 Author:              Jasper Van der Jeugt, Simon Meier
