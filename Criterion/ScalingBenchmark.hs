@@ -81,9 +81,16 @@ main = do
   where
     runAndPlot config env sc = do
       sc' <- withConfig config $ runScalingComparison env sc
-      let conv = fromIntegral :: Int -> Double
-      plotScalingComparison (PDF 1280 1024) conv sc'
-      plotScalingComparison (PNG 800 600) conv sc'
+      mkPlots sc'
+
+    mkPlots sc = sequence_
+        [ plotScalingComparison outType plotType conv sc
+        | outType <- outTypes PDF ++ outTypes PNG,
+          plotType <- [True, False]
+        ] 
+      where
+        conv = fromIntegral :: Int -> Double
+        outTypes f = map (uncurry f) [(640,480),(800,600),(1280,1024)]
 
 -- | Comparison of different implementations of packing [Word8].
 packComparison, zoomedPackComparison :: ScalingComparison Int
@@ -113,6 +120,12 @@ packComparison, zoomedPackComparison :: ScalingComparison Int
 
     broadVs  = mkLogVs 1.5 (200 * 1024)
     zoomedVs = mkLogVs 1.1  256
+
+    byteStringPackLazy :: [Word8] -> L.ByteString
+    byteStringPackLazy = L.pack
+
+    byteStringPackStrict :: [Word8] -> S.ByteString
+    byteStringPackStrict = S.pack
 
     packLazy :: [Word8] -> L.ByteString
     packLazy = toLazyByteString . fromWord8s
@@ -304,31 +317,43 @@ runScalingComparison env sc = do
 -- | Plot a scaling comparison.
 plotScalingComparison :: (PlotValue b, RealFloat b) 
                       => PlotOutput           -- ^ Output format.
+                      -> Bool                 -- ^ True, if boxplot should be used
                       -> (a -> b)             -- ^ Test point conversion function.
                       -> ScalingComparison a  -- ^ Comparison to plot.
                       -> IO ()
 
-plotScalingComparison (PDF x y) conv sc =
-  renderableToPDFFile (renderScalingComparison conv sc) x y
-                      (mangle $ printf "%s scaling %dx%d.pdf" (scName sc) x y)
+plotScalingComparison output doBoxplot conv sc =
+    renderableToFile $ renderScalingComparison doBoxplot conv sc
+  where
+    renderableToFile = case output of
+      PDF x y    -> \r -> renderableToPDFFile r x y (mkName "pdf" x y)
+      PNG x y    -> \r -> renderableToPNGFile r x y (mkName "png" x y)
+      SVG x y    -> \r -> renderableToSVGFile r x y (mkName "svg" x y)
+      Window x y -> \r -> renderableToWindow  r x y 
 
-plotScalingComparison (PNG x y) conv sc =
-  renderableToPNGFile (renderScalingComparison conv sc) x y
-                      (mangle $ printf "%s scaling %dx%d.png" (scName sc) x y)
+    mkName fileType x y = mangle $ 
+      printf "%s scaling %s%dx%d.%s" (scName sc) plotType x y fileType
 
-plotScalingComparison (SVG x y) conv sc =
-  renderableToSVGFile (renderScalingComparison conv sc) x y
-                      (mangle $ printf "%s scaling %dx%d.svg" (scName sc) x y)
+    plotType | doBoxplot = "(boxplot) " 
+             | otherwise = ""
 
-plotScalingComparison (Window x y) conv sc =
-  renderableToWindow (renderScalingComparison conv sc) x y
-
+-- plotScalingComparison (PNG x y) doBoxplot conv sc =
+--   renderableToPNGFile (renderScalingComparison doBoxplot conv sc) x y
+--                       (mangle $ printf "%s scaling %dx%d.png" (scName sc) x y)
+-- 
+-- plotScalingComparison (SVG x y) doBoxplot conv sc =
+--   renderableToSVGFile (renderScalingComparison doBoxplot conv sc) x y
+--                       (mangle $ printf "%s scaling %dx%d.svg" (scName sc) x y)
+-- 
+-- plotScalingComparison (Window x y) doBoxplot conv sc =
+--   renderableToWindow (renderScalingComparison doBoxplot conv sc) x y
+-- 
 
 -- | Render a scaling comparison using an adaption of the boxplot technique to
 -- lineplots.
 renderScalingComparison :: (PlotValue b, RealFloat b) 
-                        => (a -> b) -> ScalingComparison a -> Renderable ()
-renderScalingComparison f sc = 
+                        => Bool -> (a -> b) -> ScalingComparison a -> Renderable ()
+renderScalingComparison doBoxplot f sc = 
     toRenderable $
       layout1_plots ^= plots $
       layout1_title ^= scName sc $
@@ -336,18 +361,33 @@ renderScalingComparison f sc =
       layout1_right_axis ^= mkLogAxis "seconds" $
       defaultLayout1
   where
-    plots = concat $ zipWith plotAnnotatedSamples
+    plotFunction | doBoxplot = boxplotAnnotatedSamples
+                 | otherwise = plotAnnotatedSamples
+    plots = concat $ zipWith plotFunction
       (map opaque $ colorPalette)
       (annotateMeasurements f sc)
 
 
 
--- | Plot the annotated samples with several lines for the 
+-- | Plot the means of the annotated samples
 --
 plotAnnotatedSamples :: AlphaColour Double 
                      -> (String, [(a,Sample)]) 
                      -> [Either (Plot a Double) (Plot a Double)]
 plotAnnotatedSamples colour (name, points) =
+    return . Right $ line (solidLine 1) 1 mean
+  where
+    line style trans proj = toPlot $ plotLine name
+        (solidLine 1 $ dissolve trans colour)
+        (map (second proj) points)
+
+-- | Plot the annotated samples as a boxplot. This should be used to check the
+-- soundness of the measured results.
+--
+boxplotAnnotatedSamples :: AlphaColour Double 
+                     -> (String, [(a,Sample)]) 
+                     -> [Either (Plot a Double) (Plot a Double)]
+boxplotAnnotatedSamples colour (name, points) =
     map (Right . noLegend . uncurry (line (solidLine 1)))
         [ (0.2, bpLowWhisker)
         , (0.4, bpLowQuartile)
@@ -364,7 +404,7 @@ plotAnnotatedSamples colour (name, points) =
         ] 
   where
     points' = map (second boxPlot) points
-    -- line :: Double -> (Sample -> Double) -> Plot a Double
+    
     line style trans proj = toPlot $ plotLine name
         (solidLine 1 $ dissolve trans colour)
         (map (second proj) points')
