@@ -83,8 +83,8 @@ instance Show Builder where
 instance Eq Builder where
     b1 == b2 = 
         -- different and small buffer sizses for testing wrapping behaviour
-        toLazyByteStringWith  1024     1024 b1 == 
-        toLazyByteStringWith  2001     511  b2
+        toLazyByteStringWith  1024     1024 256 b1 mempty ==
+        toLazyByteStringWith  2001     511  256 b2 mempty
 
 -- | Artificially scale up size to ensures that buffer wrapping behaviour is
 -- also tested.
