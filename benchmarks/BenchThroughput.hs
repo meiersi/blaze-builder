@@ -144,8 +144,8 @@ main = do
              )
            | serialize <- serializers
            ]
-        | wordSize  <- [1] -- ,2,4,8]
-        , end       <- [Host] -- ,Big,Little]
+        | wordSize  <- [1,2,4,8]
+        , end       <- [Host,Big,Little]
         , wordSize /= 1 || end == Host -- no endianess for Word8
         ]
 
@@ -165,7 +165,7 @@ mkChart task = do
   let layout = 
         defaultLayout1
           { layout1_plots_ = map (Right . toPlot) plottedLines }
-  renderableToWindow (toRenderable layout) 640 480  
+  -- renderableToWindow (toRenderable layout) 640 480  
 
 
 measureSerializer :: (a, [(Int, IO (Maybe Double))]) -> IO (Maybe (a, [(Int,Double)]))
