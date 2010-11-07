@@ -286,9 +286,12 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Builder b) k =
                               copyBytes pfNew pf l
                               nextStep (pfNew `plusPtr` l) peNew
                       
-                  ModifyChunks  pf' bsk nextStep  ->
-                      return $ L.Chunk (mkbs pf')
-                          (bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep))
+                  ModifyChunks pf' bsk nextStep 
+                      | pf' == pf ->
+                          return $ bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep)
+                      | otherwise ->
+                          return $ L.Chunk (mkbs pf')
+                              (bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep))
                     
     -- allocate and fill a new buffer
     fillNewBuffer !size !step0 = do
