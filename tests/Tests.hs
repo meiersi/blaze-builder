@@ -5,9 +5,7 @@ module Tests where
 
 import Control.Applicative ((<$>))
 import Data.Monoid (mempty, mappend, mconcat)
-import Data.Word (Word8)
 
-import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as LB
 import Test.Framework
