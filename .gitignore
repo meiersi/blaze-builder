@@ -11,3 +11,4 @@ benchmarks/Compression
 Criterion/ScalingBenchmark
 
 tests/LlvmSegfault
+tests/Tests
