@@ -165,6 +165,7 @@ mkChart task = do
   let layout = 
         defaultLayout1
           { layout1_plots_ = map (Right . toPlot) plottedLines }
+  return ()
   -- renderableToWindow (toRenderable layout) 640 480  
 
 
