@@ -1,6 +1,8 @@
 dist
 *.o
 *.hi
+*.pdf
+*.png
 
 benchmarks/BlazeVsBinary
 benchmarks/ChunkedWrite

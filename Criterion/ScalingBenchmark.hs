@@ -153,10 +153,16 @@ chunk size xs = c : case xs' of [] -> []; _ -> chunk size xs'
 -- compaction on redundant and random data.
 compressComparison :: ScalingComparison Int
 compressComparison = compareBenchmarks ("Compressing "++show kb++"kb of data") "chunk size in bytes" vs $
+    {-
     [ ScalingBenchmark "rnd. data / direct"             (whnf compressDirectly  . randomByteStrings)
     , ScalingBenchmark "rnd. data / with compaction"    (whnf compressCompacted . randomByteStrings)
     , ScalingBenchmark "red. data / direct"          (whnf compressDirectly  . redundantByteStrings)
     , ScalingBenchmark "red. data / with compaction" (whnf compressCompacted . redundantByteStrings)
+    ]
+    -}
+    [ ScalingBenchmark "direct"          (whnf compressDirectly  . redundantByteStrings)
+    , ScalingBenchmark "with compaction" (whnf compressCompacted . redundantByteStrings)
+    , ScalingBenchmark "compaction only" (whnf compaction        . redundantByteStrings)
     ]
   where
     kb = 200
@@ -165,9 +171,9 @@ compressComparison = compareBenchmarks ("Compressing "++show kb++"kb of data") "
     vs :: [Int]
     vs = takeWhile (<= 100000) $ iterate (2*) 1
 
-    randomWord8s = map fromIntegral . take n $ unfoldr (Just . R.next) (R.mkStdGen 666) 
-    randomByteStrings c = L.fromChunks . map S.pack . chunk c $ randomWord8s
-    {-# NOINLINE randomByteStrings #-}
+    -- randomWord8s = map fromIntegral . take n $ unfoldr (Just . R.next) (R.mkStdGen 666) 
+    -- randomByteStrings c = L.fromChunks . map S.pack . chunk c $ randomWord8s
+    -- {-# NOINLINE randomByteStrings #-}
 
     redundantWord8s = take n $ cycle [0..]
     redundantByteStrings c = L.fromChunks . map S.pack . chunk c $ redundantWord8s
@@ -179,6 +185,9 @@ compressComparison = compareBenchmarks ("Compressing "++show kb++"kb of data") "
     compressCompacted :: L.ByteString -> Int64
     compressCompacted = 
       L.length . compress . toLazyByteString . fromLazyByteString
+
+    compaction :: L.ByteString -> Int64
+    compaction = L.length . toLazyByteString . fromLazyByteString
 
 
 -- BoxPlots
