@@ -18,7 +18,7 @@ module Criterion.ScalingBenchmark where
 import Prelude hiding (lines)
 
 import Data.Function (on)
-import Data.List (unfoldr, group, transpose, sortBy)
+import Data.List (unfoldr, group, transpose, sortBy, intersperse)
 import Data.Word (Word8)
 import Data.Monoid
 import Data.Int (Int64)
@@ -77,16 +77,20 @@ main = do
     let config = defaultConfig
     env <- withConfig config measureEnvironment
     mapM_ (runAndPlot config env)
-      [compressComparison, packComparison, zoomedPackComparison]
+      [ (compressComparison, defaultPlotConfig { pcLogYAxis = False })
+      , (packComparison, defaultPlotConfig)
+      , (zoomedPackComparison, defaultPlotConfig)
+      ] 
   where
-    runAndPlot config env sc = do
+    runAndPlot config env (sc, plotConfig) = do
       sc' <- withConfig config $ runScalingComparison env sc
-      mkPlots sc'
+      mkPlots sc' plotConfig
 
-    mkPlots sc = sequence_
-        [ plotScalingComparison outType plotType conv sc
+    mkPlots sc plotConfig = sequence_
+        [ plotScalingComparison outType 
+            (plotConfig {pcBoxPlot = doBoxPlot}) conv sc
         | outType <- outTypes PDF ++ outTypes PNG,
-          plotType <- [True, False]
+          doBoxPlot <- [True, False]
         ] 
       where
         conv = fromIntegral :: Int -> Double
@@ -322,17 +326,32 @@ runScalingComparison env sc = do
     rightAlign n cs = take (n - length cs) (repeat ' ') ++ cs
     leftAlign  n cs = cs ++ take (n - length cs) (repeat ' ')
 
+data PlotConfig = PlotConfig {
+    pcBoxPlot  :: Bool
+  , pcLogYAxis :: Bool
+  , pcLogXAxis :: Bool
+  } 
+  deriving( Eq, Ord, Show )
+
+defaultPlotConfig :: PlotConfig
+defaultPlotConfig = PlotConfig True True True
+
+prettyPlotConfig (PlotConfig boxPlot logY logX) =
+    concat $ intersperse "," $ msum
+      [f boxPlot "boxplot", f logY "log-y", f logX "log-x"]
+  where
+    f b info = if b then return info else mzero
 
 -- | Plot a scaling comparison.
 plotScalingComparison :: (PlotValue b, RealFloat b) 
                       => PlotOutput           -- ^ Output format.
-                      -> Bool                 -- ^ True, if boxplot should be used
+                      -> PlotConfig           -- ^ Plot configuration.
                       -> (a -> b)             -- ^ Test point conversion function.
                       -> ScalingComparison a  -- ^ Comparison to plot.
                       -> IO ()
 
-plotScalingComparison output doBoxplot conv sc =
-    renderableToFile $ renderScalingComparison doBoxplot conv sc
+plotScalingComparison output config conv sc =
+    renderableToFile $ renderScalingComparison config conv sc
   where
     renderableToFile = case output of
       PDF x y    -> \r -> renderableToPDFFile r x y (mkName "pdf" x y)
@@ -343,8 +362,9 @@ plotScalingComparison output doBoxplot conv sc =
     mkName fileType x y = mangle $ 
       printf "%s scaling %s%dx%d.%s" (scName sc) plotType x y fileType
 
-    plotType | doBoxplot = "(boxplot) " 
-             | otherwise = ""
+    plotType = case prettyPlotConfig config of
+      ""   -> ""
+      info -> "("++info++")"
 
 -- plotScalingComparison (PNG x y) doBoxplot conv sc =
 --   renderableToPNGFile (renderScalingComparison doBoxplot conv sc) x y
@@ -361,17 +381,19 @@ plotScalingComparison output doBoxplot conv sc =
 -- | Render a scaling comparison using an adaption of the boxplot technique to
 -- lineplots.
 renderScalingComparison :: (PlotValue b, RealFloat b) 
-                        => Bool -> (a -> b) -> ScalingComparison a -> Renderable ()
-renderScalingComparison doBoxplot f sc = 
+                        => PlotConfig -> (a -> b) -> ScalingComparison a -> Renderable ()
+renderScalingComparison config f sc = 
     toRenderable $
       layout1_plots ^= plots $
       layout1_title ^= scName sc $
-      layout1_bottom_axis ^= mkLogAxis (scTestUnit sc) $
-      layout1_right_axis ^= mkLogAxis "seconds" $
+      layout1_bottom_axis ^= mkAxis pcLogXAxis (scTestUnit sc) $
+      layout1_right_axis ^= mkAxis pcLogYAxis "seconds" $
       defaultLayout1
   where
-    plotFunction | doBoxplot = boxplotAnnotatedSamples
-                 | otherwise = plotAnnotatedSamples
+    mkAxis proj | proj config = mkLogAxis
+                | otherwise   = mkLinearAxis
+    plotFunction | pcBoxPlot config = boxplotAnnotatedSamples
+                 | otherwise        = plotAnnotatedSamples
     plots = concat $ zipWith plotFunction
       (map opaque $ colorPalette)
       (annotateMeasurements f sc)
