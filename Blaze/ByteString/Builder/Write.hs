@@ -151,6 +151,7 @@ fromWriteSingleton write = makeBuilder
 fromWrite1List :: (a -> Write) -> [a] -> Builder
 fromWrite1List write = makeBuilder
   where
+    -- FIXME: No first case distinction, move k out of loop, make more strict
     makeBuilder []  = mempty
     makeBuilder xs0 = Builder $ step xs0
       where
