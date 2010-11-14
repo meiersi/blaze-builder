@@ -67,6 +67,11 @@ bench-compression:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is Compression Compression
 	./benchmarks/Compression --resamples 10000
 
+# Benchmark benefit of compaction before compression
+bench-lazy-bytestring:
+	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is LazyByteString LazyByteString
+	./benchmarks/LazyByteString --resamples 10000
+
 ##############################################################################
 ## Plots
 ##############################################################################

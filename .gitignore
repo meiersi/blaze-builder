@@ -9,6 +9,7 @@ benchmarks/ChunkedWrite
 benchmarks/BenchThroughput
 benchmarks/StringAndText
 benchmarks/Compression
+benchmarks/LazyByteString
 
 Criterion/ScalingBenchmark
 
