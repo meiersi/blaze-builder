@@ -270,6 +270,7 @@ fromWriteReplicated write =
                       fill (n-1) (pfNew `plusPtr` size) peNew
 {-# INLINE fromWriteReplicated #-}
 
+-- FIXME: Output repeated bytestrings for large replications.
 fromReplicateWord8 :: Int -> Word8 -> Builder
 fromReplicateWord8 !n0 x = 
     Builder $ step
@@ -359,4 +360,47 @@ intersperseBlaze w lbs0 =
 {-# INLINE intersperseBlaze #-}
 
 -}
+
+
+-- Packing
+----------
+
+packBlaze :: [Word8] -> L.ByteString
+packBlaze = toLazyByteString . fromWrite1List writeWord8
+
+
+-- Reverse
+----------
+
+
+-- Transpose
+------------
+
+
+-- scanl, scanl1, scanr, scanr1
+-------------------------------
+
+
+-- mapAccumL, mapAccumR
+-----------------------
+
+
+-- partition
+------------
+
+-- unzip
+--------
+
+
+-- copy
+-------
+
+-- FIXME: Implement wrapping
+copyBlaze :: L.ByteString -> L.ByteString
+copyBlaze = toLazyByteString . copyLazyByteString
+
+
+-- ?? packCString, packCStringLen
+---------------------------------
+
 
