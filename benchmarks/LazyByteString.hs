@@ -38,25 +38,29 @@ main :: IO ()
 main = do
     let (chunkInfos, benchmarks) = unzip 
           [ lazyVsBlaze
-              ( "filter ((==0) . (`mod` 199))"
-              , L.filter ((==0) . (`mod` 5))
-              , filterBlaze ((==0) . (`mod` 5))
-              , (\i -> L.pack $ take i $ cycle [0..])
+              ( "copy"
+              , L.copy
+              , copyBlaze
+              , (\i -> L.drop 13 $ L.take (fromIntegral i) $ L.fromChunks $ repeat $ S.pack [0..])
+              , n)
+          , lazyVsBlaze
+              ( "filter ((==0) . (`mod` 3))"
+              , L.filter ((==0) . (`mod` 3))
+              , filterBlaze ((==0) . (`mod` 3))
+              , (\i -> L.drop 13 $ L.pack $ take i $ cycle [0..])
               , n)
           , lazyVsBlaze
               ( "map (+1)"
               , L.map (+1)
               , mapBlaze (+1)
-              , (\i -> L.pack $ take i $ cycle [0..])
+              , (\i -> L.drop 13 $ L.pack $ take i $ cycle [0..])
               , n)
-          {-
           , lazyVsBlaze
               ( "concatMap (replicate 10)"
               , L.concatMap (L.replicate 10)
               , toLazyByteString . concatMapBuilder (fromReplicateWord8 10)
               , (\i -> L.pack $ take i $ cycle [0..])
               , n `div` 10 )
-          -}
           , lazyVsBlaze 
               ( "unfoldr countToZero"
               , L.unfoldr    countToZero
@@ -197,10 +201,10 @@ mapFilterMapByteString :: (Word8 -> Word8) -> (Word8 -> Bool) -> (Word8 -> Word8
 mapFilterMapByteString f p g = 
     \bs -> Builder $ step bs
   where
-    step (S.PS ifp ioff ilen) !k = 
+    step (S.PS ifp ioff isize) !k = 
         goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
       where
-        !ipe = unsafeForeignPtrToPtr ifp `plusPtr` ilen
+        !ipe = unsafeForeignPtrToPtr ifp `plusPtr` (ioff + isize)
         goBS !ip0 !op0 !ope
           | ip0 >= ipe = do touchForeignPtr ifp -- input buffer consumed
                             k op0 ope

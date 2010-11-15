@@ -97,21 +97,13 @@ fromByteString = fromByteStringWith defaultMaximalCopySize
 fromByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                    -> S.ByteString -- ^ Strict 'S.ByteString' to serialize.
                    -> Builder      -- ^ Resulting 'Builder'.
-fromByteStringWith maximalCopySize bs = Builder step
+fromByteStringWith maxCopySize = 
+    \bs -> Builder $ step bs
   where
-    step k pf pe
-      | maximalCopySize < size  = 
-          return $ ModifyChunks pf (L.Chunk bs) k
-      | pf `plusPtr` size <= pe = do
-          withForeignPtr fpbuf $ \pbuf -> 
-              copyBytes pf (pbuf `plusPtr` offset) size
-          let pf' = pf `plusPtr` size
-          pf' `seq` k pf' pe
-      | otherwise               = return $ BufferFull size pf (step k)
-      where
-        (fpbuf, offset, size) = S.toForeignPtr bs
+    step !bs !k !op !ope
+      | maxCopySize < S.length bs = return $ ModifyChunks op (L.Chunk bs) k
+      | otherwise                 = copyByteStringStep bs k op ope
 {-# INLINE fromByteStringWith #-}
-
 
 -- | @copyByteString bs@ serialize the strict bytestring @bs@ by copying it to
 -- the output buffer. 
@@ -120,8 +112,31 @@ fromByteStringWith maximalCopySize bs = Builder step
 -- to be smallish (@<= 4kb@).
 --
 copyByteString :: S.ByteString -> Builder
-copyByteString = fromWriteSingleton writeByteString
+copyByteString =
+    \bs -> Builder $ copyByteStringStep bs
 {-# INLINE copyByteString #-}
+
+copyByteStringStep :: S.ByteString -> BuildStep -> BuildStep
+copyByteStringStep (S.PS ifp ioff isize) !k = 
+    goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
+  where
+    !ipe = unsafeForeignPtrToPtr ifp `plusPtr` (ioff + isize)
+    goBS !ip !op !ope
+      | inpRemaining <= outRemaining = do
+          copyBytes op ip inpRemaining
+          touchForeignPtr ifp -- input consumed: OK to release from here
+          let !op' = op `plusPtr` inpRemaining
+          k op' ope
+      | otherwise = do
+          copyBytes op ip outRemaining
+          let !ip' = ip `plusPtr` outRemaining
+          return $ BufferFull 1 ope (goBS ip')
+      where
+        outRemaining = ope `minusPtr` op
+        inpRemaining = ipe `minusPtr` ip
+{-# INLINE copyByteStringStep #-}
+
+test = toLazyByteString $ copyByteString (S.drop 10 $ S.pack [0..10])
 
 -- | @insertByteString bs@ serializes the strict bytestring @bs@ by inserting
 -- it directly as a chunk of the output stream. 
@@ -132,8 +147,10 @@ copyByteString = fromWriteSingleton writeByteString
 -- to be processed efficiently.
 --
 insertByteString :: S.ByteString -> Builder
-insertByteString bs = Builder $ \ k pf _ ->
-    return $ ModifyChunks pf (L.Chunk bs) k
+insertByteString = 
+    \bs -> Builder $ step bs
+  where
+    step !bs !k !pf _ = return $ ModifyChunks pf (L.Chunk bs) k
 {-# INLINE insertByteString #-}
 
 
@@ -172,31 +189,8 @@ fromLazyByteString = fromLazyByteStringWith defaultMaximalCopySize
 fromLazyByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                        -> L.ByteString -- ^ Lazy 'L.ByteString' to serialize.
                        -> Builder      -- ^ Resulting 'Builder'.
-fromLazyByteStringWith maximalCopySize = 
-    makeBuilder
-  where
-    -- FIXME: Justify this first case split. Can we justify it at all? I seem
-    -- to remember that its idea was to enable a partial inlining; i.e. sharing
-    -- of 'step' between different calls to 'fromLazyByteStringWith'.
-    makeBuilder L.Empty  = mempty
-    makeBuilder lbs0     = Builder $ step lbs0
-      where
-        step lbs1 k pf0 pe0 = go lbs1 pf0
-          where
-            go L.Empty                !pf = k pf pe0
-            go lbs@(L.Chunk bs' lbs') !pf
-              | maximalCopySize < size = 
-                  return $ ModifyChunks pf (L.Chunk bs') (step lbs' k)
-
-              | pf' <= pe0 = do
-                  withForeignPtr fpbuf $ \pbuf -> 
-                      copyBytes pf (pbuf `plusPtr` offset) size
-                  go lbs' pf'
-
-              | otherwise  = return $ BufferFull size pf (step lbs k)
-              where
-                pf' = pf `plusPtr` size
-                (fpbuf, offset, size) = S.toForeignPtr bs'
+fromLazyByteStringWith maxCopySize = 
+  L.foldrChunks (\bs b -> fromByteStringWith maxCopySize bs `mappend` b) mempty
 {-# INLINE fromLazyByteStringWith #-}
 
 
@@ -205,10 +199,9 @@ fromLazyByteStringWith maximalCopySize =
 --
 -- See 'copyByteString' for usage considerations.
 --
-
--- FIXME: Implement fused L.toChunks and fromWrite1List
 copyLazyByteString :: L.ByteString -> Builder
-copyLazyByteString = fromWrite1List writeByteString . L.toChunks
+copyLazyByteString = 
+  L.foldrChunks (\bs b -> copyByteString bs `mappend` b) mempty
 {-# INLINE copyLazyByteString #-}
 
 -- | /O(n)/. Serialize a lazy bytestring by inserting /all/ its chunks directly
@@ -220,10 +213,7 @@ copyLazyByteString = fromWrite1List writeByteString . L.toChunks
 -- need an /O(1)/ lazy bytestring insert based on difference lists.
 --
 insertLazyByteString :: L.ByteString -> Builder
-insertLazyByteString lbs = Builder step
-  where
-    step k pf _ = 
-        return $ ModifyChunks pf (\lbs' -> L.foldrChunks L.Chunk lbs' lbs) k
-
+insertLazyByteString =
+  L.foldrChunks (\bs b -> insertByteString bs `mappend` b) mempty
 {-# INLINE insertLazyByteString #-}
 
