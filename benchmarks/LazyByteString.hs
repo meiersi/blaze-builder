@@ -38,9 +38,15 @@ main :: IO ()
 main = do
     let (chunkInfos, benchmarks) = unzip 
           [ lazyVsBlaze
-              ( "filter ((==0) . (`mod` 3))"
-              , L.filter ((==0) . (`mod` 3))
-              , filterBlaze ((==0) . (`mod` 3))
+              ( "filter ((==0) . (`mod` 199))"
+              , L.filter ((==0) . (`mod` 5))
+              , filterBlaze ((==0) . (`mod` 5))
+              , (\i -> L.pack $ take i $ cycle [0..])
+              , n)
+          , lazyVsBlaze
+              ( "map (+1)"
+              , L.map (+1)
+              , mapBlaze (+1)
               , (\i -> L.pack $ take i $ cycle [0..])
               , n)
           {-
@@ -153,8 +159,8 @@ fromWriteUnfoldr write =
                     !(Write size io) = write y
 {-# INLINE fromWriteUnfoldr #-}
 
--- Filtering
-------------
+-- Filtering and mapping
+------------------------
 
 test i = 
     ((L.filter ((==0) . (`mod` 3)) $ x) ,
@@ -163,80 +169,64 @@ test i =
     x = L.pack $ take i $ cycle [0..]
 
 filterBlaze :: (Word8 -> Bool) -> L.ByteString -> L.ByteString
-filterBlaze f = toLazyByteString . fromFilterLazy f
+filterBlaze f = toLazyByteString . filterLazyByteString f
+{-# INLINE filterBlaze #-}
 
-{-
-filterBlaze2 :: (Word8 -> Bool) -> L.ByteString -> L.ByteString
-filterBlaze2 f = 
-  toLazyByteString . 
-  L.foldrChunks (\c b -> fromFilterByteString f `mappend` b) mempty 
--}
+mapBlaze :: (Word8 -> Word8) -> L.ByteString -> L.ByteString
+mapBlaze f = toLazyByteString . mapLazyByteString f
+{-# INLINE mapBlaze #-}
 
-fromFilterByteString :: (Word8 -> Bool) -> S.ByteString -> Builder
-fromFilterByteString prop (S.PS ifp ioff ilen) = 
-    Builder $ step
+filterByteString :: (Word8 -> Bool) -> S.ByteString -> Builder
+filterByteString p = mapFilterMapByteString id p id
+{-# INLINE filterByteString #-}
+
+filterLazyByteString :: (Word8 -> Bool) -> L.ByteString -> Builder
+filterLazyByteString p = mapFilterMapLazyByteString id p id
+{-# INLINE filterLazyByteString #-}
+
+mapByteString :: (Word8 -> Word8) -> S.ByteString -> Builder
+mapByteString f = mapFilterMapByteString f (const True) id
+{-# INLINE mapByteString #-}
+
+mapLazyByteString :: (Word8 -> Word8) -> L.ByteString -> Builder
+mapLazyByteString f = mapFilterMapLazyByteString f (const True) id
+{-# INLINE mapLazyByteString #-}
+
+mapFilterMapByteString :: (Word8 -> Word8) -> (Word8 -> Bool) -> (Word8 -> Word8) 
+                       -> S.ByteString -> Builder
+mapFilterMapByteString f p g = 
+    \bs -> Builder $ step bs
   where
-    maxSpill = 1024
-    !ip0 = unsafeForeignPtrToPtr ifp
-    step !k !op0 !ope = 
-        goBS (ip0 `plusPtr` ioff) ipe op0
+    step (S.PS ifp ioff ilen) !k = 
+        goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
       where
-        !ipe = ip0 `plusPtr` ilen
-
-        goBS !ip0 !op1
-          | ip0    >= ipe      = do touchForeignPtr ifp -- input buffer consumed
-                                    k op1 ope
-          | ubSize <= free     = goPartial ip0 ipe op1
-          | free   <= maxSpill = return $ BufferFull (2*maxSpill) op1 (goBS ip0 ipe)
-          | otherwise          = goPartial ip0 (ip0 `plusPtr` free) op1
+        !ipe = unsafeForeignPtrToPtr ifp `plusPtr` ilen
+        goBS !ip0 !op0 !ope
+          | ip0 >= ipe = do touchForeignPtr ifp -- input buffer consumed
+                            k op0 ope
+          | op0 < ope  = goPartial (ip0 `plusPtr` min outRemaining inpRemaining)
+          | otherwise  = return $ BufferFull 1 op0 (goBS ip0) 
           where
-            ubSize = ipe `minusPtr` ip0
-            free   = ope `minusPtr` op1
-            goPartial !ip1 !ipeTmp !op = go ip1
+            outRemaining = ope `minusPtr` op0
+            inpRemaining = ipe `minusPtr` ip0
+            goPartial !ipeTmp = go ip0 op0
               where
-                go !ip 
+                go !ip !op
                   | ip < ipeTmp = do
                       w <- peek ip
-                      case prop w of
-                        True  -> do poke op w
-                                    go (ip `plusPtr` 1) (op `plusPtr` 1)
-                        False -> do go (ip `plusPtr` 1) op
+                      let w' = g w
+                      if p w'
+                        then poke op (f w') >> go (ip `plusPtr` 1) (op `plusPtr` 1)
+                        else                   go (ip `plusPtr` 1) op
                   | otherwise =
-                      goBS ip op
-{-# INLINE fromFilterByteString #-}
+                      goBS ip op ope
+{-# INLINE mapFilterMapByteString #-}
 
-fromFilterLazy :: (Word8 -> Bool) -> L.ByteString -> Builder
-fromFilterLazy prop lbs0 = 
-    Builder $ step
-  where
-    step !k = goLBS lbs0
-      where
-        goLBS L.Empty                        !pf !pe = k pf pe
-        goLBS (L.Chunk (S.PS ifp ioff ilen) lbs) !pf !pe = do
-            let !ip = unsafeForeignPtrToPtr ifp
-            goBS (ip `plusPtr` ioff) (ip `plusPtr` ilen) pf pe
-          where
-            -- (ip0, ipe0) input buffer (current, end)
-            -- (op0, ope0) output buffer (current, end)
-            goBS ip0 ipe op0 ope = copyNext ip0 op0
-              where
-                copyNext ip1 op = go ip1
-                  where
-                    go ip 
-                      | ip < ipe = do
-                          w <- peek ip
-                          case prop w of
-                            True 
-                              | op < ope -> do poke op w
-                                               copyNext (ip `plusPtr` 1) (op `plusPtr` 1)
-                              | otherwise -> return $ BufferFull 1 op $ \pfNew peNew -> do
-                                  poke pfNew w
-                                  goBS (ip `plusPtr` 1) ipe (pfNew `plusPtr` 1) peNew
-                            False -> go (ip `plusPtr` 1) 
-                      | otherwise = do
-                          touchForeignPtr ifp -- input buffer done => OK to release it
-                          goLBS lbs op ope
-{-# INLINE fromFilterLazy #-}
+mapFilterMapLazyByteString :: (Word8 -> Word8) -> (Word8 -> Bool) -> (Word8 -> Word8) 
+                           -> L.ByteString -> Builder
+mapFilterMapLazyByteString f p g = 
+    L.foldrChunks (\c b -> mapFilterMapByteString f p g c `mappend` b) mempty
+{-# INLINE mapFilterMapLazyByteString #-}
 
 
 -- Concatenation and replication
@@ -307,6 +297,7 @@ fromReplicateWord8 !n0 x =
 
 concatMapBuilder :: (Word8 -> Builder) -> L.ByteString -> Builder
 concatMapBuilder f = L.foldr (\w b -> f w `mappend` b) mempty
+{-# INLINE concatMapBuilder #-}
 
 concatMapBlaze :: (Word8 -> L.ByteString) -> L.ByteString -> L.ByteString
 concatMapBlaze f = toLazyByteString . concatMapBuilder (fromLazyByteString . f)
