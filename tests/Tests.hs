@@ -73,7 +73,7 @@ escaping2 :: Assertion
 escaping2 = fromString "f &amp;&amp;&amp; g" @?= fromHtmlEscapedString "f &&& g"
 
 escaping3 :: Assertion
-escaping3 = fromString "&quot;&apos;" @?= fromHtmlEscapedString "\"'"
+escaping3 = fromString "&quot;&#39;" @?= fromHtmlEscapedString "\"'"
 
 instance Show Builder where
     show = show . toLazyByteString
