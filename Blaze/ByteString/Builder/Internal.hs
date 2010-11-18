@@ -53,7 +53,6 @@ module Blaze.ByteString.Builder.Internal
 
 import Foreign
 import Data.Monoid
-import Control.Monad (unless)
 import qualified Data.ByteString      as S
 import qualified Data.ByteString.Lazy as L
 
@@ -395,35 +394,29 @@ toByteStringIOWith :: Int                      -- ^ Buffer size (upper bounds
                    -> Builder                  -- ^ 'Builder' to run.
                    -> IO ()                    -- ^ Resulting 'IO' action.
 toByteStringIOWith bufSize io (Builder b) = 
-    fillNewBuffer bufSize (b finalStep)
+    fillBuffer bufSize (b finalStep)
   where
-    finalStep pf _ = return $ Done pf
+    finalStep !pf _ = return $ Done pf
 
-    fillNewBuffer !size !step0 = do
-        S.mallocByteString size >>= fillBuffer
+    fillBuffer !size step = do
+        S.mallocByteString size >>= fill
       where
-        fillBuffer fpbuf = fill step0
-          where
-            -- safe because the constructed ByteString references the foreign
-            -- pointer AFTER its buffer was filled.
-            pf = unsafeForeignPtrToPtr fpbuf
-            fill !step = do
-                next <- step pf (pf `plusPtr` size)
-                case next of
-                    Done pf' ->
-                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
+        fill fpbuf = do
+            let !pf = unsafeForeignPtrToPtr fpbuf
+                -- safe due to later reference of fpbuf
+                -- BETTER than withForeignPtr, as we lose a tail call otherwise
+            signal <- step pf (pf `plusPtr` size)
+            case signal of
+                Done pf' -> io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
 
-                    BufferFull newSize pf' nextStep  -> do
-                        io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
-                        if bufSize < newSize
-                          then fillNewBuffer newSize nextStep
-                          else fill nextStep
-                        
-                    ModifyChunks  pf' bsk nextStep  -> do
-                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
-                        -- was: mapM_ io $ L.toChunks (bsk L.empty)
-                        L.foldrChunks (\bs -> (io bs >>)) (return ()) (bsk L.empty)
-                        fill nextStep
+                BufferFull minSize pf' nextStep  -> do
+                    io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
+                    fillBuffer (max bufSize minSize) nextStep
+                    
+                ModifyChunks pf' bsk nextStep  -> do
+                    io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
+                    L.foldrChunks (\bs -> (io bs >>)) (return ()) (bsk L.empty)
+                    fillBuffer bufSize nextStep
 
 -- | Run the builder with a 'defaultBufferSize'd buffer and execute the given
 -- 'IO' action whenever the buffer is full or gets flushed.
