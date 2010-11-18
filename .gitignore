@@ -10,6 +10,7 @@ benchmarks/BenchThroughput
 benchmarks/StringAndText
 benchmarks/Compression
 benchmarks/LazyByteString
+benchmarks/BenchmarkServer
 
 Criterion/ScalingBenchmark
 
