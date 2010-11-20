@@ -98,8 +98,9 @@ fromByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                    -> S.ByteString -- ^ Strict 'S.ByteString' to serialize.
                    -> Builder      -- ^ Resulting 'Builder'.
 fromByteStringWith maxCopySize = 
-    \bs -> Builder $ step bs
+    Builder . step
   where
+    step :: S.ByteString -> BuildStep -> BuildStep
     step !bs !k !op !ope
       | maxCopySize < S.length bs = return $ ModifyChunks op (L.Chunk bs) k
       | otherwise                 = copyByteStringStep bs k op ope
@@ -112,8 +113,7 @@ fromByteStringWith maxCopySize =
 -- to be smallish (@<= 4kb@).
 --
 copyByteString :: S.ByteString -> Builder
-copyByteString =
-    \bs -> Builder $ copyByteStringStep bs
+copyByteString = Builder . copyByteStringStep
 {-# INLINE copyByteString #-}
 
 copyByteStringStep :: S.ByteString -> BuildStep -> BuildStep
