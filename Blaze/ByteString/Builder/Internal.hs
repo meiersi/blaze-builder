@@ -309,10 +309,13 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Builder b) k =
                       | pf' == pf -> return k
                       | otherwise -> return $ L.Chunk (mkbs pf') k
 
-                    BufferFull newSize pf' nextStep ->
-                        return $ L.Chunk (mkbs pf')
-                            (inlinePerformIO $ 
-                                fillNewBuffer (max newSize bufSize) nextStep)
+                    BufferFull newSize pf' nextStep 
+                      | pf' == pf -> 
+                          fillNewBuffer (max newSize bufSize) nextStep
+                      | otherwise -> 
+                          return $ L.Chunk (mkbs pf')
+                              (inlinePerformIO $ 
+                                  fillNewBuffer (max newSize bufSize) nextStep)
                         
                     ModifyChunks  pf' bsk nextStep
                       | pf' == pf                      ->
