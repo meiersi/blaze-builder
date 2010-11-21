@@ -11,6 +11,7 @@ benchmarks/StringAndText
 benchmarks/Compression
 benchmarks/LazyByteString
 benchmarks/BenchmarkServer
+benchmarks/FastPut
 
 Criterion/ScalingBenchmark
 

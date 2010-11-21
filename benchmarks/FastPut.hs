@@ -30,8 +30,35 @@ import qualified Data.ByteString.Internal as S
 import qualified Data.ByteString.Lazy.Internal as L
 #endif
 
+import qualified Blaze.ByteString.Builder.Internal as B
 import Blaze.ByteString.Builder.Write
 import Blaze.ByteString.Builder.Word
+
+import Criterion.Main
+
+------------------------------------------------------------------------------
+-- Benchmarks
+------------------------------------------------------------------------------
+
+main :: IO ()
+main = defaultMain $ concat
+    [ benchmark "packing [Word8]"
+        (mapM_ putWord8)
+        (mconcat . map fromWord8)
+        word8s
+    ]
+  where
+    benchmark name putF builderF x =
+        [ bench (name ++ "Put") $
+            whnf (L.length . toLazyByteString . putF) x
+        , bench (name ++ "Builder") $
+            whnf (L.length . B.toLazyByteString . builderF) x
+        ]
+
+word8s :: [Word8]
+word8s = take 100000 $ cycle [0..]
+{-# NOINLINE word8s #-}
+
 
 ------------------------------------------------------------------------------
 -- The Builder type
@@ -79,15 +106,34 @@ putWrite :: Write -> Put r ()
 putWrite (Write size io) =
     Put step
   where
-    step k pf pe
-      | pf `plusPtr` size <= pe = do
+    step !k !pf !pe
+      | pf' <= pe = do
           io pf
-          let pf' = pf `plusPtr` size
-          pf' `seq` k () pf' pe
-      | otherwise               = return $ BufferFull size pf (step k)
+          k () pf' pe
+      | otherwise = return $ BufferFull size pf (step k)
+      where
+        pf' = pf `plusPtr` size
 {-# INLINE putWrite #-}
 
-bench = toLazyByteString . mapM_ (putWrite . writeWord8)
+putWriteSingleton :: (a -> Write) -> a -> Put r ()
+putWriteSingleton write = 
+    mkPut
+  where
+    mkPut x = Put step
+      where
+        step k pf pe
+          | pf `plusPtr` size <= pe = do
+              io pf
+              let pf' = pf `plusPtr` size
+              pf' `seq` k () pf' pe
+          | otherwise               = return $ BufferFull size pf (step k)
+          where
+            Write size io = write x
+
+{-# INLINE putWriteSingleton #-}
+
+putWord8 :: Word8 -> Put r ()
+putWord8 = putWriteSingleton writeWord8
 
 {-
   m >>= f  = GetC $ \done empty pe ->

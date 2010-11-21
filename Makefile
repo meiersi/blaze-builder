@@ -67,7 +67,12 @@ bench-compression:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is Compression Compression
 	./benchmarks/Compression --resamples 10000
 
-# Benchmark benefit of compaction before compression
+# Benchmark the cost of the Put monad vs. the Builder monoid
+bench-put-vs-builder:
+	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is FastPut FastPut
+	./benchmarks/FastPut --resamples 10000
+
+# Benchmark improvements to lazy bytestring functions
 bench-lazy-bytestring:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is LazyByteString LazyByteString
 	./benchmarks/LazyByteString --resamples 10000
