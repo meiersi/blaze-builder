@@ -42,7 +42,10 @@ import Criterion.Main
 
 main :: IO ()
 main = defaultMain $ concat
-    [ benchmark "putBuilder"
+    [ return $ bench "cost of putBuilder" $ whnf
+        (L.length . toLazyByteString . mapM_  (putBuilder . fromWord8))
+        word8s
+    , benchmark "putBuilder"
         (putBuilder . mconcat . map fromWord8)
         (mconcat . map fromWord8)
         word8s
@@ -66,7 +69,6 @@ main = defaultMain $ concat
 word8s :: [Word8]
 word8s = take 100000 $ cycle [0..]
 {-# NOINLINE word8s #-}
-
 
 ------------------------------------------------------------------------------
 -- The Builder type
@@ -98,6 +100,9 @@ instance Monad (Put r) where
   {-# INLINE (>>=) #-}
   m >>  n  = Put $ \k -> unPut m (\_ -> unPut n k)
   {-# INLINE (>>) #-}
+
+putWord8 :: Word8 -> Put r ()
+putWord8 = putWriteSingleton writeWord8
 
 putWrite :: Write -> Put r ()
 putWrite (Write size io) =
@@ -145,9 +150,6 @@ putBuilder (B.Builder b) =
               return $ BufferFull minSize pf' (go nextBuildStep)
             B.ModifyChunks _ _ _ -> 
               error "putBuilder: ModifyChunks not implemented"
-
-putWord8 :: Word8 -> Put r ()
-putWord8 = putWriteSingleton writeWord8
 
 {-
   m >>= f  = GetC $ \done empty pe ->
