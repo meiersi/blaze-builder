@@ -74,6 +74,11 @@ bench-put-vs-builder:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is FastPut FastPut
 	./benchmarks/FastPut --resamples 10000
 
+# Benchmark the benefit of using a packed representation for the buffer range
+bench-buffer-range:
+	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is BuilderBufferRange BuilderBufferRange
+	./benchmarks/BuilderBufferRange --resamples 10000
+
 # Benchmark improvements to lazy bytestring functions
 bench-lazy-bytestring:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is LazyByteString LazyByteString

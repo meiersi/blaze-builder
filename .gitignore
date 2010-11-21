@@ -12,6 +12,7 @@ benchmarks/Compression
 benchmarks/LazyByteString
 benchmarks/BenchmarkServer
 benchmarks/FastPut
+benchmarks/BuilderBufferRange
 
 Criterion/ScalingBenchmark
 
