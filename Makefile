@@ -6,8 +6,10 @@
 ## Config
 #########
 
-GHC = ghc-6.12.3
-# GHC = ghc-7.0.0.20100924
+GHC6 = ghc-6.12.3
+GHC7 = ghc-7.0.0.20100924
+
+GHC = $(GHC6)
 
 GHCI = ghci-6.12.3
 
