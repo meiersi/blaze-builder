@@ -42,16 +42,24 @@ import Criterion.Main
 
 main :: IO ()
 main = defaultMain $ concat
-    [ benchmark "packing [Word8]"
+    [ benchmark "putBuilder"
+        (putBuilder . mconcat . map fromWord8)
+        (mconcat . map fromWord8)
+        word8s
+    , benchmark "fromWriteSingleton"
         (mapM_ putWord8)
         (mconcat . map fromWord8)
+        word8s
+    , benchmark "fromWrite"
+        (mapM_ (putWrite . writeWord8))
+        (mconcat . map (fromWrite . writeWord8))
         word8s
     ]
   where
     benchmark name putF builderF x =
-        [ bench (name ++ "Put") $
+        [ bench (name ++ " Put") $
             whnf (L.length . toLazyByteString . putF) x
-        , bench (name ++ "Builder") $
+        , bench (name ++ " Builder") $
             whnf (L.length . B.toLazyByteString . builderF) x
         ]
 
@@ -84,16 +92,6 @@ type PutStep a =  Ptr Word8
                -> Ptr Word8   
                -> IO (PutSignal a)
 
-{-
-instance Monoid Put where
-    mempty = Put id
-    {-# INLINE mempty #-}
-    mappend (Put f) (Put g) = Put $ f . g
-    {-# INLINE mappend #-}
-    mconcat = foldr mappend mempty
-    {-# INLINE mconcat #-}
--}
-
 instance Monad (Put r) where
   return x = Put $ \k -> k x
   {-# INLINE return #-}
@@ -106,13 +104,12 @@ putWrite :: Write -> Put r ()
 putWrite (Write size io) =
     Put step
   where
-    step !k !pf !pe
-      | pf' <= pe = do
+    step k !pf !pe
+      | pf `plusPtr` size <= pe = do
           io pf
+          let !pf' = pf `plusPtr` size
           k () pf' pe
       | otherwise = return $ BufferFull size pf (step k)
-      where
-        pf' = pf `plusPtr` size
 {-# INLINE putWrite #-}
 
 putWriteSingleton :: (a -> Write) -> a -> Put r ()
@@ -124,13 +121,30 @@ putWriteSingleton write =
         step k pf pe
           | pf `plusPtr` size <= pe = do
               io pf
-              let pf' = pf `plusPtr` size
-              pf' `seq` k () pf' pe
+              let !pf' = pf `plusPtr` size
+              k () pf' pe
           | otherwise               = return $ BufferFull size pf (step k)
           where
             Write size io = write x
-
 {-# INLINE putWriteSingleton #-}
+
+putBuilder :: B.Builder -> Put r ()
+putBuilder (B.Builder b) = 
+    Put step
+  where
+    finalStep _ pf = return $ B.Done pf
+
+    step k = go (b finalStep)
+      where
+        go buildStep pf pe = do
+          signal <- buildStep pf pe
+          case signal of
+            B.Done pf' -> 
+              k () pf' pe
+            B.BufferFull minSize pf' nextBuildStep -> 
+              return $ BufferFull minSize pf' (go nextBuildStep)
+            B.ModifyChunks _ _ _ -> 
+              error "putBuilder: ModifyChunks not implemented"
 
 putWord8 :: Word8 -> Put r ()
 putWord8 = putWriteSingleton writeWord8
