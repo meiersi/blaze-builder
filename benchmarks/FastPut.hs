@@ -72,9 +72,10 @@ word8s = take 100000 $ cycle [0..]
 -- The Builder type
 ------------------------------------------------------------------------------
 
+data BufRange = BufRange {-# UNPACK #-} !(Ptr Word8) {-# UNPACK #-} !(Ptr Word8)
+
 newtype Put r a = Put {
-    unPut :: (a -> Ptr Word8 -> Ptr Word8 -> IO (PutSignal r))
-          -> (Ptr Word8 -> Ptr Word8 -> IO (PutSignal r))
+    unPut :: (a -> PutStep r) -> PutStep r
   }
 
 data PutSignal a =
@@ -88,9 +89,7 @@ data PutSignal a =
                      !(L.ByteString -> L.ByteString) 
                      !(PutStep a)
 
-type PutStep a =  Ptr Word8      
-               -> Ptr Word8   
-               -> IO (PutSignal a)
+type PutStep a =  BufRange -> IO (PutSignal a)
 
 instance Monad (Put r) where
   return x = Put $ \k -> k x
@@ -104,11 +103,11 @@ putWrite :: Write -> Put r ()
 putWrite (Write size io) =
     Put step
   where
-    step k !pf !pe
+    step k (BufRange pf pe)
       | pf `plusPtr` size <= pe = do
           io pf
-          let !pf' = pf `plusPtr` size
-          k () pf' pe
+          let !br' = BufRange (pf `plusPtr` size) pe
+          k () br'
       | otherwise = return $ BufferFull size pf (step k)
 {-# INLINE putWrite #-}
 
@@ -118,11 +117,11 @@ putWriteSingleton write =
   where
     mkPut x = Put step
       where
-        step k pf pe
+        step k (BufRange pf pe)
           | pf `plusPtr` size <= pe = do
               io pf
-              let !pf' = pf `plusPtr` size
-              k () pf' pe
+              let !br' = BufRange (pf `plusPtr` size) pe
+              k () br'
           | otherwise               = return $ BufferFull size pf (step k)
           where
             Write size io = write x
@@ -136,11 +135,12 @@ putBuilder (B.Builder b) =
 
     step k = go (b finalStep)
       where
-        go buildStep pf pe = do
+        go buildStep (BufRange pf pe) = do
           signal <- buildStep pf pe
           case signal of
-            B.Done pf' -> 
-              k () pf' pe
+            B.Done pf' -> do
+              let !br' = BufRange pf' pe
+              k () br'
             B.BufferFull minSize pf' nextBuildStep -> 
               return $ BufferFull minSize pf' (go nextBuildStep)
             B.ModifyChunks _ _ _ -> 
@@ -280,7 +280,7 @@ toLazyByteStringWith
 toLazyByteStringWith bufSize minBufSize firstBufSize (Put b) k = 
     inlinePerformIO $ fillFirstBuffer (b finalStep)
   where
-    finalStep _ pf _ = return $ Done pf undefined
+    finalStep _ (BufRange pf _) = return $ Done pf undefined
     -- fill a first very small buffer, if we need more space then copy it
     -- to the new buffer of size 'minBufSize'. This way we don't pay the
     -- allocation cost of the big 'bufSize' buffer, when outputting only
@@ -290,10 +290,10 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Put b) k =
       | otherwise                  = do
           fpbuf <- S.mallocByteString firstBufSize
           withForeignPtr fpbuf $ \pf -> do
-              let !pe      = pf `plusPtr` firstBufSize
+              let !br      = BufRange pf (pf `plusPtr` firstBufSize)
                   mkbs pf' = S.PS fpbuf 0 (pf' `minusPtr` pf)
                   {-# INLINE mkbs #-}
-              next <- step0 pf pe
+              next <- step0 br
               case next of
                   Done pf' _
                     | pf' == pf -> return k
@@ -302,9 +302,10 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Put b) k =
                   BufferFull newSize pf' nextStep  -> do
                       let !l  = pf' `minusPtr` pf
                       fillNewBuffer (max (l + newSize) minBufSize) $
-                          \pfNew peNew -> do
+                          \(BufRange pfNew peNew) -> do
                               copyBytes pfNew pf l
-                              nextStep (pfNew `plusPtr` l) peNew
+                              let !brNew = BufRange (pfNew `plusPtr` l) peNew
+                              nextStep brNew
                       
                   ModifyChunks pf' bsk nextStep 
                       | pf' == pf ->
@@ -322,7 +323,8 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Put b) k =
           where
             !pe = pbuf `plusPtr` size
             fill !pf !step = do
-                next <- step pf pe
+                let !br = BufRange pf pe
+                next <- step br
                 let mkbs pf' = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
                     {-# INLINE mkbs #-}
                 case next of
