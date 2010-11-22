@@ -31,8 +31,10 @@ import qualified Data.ByteString.Lazy.Internal as L
 #endif
 
 import qualified Blaze.ByteString.Builder.Internal as B
-import Blaze.ByteString.Builder.Write
-import Blaze.ByteString.Builder.Word
+import qualified Blaze.ByteString.Builder.Write    as B
+import Blaze.ByteString.Builder.Write (Write(..))
+import qualified Blaze.ByteString.Builder.Word     as B
+import Blaze.ByteString.Builder.Word (writeWord8)
 
 import Criterion.Main
 
@@ -43,19 +45,19 @@ import Criterion.Main
 main :: IO ()
 main = defaultMain $ concat
     [ return $ bench "cost of putBuilder" $ whnf
-        (L.length . toLazyByteString . mapM_  (putBuilder . fromWord8))
+        (L.length . toLazyByteString . mapM_  (putBuilder . B.fromWord8))
         word8s
     , benchmark "putBuilder"
-        (putBuilder . mconcat . map fromWord8)
-        (mconcat . map fromWord8)
+        (putBuilder . mconcat . map B.fromWord8)
+        (mconcat . map B.fromWord8)
         word8s
     , benchmark "fromWriteSingleton"
         (mapM_ putWord8)
-        (mconcat . map fromWord8)
+        (mconcat . map B.fromWord8)
         word8s
     , benchmark "fromWrite"
         (mapM_ (putWrite . writeWord8))
-        (mconcat . map (fromWrite . writeWord8))
+        (mconcat . map (B.fromWrite . writeWord8))
         word8s
     ]
   where
@@ -71,7 +73,7 @@ word8s = take 100000 $ cycle [0..]
 {-# NOINLINE word8s #-}
 
 ------------------------------------------------------------------------------
--- The Builder type
+-- The Put type
 ------------------------------------------------------------------------------
 
 data BufRange = BufRange {-# UNPACK #-} !(Ptr Word8) {-# UNPACK #-} !(Ptr Word8)
@@ -100,6 +102,55 @@ instance Monad (Put r) where
   {-# INLINE (>>=) #-}
   m >>  n  = Put $ \k -> unPut m (\_ -> unPut n k)
   {-# INLINE (>>) #-}
+
+
+------------------------------------------------------------------------------
+-- The Builder type with equal signals as the Put type
+------------------------------------------------------------------------------
+
+newtype Builder r = Builder (PutStep r -> PutStep r)
+
+fromBuilder :: Builder r -> Put r ()
+fromBuilder (Builder build) = Put $ \k -> build (k ())
+
+toBuilder :: Put r () -> Builder r
+toBuilder (Put put) = Builder $ \k -> put (\_ -> k)
+
+fromWrite :: Write -> Builder r
+fromWrite (Write size io) =
+    Builder step
+  where
+    step k (BufRange pf pe)
+      | pf `plusPtr` size <= pe = do
+          io pf
+          let !br' = BufRange (pf `plusPtr` size) pe
+          k br'
+      | otherwise = return $ BufferFull size pf (step k)
+{-# INLINE fromWrite #-}
+
+fromWriteSingleton :: (a -> Write) -> a -> Builder r
+fromWriteSingleton write = 
+    mkPut
+  where
+    mkPut x = Builder step
+      where
+        step k (BufRange pf pe)
+          | pf `plusPtr` size <= pe = do
+              io pf
+              let !br' = BufRange (pf `plusPtr` size) pe
+              k br'
+          | otherwise               = return $ BufferFull size pf (step k)
+          where
+            Write size io = write x
+{-# INLINE fromWriteSingleton #-}
+
+fromWord8 :: Word8 -> Builder r
+fromWord8 = fromWriteSingleton writeWord8
+
+
+------------------------------------------------------------------------------
+-- Implementations
+------------------------------------------------------------------------------
 
 putWord8 :: Word8 -> Put r ()
 putWord8 = putWriteSingleton writeWord8
