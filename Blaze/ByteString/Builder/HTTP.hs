@@ -46,17 +46,17 @@ pokeWord16Hex x op = do
 
 pokeWord32HexN :: Int -> Word32 -> Ptr Word8 -> IO ()
 pokeWord32HexN n0 w0 op0 = 
-    go n0 w0 (op0 `plusPtr` (n0 - 1))
+    go w0 (op0 `plusPtr` (n0 - 1))
   where
-    go !n !w !op
-      | n <= 0      = return ()
+    go !w !op
+      | op < op0  = return ()
       | otherwise = do
           let nibble :: Word8
               nibble = fromIntegral w .&. 0xF
               hex | nibble < 10 = 48 + nibble
                   | otherwise   = 55 + nibble
           poke op hex
-          go (n-1) (w `shiftr_w32` 4) (op `plusPtr` (-1))
+          go (w `shiftr_w32` 4) (op `plusPtr` (-1))
 {-# INLINE pokeWord32HexN #-}
 
 iterationsUntilZero :: Integral a => (a -> a) -> a -> Int
@@ -112,6 +112,9 @@ chunkedTransferEncoding (Builder b) =
           | outRemaining < minimalBufferSize = 
               return $ BufferFull minimalBufferSize op (go innerStep)
           | otherwise = do
+              -- FIXME: Handle 64bit case where chunks could possibly be larger
+              --        than the 4GB that we can represent. Unrealisitic... well
+              --        you never know where your code ends up being used!
               let !opInner  = op  `plusPtr` (chunkSizeLength + 2) -- leave space for chunk header
                   !opeInner = ope `plusPtr` (-2)                  -- leave space for CRLF at end of data
 
