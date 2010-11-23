@@ -27,6 +27,10 @@ module Blaze.ByteString.Builder.Write
     , fromWrite8List
     , fromWrite16List
 
+    -- * Writing 'Storable's
+    , writeStorable
+    , fromStorable
+    , fromStorables
     ) where
 
 import Blaze.ByteString.Builder.Internal
@@ -381,5 +385,25 @@ fromWrite16List write = makeBuilder
 
             go [] !pf = k pf pe0
 {-# INLINE fromWrite16List #-}
+
+
+------------------------------------------------------------------------------
+-- Writing storables
+------------------------------------------------------------------------------
+
+
+-- | Write a storable value.
+writeStorable :: Storable a => a -> Write 
+writeStorable x = Write (sizeOf x) (\op -> poke (castPtr op) x)
+
+-- | A builder that serializes a storable value. No alignment is done.
+fromStorable :: Storable a => a -> Builder
+fromStorable = fromWriteSingleton writeStorable
+
+-- | A builder that serializes a list of storable values by writing them
+-- consecutively. No alignment is done. Parsing information needs to be
+-- provided externally.
+fromStorables :: Storable a => [a] -> Builder
+fromStorables = fromWrite1List writeStorable
 
 
