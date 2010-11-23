@@ -13,7 +13,6 @@
 --
 module FastPut where
 
-
 import Foreign
 import Data.Monoid
 import Control.Monad (unless)
@@ -45,7 +44,7 @@ import Criterion.Main
 main :: IO ()
 main = defaultMain $ concat
     [ return $ bench "cost of putBuilder" $ whnf
-        (L.length . toLazyByteString . mapM_  (fromBuilder . fromWord8))
+        (L.length . toLazyByteString2 . mapM_  (fromBuilder . fromWord8))
         word8s
     , benchmark "putBuilder"
         (fromBuilder . mconcat . map fromWord8)
@@ -63,7 +62,7 @@ main = defaultMain $ concat
   where
     benchmark name putF builderF x =
         [ bench (name ++ " Put") $
-            whnf (L.length . toLazyByteString' . putF) x
+            whnf (L.length . toLazyByteString2 . putF) x
         , bench (name ++ " Builder") $
             whnf (L.length . B.toLazyByteString . builderF) x
         ]
@@ -462,7 +461,7 @@ enumPut bufSize (Put put0) =
 
     fillPut :: ForeignPtr Word8 -> BufRange -> 
                Bool -> Either (Maybe S.ByteString) (Put b -> IO (BuildStream b))
-    fillPut !fpbuf !(BufRange op ope) False 
+    fillPut !fpbuf !(BufRange op _) False 
       | pbuf == op = Left Nothing
       | otherwise  = Left $ Just $
           S.PS fpbuf 0 (op `minusPtr` pbuf)
@@ -526,4 +525,119 @@ toLazyByteString' put =
                         L.foldrChunks (\bs -> (io bs >>)) (return ()) (bsk L.empty)
                         fillBuffer bufSize nextStep
 -}
+
+------------------------------------------------------------------------------
+-- More explicit implementation of running builders
+------------------------------------------------------------------------------
+
+
+data Buffer = Buffer {-# UNPACK #-} !(ForeignPtr Word8) -- underlying pinned array
+                     {-# UNPACK #-} !(Ptr Word8)        -- beginning of slice
+                     {-# UNPACK #-} !(Ptr Word8)        -- next free byte
+                     {-# UNPACK #-} !(Ptr Word8)        -- first byte after buffer
+
+allocBuffer :: Int -> IO Buffer
+allocBuffer size = do
+    fpbuf <- S.mallocByteString size
+    let !pbuf = unsafeForeignPtrToPtr fpbuf
+    return $! Buffer fpbuf pbuf pbuf (pbuf `plusPtr` size)
+
+unsafeFreezeBuffer :: Buffer -> S.ByteString
+unsafeFreezeBuffer (Buffer fpbuf p0 op _) = 
+    S.PS fpbuf 0 (op `minusPtr` p0)
+
+unsafeFreezeNonEmptyBuffer :: Buffer -> Maybe S.ByteString
+unsafeFreezeNonEmptyBuffer (Buffer fpbuf p0 op _) 
+  | p0 == op  = Nothing
+  | otherwise = Just $ S.PS fpbuf 0 (op `minusPtr` p0)
+
+nextSlice :: Int -> Buffer -> Maybe Buffer
+nextSlice minSize (Buffer fpbuf _ op ope)
+  | ope `minusPtr` op <= minSize = Nothing
+  | otherwise                    = Just (Buffer fpbuf op op ope)
+
+runPut :: Monad m 
+       => (IO (PutSignal a) -> m (PutSignal a)) -- lifting of buildsteps
+       -> (Int -> Buffer -> m Buffer) -- output function for a guaranteedly non-empty buffer, the returned buffer will be filled next
+       -> (S.ByteString -> m ())    -- output function for guaranteedly non-empty bytestrings, that are inserted directly into the stream
+       -> Put a                     -- put to execute
+       -> Buffer                    -- initial buffer to be used
+       -> m (a, Buffer)             -- result of put and remaining buffer
+runPut liftIO outputBuf outputBS (Put put) =
+    runStep (put finalStep)
+  where
+    finalStep x !(BufRange op _) = return $ Done op x
+
+    runStep step buf@(Buffer fpbuf p0 op ope) = do
+        let !br = BufRange op ope
+        signal <- liftIO $ step br
+        case signal of 
+            Done op' x ->         -- put completed, buffer partially runSteped
+                return (x, Buffer fpbuf p0 op' ope)
+
+            BufferFull minSize op' nextStep -> do
+                buf' <- outputBuf minSize (Buffer fpbuf p0 op' ope)
+                runStep nextStep buf'
+
+            InsertByteString op' bs nextStep
+              | S.null bs ->   -- flushing of buffer required
+                  outputBuf 1 (Buffer fpbuf p0 op' ope) >>= runStep nextStep
+              | p0 == op' -> do -- no bytes written: just insert bytestring
+                  outputBS bs
+                  runStep nextStep buf
+              | otherwise -> do   -- bytes written, insert buffer and bytestring
+                  buf' <- outputBuf 1 (Buffer fpbuf p0 op' ope)
+                  outputBS bs
+                  runStep nextStep buf'
+{-# INLINE runPut #-}
+              
+-- | A monad for lazily composing lazy bytestrings using continuations.
+newtype LBSM a = LBSM { unLBSM :: (a, L.ByteString -> L.ByteString) }
+
+instance Monad LBSM where
+    return x                       = LBSM (x, id)
+    (LBSM (x,k)) >>= f             = let LBSM (x',k') = f x in LBSM (x', k . k')
+    (LBSM (_,k)) >> (LBSM (x',k')) = LBSM (x', k . k')
+
+-- | Execute a put and return the written buffers as the chunks of a lazy
+-- bytestring.
+toLazyByteString2 :: Put a -> L.ByteString
+toLazyByteString2 put = 
+    k (bufToLBSCont (snd result) L.empty)
+  where
+    -- initial buffer
+    buf0 = inlinePerformIO $ allocBuffer defaultBufferSize
+    -- run put, but don't force result => we're lazy enough
+    LBSM (result, k) = runPut liftIO outputBuf outputBS put buf0
+    -- convert a buffer to a lazy bytestring continuation
+    bufToLBSCont = maybe id L.Chunk . unsafeFreezeNonEmptyBuffer
+    -- lifting an io putsignal to a lazy bytestring monad
+    liftIO io = LBSM (inlinePerformIO io, id)
+    -- add buffer as a chunk prepare allocation of new one
+    outputBuf minSize buf = LBSM
+        ( inlinePerformIO $ allocBuffer (max minSize defaultBufferSize)
+        , bufToLBSCont buf )
+    -- add bytestring directly as a chunk; exploits postcondition of runPut
+    -- that bytestrings are non-empty
+    outputBS bs = LBSM ((), L.Chunk bs)
+
+-- | A Builder that traces a message
+traceBuilder :: String -> Builder 
+traceBuilder msg = Builder $ \k br@(BufRange op ope) -> do
+    putStrLn $ "traceBuilder " ++ show (op, ope) ++ ": " ++ msg
+    k br
+
+flushBuilder :: Builder
+flushBuilder = Builder $ \k (BufRange op _) -> do
+    return $ InsertByteString op S.empty k
+
+test2 :: Word8 -> [S.ByteString]
+test2 x = L.toChunks $ toLazyByteString2 $ fromBuilder $ mconcat
+  [ traceBuilder "before flush" 
+  , fromWord8 48
+  , flushBuilder
+  , flushBuilder
+  , traceBuilder "after flush"
+  , fromWord8 x
+  ]
 
