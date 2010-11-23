@@ -19,6 +19,12 @@
         cheaper than one list thunk per element. It is even likely that we can
         amortize three copies per element, which allows to avoid spilling any
         buffer space by doing a last compaction copy.
+      - we could provide builders that honor alignment restrictions, either as
+        builder transformers or as specialized write to builder converters. The
+        trick is for the driver to ensure that the buffer beginning is aligned
+        to the largest aligning (8 or 16 bytes?) required. This is probably the
+        case by default. Then we can always align a pointer in the buffer by 
+        appropriately aligning the write pointer.
 
   * extend tests to new functions
 
