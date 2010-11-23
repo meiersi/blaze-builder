@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, BangPatterns #-}
+{-# LANGUAGE CPP, BangPatterns, Rank2Types #-}
 -- |
 -- Module      : FastPut
 -- Copyright   : (c) 2010 Simon Meier
@@ -45,10 +45,10 @@ import Criterion.Main
 main :: IO ()
 main = defaultMain $ concat
     [ return $ bench "cost of putBuilder" $ whnf
-        (L.length . toLazyByteString . mapM_  (putBuilder . B.fromWord8))
+        (L.length . toLazyByteString . mapM_  (fromBuilder . fromWord8))
         word8s
     , benchmark "putBuilder"
-        (putBuilder . mconcat . map B.fromWord8)
+        (fromBuilder . mconcat . map fromWord8)
         (mconcat . map B.fromWord8)
         word8s
     , benchmark "fromWriteSingleton"
@@ -63,7 +63,7 @@ main = defaultMain $ concat
   where
     benchmark name putF builderF x =
         [ bench (name ++ " Put") $
-            whnf (L.length . toLazyByteString . putF) x
+            whnf (L.length . toLazyByteString' . putF) x
         , bench (name ++ " Builder") $
             whnf (L.length . B.toLazyByteString . builderF) x
         ]
@@ -78,8 +78,8 @@ word8s = take 100000 $ cycle [0..]
 
 data BufRange = BufRange {-# UNPACK #-} !(Ptr Word8) {-# UNPACK #-} !(Ptr Word8)
 
-newtype Put r a = Put {
-    unPut :: (a -> PutStep r) -> PutStep r
+newtype Put a = Put {
+    unPut :: forall r. (a -> PutStep r) -> PutStep r
   }
 
 data PutSignal a =
@@ -88,14 +88,14 @@ data PutSignal a =
       {-# UNPACK #-} !Int
       {-# UNPACK #-} !(Ptr Word8)
                      !(PutStep a)
-  | ModifyChunks
+  | InsertByteString
       {-# UNPACK #-} !(Ptr Word8) 
-                     !(L.ByteString -> L.ByteString) 
+                     !S.ByteString
                      !(PutStep a)
 
 type PutStep a =  BufRange -> IO (PutSignal a)
 
-instance Monad (Put r) where
+instance Monad Put where
   return x = Put $ \k -> k x
   {-# INLINE return #-}
   m >>= f  = Put $ \k -> unPut m (\x -> unPut (f x) k)
@@ -103,20 +103,27 @@ instance Monad (Put r) where
   m >>  n  = Put $ \k -> unPut m (\_ -> unPut n k)
   {-# INLINE (>>) #-}
 
-
 ------------------------------------------------------------------------------
 -- The Builder type with equal signals as the Put type
 ------------------------------------------------------------------------------
 
-newtype Builder r = Builder (PutStep r -> PutStep r)
+newtype Builder = Builder (forall r. PutStep r -> PutStep r)
 
-fromBuilder :: Builder r -> Put r ()
+instance Monoid Builder where
+  mempty = Builder id
+  {-# INLINE mempty #-}
+  (Builder b1) `mappend` (Builder b2) = Builder $ b1 . b2
+  {-# INLINE mappend #-}
+  mconcat = foldr mappend mempty
+  {-# INLINE mconcat #-}
+
+fromBuilder :: Builder -> Put ()
 fromBuilder (Builder build) = Put $ \k -> build (k ())
 
-toBuilder :: Put r () -> Builder r
+toBuilder :: Put () -> Builder
 toBuilder (Put put) = Builder $ \k -> put (\_ -> k)
 
-fromWrite :: Write -> Builder r
+fromWrite :: Write -> Builder
 fromWrite (Write size io) =
     Builder step
   where
@@ -128,7 +135,7 @@ fromWrite (Write size io) =
       | otherwise = return $ BufferFull size pf (step k)
 {-# INLINE fromWrite #-}
 
-fromWriteSingleton :: (a -> Write) -> a -> Builder r
+fromWriteSingleton :: (a -> Write) -> a -> Builder
 fromWriteSingleton write = 
     mkPut
   where
@@ -144,7 +151,7 @@ fromWriteSingleton write =
             Write size io = write x
 {-# INLINE fromWriteSingleton #-}
 
-fromWord8 :: Word8 -> Builder r
+fromWord8 :: Word8 -> Builder
 fromWord8 = fromWriteSingleton writeWord8
 
 
@@ -152,10 +159,10 @@ fromWord8 = fromWriteSingleton writeWord8
 -- Implementations
 ------------------------------------------------------------------------------
 
-putWord8 :: Word8 -> Put r ()
+putWord8 :: Word8 -> Put ()
 putWord8 = putWriteSingleton writeWord8
 
-putWrite :: Write -> Put r ()
+putWrite :: Write -> Put ()
 putWrite (Write size io) =
     Put step
   where
@@ -167,7 +174,7 @@ putWrite (Write size io) =
       | otherwise = return $ BufferFull size pf (step k)
 {-# INLINE putWrite #-}
 
-putWriteSingleton :: (a -> Write) -> a -> Put r ()
+putWriteSingleton :: (a -> Write) -> a -> Put ()
 putWriteSingleton write = 
     mkPut
   where
@@ -183,7 +190,7 @@ putWriteSingleton write =
             Write size io = write x
 {-# INLINE putWriteSingleton #-}
 
-putBuilder :: B.Builder -> Put r ()
+putBuilder :: B.Builder -> Put ()
 putBuilder (B.Builder b) = 
     Put step
   where
@@ -326,7 +333,7 @@ toLazyByteStringWith
                      -- chunk size.
     -> Int           -- ^ Size of the first buffer to be used and copied for
                      -- larger resulting sequences
-    -> Put r a       -- ^ Builder to run.
+    -> Put a       -- ^ Builder to run.
     -> L.ByteString  -- ^ Lazy bytestring to output after the builder is
                      -- finished.
     -> L.ByteString  -- ^ Resulting lazy bytestring
@@ -360,12 +367,15 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Put b) k =
                               let !brNew = BufRange (pfNew `plusPtr` l) peNew
                               nextStep brNew
                       
-                  ModifyChunks pf' bsk nextStep 
+                  InsertByteString _ _ _ -> error "not yet implemented"
+                  {-
+                  ModifyChunks pf' bsk nextStep( 
                       | pf' == pf ->
                           return $ bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep)
                       | otherwise ->
                           return $ L.Chunk (mkbs pf')
                               (bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep))
+                  -}
                     
     -- allocate and fill a new buffer
     fillNewBuffer !size !step0 = do
@@ -390,6 +400,8 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Put b) k =
                             (inlinePerformIO $ 
                                 fillNewBuffer (max newSize bufSize) nextStep)
                         
+                    InsertByteString _ _ _ -> error "not yet implemented2"
+                    {-
                     ModifyChunks  pf' bsk nextStep
                       | pf' == pf                      ->
                           return $ bsk (inlinePerformIO $ fill pf' nextStep)
@@ -399,6 +411,7 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Put b) k =
                       | otherwise                      ->
                           return $ L.Chunk (mkbs pf')
                               (bsk (inlinePerformIO $ fillNewBuffer bufSize nextStep))
+                    -}
 
 
 -- | Extract the lazy 'L.ByteString' from the builder by running it with default
@@ -415,104 +428,102 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Put b) k =
 -- However, in the second equation, the left-hand-side is generally faster to
 -- execute.
 --
-toLazyByteString :: Put r a -> L.ByteString
+toLazyByteString :: Put a -> L.ByteString
 toLazyByteString b = toLazyByteStringWith 
     defaultBufferSize defaultMinimalBufferSize defaultFirstBufferSize b L.empty
 {-# INLINE toLazyByteString #-}
 
-{-
--- | Pack the chunks of a lazy bytestring into a single strict bytestring.
-packChunks :: L.ByteString -> S.ByteString
-packChunks lbs = do
-    S.unsafeCreate (fromIntegral $ L.length lbs) (copyChunks lbs)
+------------------------------------------------------------------------------
+-- Builder Enumeration
+------------------------------------------------------------------------------
+
+data BuildStream a = 
+         BuildChunk  S.ByteString (IO (BuildStream a))
+       | BuildYield
+           a            
+           (forall b. Bool -> 
+                      Either (Maybe S.ByteString) (Put b -> IO (BuildStream b)))
+
+enumPut :: Int -> Put a -> IO (BuildStream a)
+enumPut bufSize (Put put0) =
+    fillBuffer bufSize (put0 finalStep)
   where
-    copyChunks !L.Empty                         !_pf = return ()
-    copyChunks !(L.Chunk (S.PS fpbuf o l) lbs') !pf  = do
-        withForeignPtr fpbuf $ \pbuf ->
-            copyBytes pf (pbuf `plusPtr` o) l
-        copyChunks lbs' (pf `plusPtr` l)
+    finalStep :: forall b. b -> PutStep b
+    finalStep x (BufRange op _) = return $ Done op x
 
--- | Run the builder to construct a strict bytestring containing the sequence
--- of bytes denoted by the builder. This is done by first serializing to a lazy bytestring and then packing its
--- chunks to a appropriately sized strict bytestring.
---
--- > toByteString = packChunks . toLazyByteString
---
--- Note that @'toByteString'@ is a 'Monoid' homomorphism.
---
--- > toByteString mempty          == mempty
--- > toByteString (x `mappend` y) == toByteString x `mappend` toByteString y
---
--- However, in the second equation, the left-hand-side is generally faster to
--- execute.
---
-toByteString :: Builder -> S.ByteString
-toByteString = packChunks . toLazyByteString
+    fillBuffer :: forall b. Int -> PutStep b -> IO (BuildStream b)
+    fillBuffer size step = do
+        fpbuf <- S.mallocByteString bufSize 
+        let !pbuf = unsafeForeignPtrToPtr fpbuf
+                  -- safe due to later reference of fpbuf
+                  -- BETTER than withForeignPtr, as we lose a tail call otherwise
+            !br = BufRange pbuf (pbuf `plusPtr` size)
+        fillStep fpbuf br step
 
-
--- | @toByteStringIOWith bufSize io b@ runs the builder @b@ with a buffer of
--- at least the size @bufSize@ and executes the 'IO' action @io@ whenever the
--- buffer is full.
---
--- Compared to 'toLazyByteStringWith' this function requires less allocation,
--- as the output buffer is only allocated once at the start of the
--- serialization and whenever something bigger than the current buffer size has
--- to be copied into the buffer, which should happen very seldomly for the
--- default buffer size of 32kb. Hence, the pressure on the garbage collector is
--- reduced, which can be an advantage when building long sequences of bytes.
---
-toByteStringIOWith :: Int                      -- ^ Buffer size (upper bounds
-                                               -- the number of bytes forced
-                                               -- per call to the 'IO' action).
-                   -> (S.ByteString -> IO ())  -- ^ 'IO' action to execute per
-                                               -- full buffer, which is
-                                               -- referenced by a strict
-                                               -- 'S.ByteString'.
-                   -> Builder                  -- ^ 'Builder' to run.
-                   -> IO ()                    -- ^ Resulting 'IO' action.
-toByteStringIOWith bufSize io (Builder b) = 
-    fillNewBuffer bufSize (b finalStep)
-  where
-    finalStep pf _ = return $ Done pf
-
-    fillNewBuffer !size !step0 = do
-        S.mallocByteString size >>= fillBuffer
+    fillPut :: ForeignPtr Word8 -> BufRange -> 
+               Bool -> Either (Maybe S.ByteString) (Put b -> IO (BuildStream b))
+    fillPut !fpbuf !(BufRange op ope) False 
+      | pbuf == op = Left Nothing
+      | otherwise  = Left $ Just $
+          S.PS fpbuf 0 (op `minusPtr` pbuf)
       where
-        fillBuffer fpbuf = fill step0
-          where
-            -- safe because the constructed ByteString references the foreign
-            -- pointer AFTER its buffer was filled.
-            pf = unsafeForeignPtrToPtr fpbuf
-            fill !step = do
-                next <- step pf (pf `plusPtr` size)
-                case next of
-                    Done pf' ->
-                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
+        pbuf = unsafeForeignPtrToPtr fpbuf
+        {-# INLINE pbuf #-}
+    fillPut !fpbuf !br True =
+        Right $ \(Put put) -> fillStep fpbuf br (put finalStep)
 
-                    BufferFull newSize pf' nextStep  -> do
+    fillStep :: forall b. ForeignPtr Word8 -> BufRange -> PutStep b -> IO (BuildStream b)
+    fillStep !fpbuf !br@(BufRange _ ope) step = do
+        let pbuf = unsafeForeignPtrToPtr fpbuf
+            {-# INLINE pbuf #-}
+        signal <- step br
+        case signal of
+            Done op' x -> do      -- builder completed, buffer partially filled
+                let !br' = BufRange op' ope
+                return $ BuildYield x (fillPut fpbuf br')
+
+            BufferFull minSize op' nextStep  
+              | pbuf == op' -> do -- nothing written, larger buffer required
+                  fillBuffer (max bufSize minSize) nextStep
+              | otherwise   -> do -- some bytes written, new buffer required
+                  return $ BuildChunk 
+                    (S.PS fpbuf 0 (op' `minusPtr` pbuf))
+                    (fillBuffer (max bufSize minSize) nextStep)
+
+            InsertByteString op' bs nextStep
+              | S.null bs -> do   -- empty bytestrings are ignored
+                  let !br' = BufRange op' ope
+                  fillStep fpbuf br' nextStep
+              | pbuf == op' -> do -- no bytes written: just insert bytestring
+                  return $ BuildChunk bs (fillBuffer bufSize nextStep)
+              | otherwise -> do   -- bytes written, insert buffer and bytestring
+                  return $ BuildChunk (S.PS fpbuf 0 (op' `minusPtr` pbuf))
+                    (return $ BuildChunk bs (fillBuffer bufSize nextStep))
+
+
+toLazyByteString' :: Put () -> L.ByteString
+toLazyByteString' put = 
+    inlinePerformIO (consume `fmap` enumPut defaultBufferSize put)
+  where
+    consume :: BuildStream () -> L.ByteString
+    consume (BuildYield _ f) = 
+        case f False of
+          Left Nothing   -> L.Empty
+          Left (Just bs) -> L.Chunk bs L.Empty
+          Right _        -> error "toLazyByteString': enumPut violated postcondition"
+    consume (BuildChunk bs ioStream) =
+        L.Chunk bs $ inlinePerformIO (consume `fmap` ioStream)
+        
+
+
+{-
+                    BufferFull minSize pf' nextStep  -> do
                         io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
-                        if bufSize < newSize
-                          then fillNewBuffer newSize nextStep
-                          else fill nextStep
+                        fillBuffer (max bufSize minSize) nextStep
                         
-                    ModifyChunks  pf' bsk nextStep  -> do
-                        unless (pf' == pf) (io $  S.PS fpbuf 0 (pf' `minusPtr` pf))
-                        -- was: mapM_ io $ L.toChunks (bsk L.empty)
+                    ModifyChunks pf' bsk nextStep  -> do
+                        io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
                         L.foldrChunks (\bs -> (io bs >>)) (return ()) (bsk L.empty)
-                        fill nextStep
-
--- | Run the builder with a 'defaultBufferSize'd buffer and execute the given
--- 'IO' action whenever the buffer is full or gets flushed.
---
--- @ 'toByteStringIO' = 'toByteStringIOWith' 'defaultBufferSize'@
---
--- This is a 'Monoid' homomorphism in the following sense.
---
--- > toByteStringIO io mempty          == return ()
--- > toByteStringIO io (x `mappend` y) == toByteStringIO io x >> toByteStringIO io y
---
-toByteStringIO :: (S.ByteString -> IO ()) -> Builder -> IO ()
-toByteStringIO = toByteStringIOWith defaultBufferSize
-{-# INLINE toByteStringIO #-}
-
+                        fillBuffer bufSize nextStep
 -}
+
