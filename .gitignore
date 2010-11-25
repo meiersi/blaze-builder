@@ -13,6 +13,7 @@ benchmarks/LazyByteString
 benchmarks/BenchmarkServer
 benchmarks/FastPut
 benchmarks/BuilderBufferRange
+benchmarks/BoundedWrite
 
 Criterion/ScalingBenchmark
 

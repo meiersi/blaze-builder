@@ -74,6 +74,15 @@ bench-put-vs-builder:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is FastPut FastPut
 	./benchmarks/FastPut --resamples 10000
 
+# Benchmark the cost/benefit of a more general write type
+bench-bounded-write:
+	$(GHC7) --make -O2 -fforce-recomp -ibenchmarks -main-is BoundedWrite BoundedWrite
+	./benchmarks/BoundedWrite --resamples 10000
+
+core-bounded-write:
+	ghc-core -- --make -O2 -fforce-recomp -main-is BoundedWrite benchmarks/BoundedWrite.hs
+
+
 # Benchmark the benefit of using a packed representation for the buffer range
 bench-buffer-range:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is BuilderBufferRange BuilderBufferRange
