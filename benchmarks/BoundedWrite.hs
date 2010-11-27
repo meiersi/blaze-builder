@@ -16,6 +16,9 @@ import Foreign
 import Data.Monoid
 import Data.Char
 
+import Foreign.UPtr
+
+import qualified Data.ByteString.Internal as S
 import qualified Data.ByteString.Lazy as L
 
 import Blaze.ByteString.Builder.Internal
@@ -30,16 +33,18 @@ import Criterion.Main
 
 main :: IO ()
 main = defaultMain $ concat
+    {-
     [ benchmark "mconcat . map (fromWriteSingleton writeChar)"
-        bfromChars
-        fromChars
-        chars
+        bfrom3Chars
+        from3Chars
+        chars3
     ]
-    {- , benchmark "mconcat . map fromWord8"
+    -}
+    [ benchmark "mconcat . map fromWord8"
         (mconcat . map bfromWord8)
         (mconcat . map fromWord8)
         word8s
-    ] -}
+    ]
   where
     benchmark name boundedF staticF x =
         [ bench (name ++ " <- bounded write") $
@@ -56,21 +61,72 @@ chars :: [Char]
 chars = take 100000 $ ['\0'..]
 {-# NOINLINE chars #-}
 
+chars2 :: [(Char,Char)]
+chars2 = zip chars chars
+{-# NOINLINE chars2 #-}
+
+chars3 :: [(Char, Char, Char)]
+chars3 = zip3 chars (reverse chars) (reverse chars)
+{-# NOINLINE chars3 #-}
+
 bfromChars = (mconcat . map (fromBWriteSingleton bwriteChar))
 {-# NOINLINE bfromChars #-}
 
 fromChars = (mconcat . map (fromWriteSingleton writeChar))
 {-# NOINLINE fromChars #-}
 
+bfrom2Chars = (mconcat . map (fromBWriteSingleton (\(c1, c2) -> bwriteChar c1 `mappend` bwriteChar c2)))
+{-# NOINLINE bfrom2Chars #-}
+
+from2Chars = (mconcat . map (fromWriteSingleton (\(c1, c2) -> writeChar c1 `mappend` writeChar c2)))
+{-# NOINLINE from2Chars #-}
+
+bfrom3Chars = (mconcat . map (fromBWriteSingleton (\(c1, c2, c3) -> bwriteChar c1 `mappend` bwriteChar c2 `mappend` bwriteChar c3)))
+{-# NOINLINE bfrom3Chars #-}
+
+from3Chars = (mconcat . map (fromWriteSingleton (\(c1, c2, c3) -> writeChar c1 `mappend` writeChar c2 `mappend` writeChar c3)))
+{-# NOINLINE from3Chars #-}
+
 ------------------------------------------------------------------------------
 -- The Bounded Write Type
 ------------------------------------------------------------------------------
 
-data BWrite = BWrite Int (Ptr Word8 -> IO (Ptr Word8))
+-- * GRRR* GHC is too 'clever'... code where we branch and each branch should
+-- execute a few IO actions and then return a value cannot be taught to GHC. 
+-- At least not such that it returns the value of the branches unpacked.
+--
+-- Hmm.. at least he behaves much better for the Monoid instance of BWrite
+-- than the one for Write. Serializing UTF-8 chars gets a slowdown of a
+-- factor 2 when 2 chars are composed. Perhaps I should try out the writeList
+-- instances also, as they may be more sensitive to to much work per Char.
+--
+data BWrite = BWrite {-# UNPACK #-} !Int (UPtr -> UPtr)
+
+newtype UWrite = UWrite { runUWrite :: UPtr -> UPtr }
+
+instance Monoid UWrite where
+  mempty = UWrite $ \x -> x
+  {-# INLINE mempty #-}
+  (UWrite uw1) `mappend` (UWrite uw2) = UWrite (\up -> uw2 (uw1 up))
+  {-# INLINE mappend #-}
+
+instance Monoid BWrite where
+  mempty = BWrite 0 (\x -> x)
+  {-# INLINE mempty #-}
+  (BWrite b1 io1) `mappend` (BWrite b2 io2) =
+    BWrite (b1 + b2) (\op -> io2 (io1 op))
+  {-# INLINE mappend #-}
+
+execWrite :: IO () -> UPtr -> UPtr
+execWrite io op' = S.inlinePerformIO io `seq` op'
+{-# INLINE execWrite #-}
+
+execWriteSize :: (Ptr Word8 -> IO ()) -> Int -> UPtr -> UPtr
+execWriteSize io size op = execWrite (io (uptrToPtr op)) (op `plusUPtr` size)
+{-# INLINE execWriteSize #-}
 
 staticBWrite :: Int -> (Ptr Word8 -> IO ()) -> BWrite
-staticBWrite size io = 
-    BWrite size (\op -> io op >> return (op `plusPtr` size))
+staticBWrite size io = BWrite size (execWriteSize io size)
 {-# INLINE staticBWrite #-}
 
 bwriteWord8 :: Word8 -> BWrite 
@@ -83,8 +139,8 @@ fromBWrite (BWrite size io) =
   where
     step k !pf !pe
       | pf `plusPtr` size <= pe = do
-          pf' <- io pf
-          pf' `seq` k pf' pe
+          let !pf' = io (ptrToUPtr pf)
+          k (uptrToPtr pf') pe
       | otherwise = return $ BufferFull size pf (step k)
 {-# INLINE fromBWrite #-}
 
@@ -96,8 +152,8 @@ fromBWriteSingleton write =
       where
         step k !pf !pe
           | pf `plusPtr` size <= pe = do
-              pf' <- io pf
-              pf' `seq` k pf' pe
+              let !pf' = io (ptrToUPtr pf)
+              k (uptrToPtr pf') pe
           | otherwise               = return $ BufferFull size pf (step k)
           where
             BWrite size io = write x
@@ -112,23 +168,27 @@ bfromWord8 = fromBWriteSingleton bwriteWord8
 bwriteChar :: Char -> BWrite
 bwriteChar c = BWrite 4 (encodeCharUtf8 f1 f2 f3 f4 c)
   where
-    f1 x =  \ptr -> do poke ptr x
-                       return (ptr `plusPtr` 1)
+    f1 x =  \uptr -> execWrite (do let !ptr = uptrToPtr uptr
+                                   poke ptr x )
+                               (uptr `plusUPtr` 1)
 
-    f2 x1 x2 = \ptr -> do poke ptr x1
-                          poke (ptr `plusPtr` 1) x2
-                          return (ptr `plusPtr` 2)
+    f2 x1 x2 = \uptr -> execWrite (do let !ptr = uptrToPtr uptr
+                                      poke ptr x1
+                                      poke (ptr `plusPtr` 1) x2 )
+                                  (uptr `plusUPtr` 2)
 
-    f3 x1 x2 x3 = \ptr -> do poke ptr x1
-                             poke (ptr `plusPtr` 1) x2
-                             poke (ptr `plusPtr` 2) x3
-                             return (ptr `plusPtr` 3)
+    f3 x1 x2 x3 = \uptr -> execWrite (do let !ptr = uptrToPtr uptr
+                                         poke ptr x1
+                                         poke (ptr `plusPtr` 1) x2
+                                         poke (ptr `plusPtr` 2) x3 )
+                                     (uptr `plusUPtr` 3)
 
-    f4 x1 x2 x3 x4 = \ptr -> do poke ptr x1
-                                poke (ptr `plusPtr` 1) x2
-                                poke (ptr `plusPtr` 2) x3
-                                poke (ptr `plusPtr` 3) x4
-                                return (ptr `plusPtr` 4)
+    f4 x1 x2 x3 x4 = \uptr -> execWrite (do let !ptr = uptrToPtr uptr
+                                            poke ptr x1
+                                            poke (ptr `plusPtr` 1) x2
+                                            poke (ptr `plusPtr` 2) x3
+                                            poke (ptr `plusPtr` 3) x4 )
+                                        (uptr `plusUPtr` 4)
 {-# INLINE bwriteChar #-}
 
 writeChar :: Char -> Write
