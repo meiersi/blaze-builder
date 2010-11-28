@@ -69,6 +69,15 @@ bench-compression:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is Compression Compression
 	./benchmarks/Compression --resamples 10000
 
+# Benchmark the use of unboxed continuation calls
+bench-unboxed-append:
+	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is UnboxedAppend UnboxedAppend
+	./benchmarks/UnboxedAppend --resamples 10000
+
+# Core of the use of unboxed continuation calls
+core-unboxed-append:
+	ghc-core -- --make -O2 -fforce-recomp -main-is UnboxedAppend benchmarks/UnboxedAppend.hs
+
 # Benchmark the cost of the Put monad vs. the Builder monoid
 bench-put-vs-builder:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is FastPut FastPut

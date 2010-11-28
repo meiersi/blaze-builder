@@ -14,6 +14,7 @@ benchmarks/BenchmarkServer
 benchmarks/FastPut
 benchmarks/BuilderBufferRange
 benchmarks/BoundedWrite
+benchmarks/UnboxedAppend
 
 Criterion/ScalingBenchmark
 
