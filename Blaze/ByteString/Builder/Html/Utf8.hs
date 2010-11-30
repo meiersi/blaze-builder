@@ -45,7 +45,7 @@ writeHtmlEscapedChar '<'  = writeByteString "&lt;"
 writeHtmlEscapedChar '>'  = writeByteString "&gt;"
 writeHtmlEscapedChar '&'  = writeByteString "&amp;"
 writeHtmlEscapedChar '"'  = writeByteString "&quot;"
-writeHtmlEscapedChar '\'' = writeByteString "&apos;"
+writeHtmlEscapedChar '\'' = writeByteString "&#39;"
 writeHtmlEscapedChar c    = writeChar c
 {-# INLINE writeHtmlEscapedChar #-}
 
