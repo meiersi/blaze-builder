@@ -13,13 +13,18 @@ Description:
                      when writing the resulting lazy bytestring to a file or
                      sending it over the network.
 
-Homepage:            http://github.com/jaspervdj/blaze-builder
-Bug-Reports:         http://github.com/jaspervdj/blaze-builder/issues
+Author:              Jasper Van der Jeugt, Simon Meier
+Copyright:           2010 Simon Meier
+                     2010 Jasper Van der Jeugt
+Maintainer:          Simon Meier <iridcode@gmail.com>
+
 License:             BSD3
 License-file:        LICENSE
-Author:              Jasper Van der Jeugt, Simon Meier
-Maintainer:          jaspervdj@gmail.com, iridcode@gmail.com
+
+Homepage:            http://github.com/meiersi/blaze-builder
+Bug-Reports:         http://github.com/meiersi/blaze-builder/issues
 Stability:           Experimental
+
 Category:            Data
 Build-type:          Simple
 Cabal-version:       >= 1.6
@@ -37,6 +42,10 @@ Extra-source-files:
 
                      tests/*.hs
 
+Source-repository head
+  Type: git
+  Location: https://github.com/meiersi/blaze-builder.git
+
 Library
   ghc-options:       -Wall
 
@@ -50,7 +59,6 @@ Library
 
                      Blaze.ByteString.Builder.Internal
   
-  -- FIXME: Ensure dependencies are strict enough
   build-depends:     base == 4.* ,
                      bytestring == 0.9.* ,
                      text == 0.11.*
