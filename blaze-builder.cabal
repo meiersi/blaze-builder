@@ -54,12 +54,16 @@ Library
                      Blaze.ByteString.Builder.Word
                      Blaze.ByteString.Builder.ByteString
                      Blaze.ByteString.Builder.Char.Utf8
+                     Blaze.ByteString.Builder.Char.Latin1
                      Blaze.ByteString.Builder.Html.Utf8
+                     Blaze.ByteString.Builder.HTTP
 
                      Blaze.ByteString.Builder.Internal
                      Blaze.ByteString.Builder.Internal.Write
                      Blaze.ByteString.Builder.Internal.Types
                      Blaze.ByteString.Builder.Internal.Buffer
+
+  other-modules:     Blaze.ByteString.Builder.Internal.UncheckedShifts
   
   build-depends:     base == 4.* ,
                      bytestring == 0.9.* ,

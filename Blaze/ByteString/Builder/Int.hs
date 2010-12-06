@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 -- |
 -- Module      : Blaze.ByteString.Builder.Int
 -- Copyright   : (c) 2010 Simon Meier
@@ -14,10 +13,6 @@
 -- See "Blaze.ByteString.Builder.Word" for information about how to best write several
 -- integers at once.
 --
-#if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
-#include "MachDeps.h"
-#endif
-
 module Blaze.ByteString.Builder.Int
     ( 
     -- * Writing integers to a buffer

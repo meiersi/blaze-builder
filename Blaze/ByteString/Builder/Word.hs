@@ -1,6 +1,3 @@
-{-# OPTIONS_GHC -fglasgow-exts #-}
--- for unboxed shifts
-
 {-# LANGUAGE CPP #-}
 -- |
 -- Module      : Blaze.ByteString.Builder.Word
@@ -34,7 +31,6 @@
 #if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
 #include "MachDeps.h"
 #endif
-
 module Blaze.ByteString.Builder.Word
     ( 
     -- * Writing words to a buffer
@@ -96,16 +92,12 @@ module Blaze.ByteString.Builder.Word
     ) where
 
 import Blaze.ByteString.Builder.Internal
+import Blaze.ByteString.Builder.Internal.UncheckedShifts
 
 import Foreign
 
 #if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
-import GHC.Base
 import GHC.Word (Word32(..),Word16(..),Word64(..))
-
-#if WORD_SIZE_IN_BITS < 64 && __GLASGOW_HASKELL__ >= 608
-import GHC.Word (uncheckedShiftRL64#)
-#endif
 #else
 import Data.Word
 #endif
@@ -263,39 +255,6 @@ writeWord64host :: Word64 -> Write
 writeWord64host w = 
     exactWrite (sizeOf (undefined :: Word64)) (\p -> poke (castPtr p) w)
 {-# INLINE writeWord64host #-}
-
-------------------------------------------------------------------------
--- Unchecked shifts
-
-{-# INLINE shiftr_w16 #-}
-shiftr_w16 :: Word16 -> Int -> Word16
-{-# INLINE shiftr_w32 #-}
-shiftr_w32 :: Word32 -> Int -> Word32
-{-# INLINE shiftr_w64 #-}
-shiftr_w64 :: Word64 -> Int -> Word64
-
-#if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
-shiftr_w16 (W16# w) (I# i) = W16# (w `uncheckedShiftRL#`   i)
-shiftr_w32 (W32# w) (I# i) = W32# (w `uncheckedShiftRL#`   i)
-
-#if WORD_SIZE_IN_BITS < 64
-shiftr_w64 (W64# w) (I# i) = W64# (w `uncheckedShiftRL64#` i)
-
-#if __GLASGOW_HASKELL__ <= 606
--- Exported by GHC.Word in GHC 6.8 and higher
-foreign import ccall unsafe "stg_uncheckedShiftRL64"
-    uncheckedShiftRL64#     :: Word64# -> Int# -> Word64#
-#endif
-
-#else
-shiftr_w64 (W64# w) (I# i) = W64# (w `uncheckedShiftRL#` i)
-#endif
-
-#else
-shiftr_w16 = shiftR
-shiftr_w32 = shiftR
-shiftr_w64 = shiftR
-#endif
 
 
 ------------------------------------------------------------------------------
