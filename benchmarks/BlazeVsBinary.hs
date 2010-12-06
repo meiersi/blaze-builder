@@ -42,7 +42,7 @@ import qualified Blaze.ByteString.Builder.Char.Utf8 as Blaze
 main :: IO ()
 main = defaultMain $ concat
     [ benchmark "[String]"
-        (mconcat . concatMap (map $ Binary.singleton .  fromIntegral . ord))
+        (mconcat . map (mconcat . (map $ Binary.singleton .  fromIntegral . ord)))
         (mconcat . map Blaze.fromString)
         strings
     , benchmark "L.ByteString"
