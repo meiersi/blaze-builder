@@ -50,6 +50,8 @@ module Blaze.ByteString.Builder.Internal (
 
 import Foreign
 
+import Control.Monad (unless)
+
 import qualified Data.ByteString               as S
 import qualified Data.ByteString.Internal      as S
 import qualified Data.ByteString.Lazy          as L
@@ -99,6 +101,12 @@ defaultMaximalCopySize = 2 * defaultMinimalBufferSize
 ------------------------------------------------------------------------------
 -- Flushing and running a Builder
 ------------------------------------------------------------------------------
+                    
+-- | Prepend the chunk if it is non-empty.
+{-# INLINE nonEmptyChunk #-}
+nonEmptyChunk :: S.ByteString -> L.ByteString -> L.ByteString
+nonEmptyChunk bs lbs | S.null bs = lbs 
+                     | otherwise = L.Chunk bs lbs
 
 
 -- | Output all data written in the current buffer and start a new chunk.
@@ -189,10 +197,10 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Builder b) k =
                       
                   InsertByteString pf' bs nextStep 
                       | pf' == pf ->
-                          return $ L.Chunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep)
+                          return $ nonEmptyChunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep)
                       | otherwise ->
                           return $ L.Chunk (mkbs pf')
-                              (L.Chunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep))
+                              (nonEmptyChunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep))
                     
     -- allocate and fill a new buffer
     fillNewBuffer !size !step0 = do
@@ -221,13 +229,13 @@ toLazyByteStringWith bufSize minBufSize firstBufSize (Builder b) k =
                         
                     InsertByteString  pf' bs nextStep
                       | pf' == pf                      ->
-                          return $ L.Chunk bs (S.inlinePerformIO $ fill pf' nextStep)
+                          return $ nonEmptyChunk bs (S.inlinePerformIO $ fill pf' nextStep)
                       | minBufSize < pe `minusPtr` pf' ->
                           return $ L.Chunk (mkbs pf')
-                              (L.Chunk bs (S.inlinePerformIO $ fill pf' nextStep))
+                              (nonEmptyChunk bs (S.inlinePerformIO $ fill pf' nextStep))
                       | otherwise                      ->
                           return $ L.Chunk (mkbs pf')
-                              (L.Chunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep))
+                              (nonEmptyChunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep))
 
 
 -- | Extract the lazy 'L.ByteString' from the builder by running it with default
@@ -321,7 +329,7 @@ toByteStringIOWith bufSize io (Builder b) =
                     
                 InsertByteString pf' bs nextStep  -> do
                     io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
-                    io bs
+                    unless (S.null bs) (io bs)
                     fillBuffer bufSize nextStep
 
 -- | Run the builder with a 'defaultBufferSize'd buffer and execute the given
