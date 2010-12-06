@@ -62,7 +62,6 @@ module Blaze.ByteString.Builder
       Builder
 
       -- * Creating builders
-    , module Blaze.ByteString.Builder.Write 
     , module Blaze.ByteString.Builder.Int
     , module Blaze.ByteString.Builder.Word
     , module Blaze.ByteString.Builder.ByteString
@@ -70,11 +69,8 @@ module Blaze.ByteString.Builder
 
       -- * Executing builders
     , toLazyByteString
-    , toLazyByteStringWith
-    , toByteString
-    , toByteStringIO
-    , toByteStringIOWith
-    
+    -- , toLazyByteStringWith
+    -- , toByteString
 
       -- * Compatibility to Data.Binary.Builder from the binary package
       --
@@ -100,7 +96,6 @@ module Blaze.ByteString.Builder
     ) where
 
 import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Write
 import Blaze.ByteString.Builder.Int
 import Blaze.ByteString.Builder.Word
 import Blaze.ByteString.Builder.ByteString

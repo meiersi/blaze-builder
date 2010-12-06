@@ -45,8 +45,7 @@ module Blaze.ByteString.Builder.Int
     -- | We provide serialization functions both for singleton integers as well as
     -- for lists of integers. Using these list serialization functions is /much/ faster
     -- than using @mconcat . map fromInt/<n/>@, as the list serialization
-    -- functions use a tighter inner loop and a chunked write like it is
-    -- provided by functions such as 'fromWrite2List'.
+    -- functions use a tighter inner loop.
 
     , fromInt8
     , fromInt8s
@@ -80,7 +79,6 @@ module Blaze.ByteString.Builder.Int
     ) where
 
 import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Write
 import Blaze.ByteString.Builder.Word
 
 import Foreign
@@ -142,26 +140,22 @@ writeInt64le = writeWord64le . fromIntegral
 -- conversion.
 --
 writeInthost :: Int -> Write
-writeInthost w = 
-    Write (sizeOf (undefined :: Int)) (\p -> poke (castPtr p) w)
+writeInthost = writeStorable
 {-# INLINE writeInthost #-}
 
 -- | Write an 'Int16' in native host order and host endianness.
 writeInt16host :: Int16 -> Write
-writeInt16host w16 = 
-    Write (sizeOf (undefined :: Int16)) (\p -> poke (castPtr p) w16)
+writeInt16host = writeStorable
 {-# INLINE writeInt16host #-}
 
 -- | Write an 'Int32' in native host order and host endianness.
 writeInt32host :: Int32 -> Write
-writeInt32host w32 = 
-    Write (sizeOf (undefined :: Int32)) (\p -> poke (castPtr p) w32)
+writeInt32host = writeStorable
 {-# INLINE writeInt32host #-}
 
 -- | Write an 'Int64' in native host order and host endianness.
 writeInt64host :: Int64 -> Write
-writeInt64host w = 
-    Write (sizeOf (undefined :: Int64)) (\p -> poke (castPtr p) w)
+writeInt64host = writeStorable
 {-# INLINE writeInt64host #-}
 
 
@@ -180,7 +174,7 @@ fromInt8 = fromWriteSingleton writeInt8
 -- | Serialize a list of bytes.
 --
 fromInt8s :: [Int8] -> Builder
-fromInt8s = fromWrite8List writeInt8
+fromInt8s = fromWriteList writeInt8
 
 
 -- Int16
@@ -193,7 +187,7 @@ fromInt16be = fromWriteSingleton writeInt16be
 
 -- | Serialize a list of 'Int16's in big endian format.
 fromInt16sbe :: [Int16] -> Builder
-fromInt16sbe = fromWrite4List writeInt16be 
+fromInt16sbe = fromWriteList writeInt16be 
 {-# INLINE fromInt16sbe #-}
 
 -- | Serialize an 'Int16' in little endian format.
@@ -203,7 +197,7 @@ fromInt16le = fromWriteSingleton writeInt16le
 
 -- | Serialize a list of 'Int16's in little endian format.
 fromInt16sle :: [Int16] -> Builder
-fromInt16sle = fromWrite4List writeInt16le 
+fromInt16sle = fromWriteList writeInt16le 
 {-# INLINE fromInt16sle #-}
 
 
@@ -217,7 +211,7 @@ fromInt32be = fromWriteSingleton writeInt32be
 
 -- | Serialize a list of 'Int32's in big endian format.
 fromInt32sbe :: [Int32] -> Builder
-fromInt32sbe = fromWrite2List writeInt32be 
+fromInt32sbe = fromWriteList writeInt32be 
 {-# INLINE fromInt32sbe #-}
 
 -- | Serialize an 'Int32' in little endian format.
@@ -227,7 +221,7 @@ fromInt32le = fromWriteSingleton writeInt32le
 
 -- | Serialize a list of 'Int32's in little endian format.
 fromInt32sle :: [Int32] -> Builder
-fromInt32sle = fromWrite2List writeInt32le 
+fromInt32sle = fromWriteList writeInt32le 
 {-# INLINE fromInt32sle #-}
 
 -- | Serialize an 'Int64' in big endian format.
@@ -237,7 +231,7 @@ fromInt64be = fromWriteSingleton writeInt64be
 
 -- | Serialize a list of 'Int64's in big endian format.
 fromInt64sbe :: [Int64] -> Builder
-fromInt64sbe = fromWrite1List writeInt64be 
+fromInt64sbe = fromWriteList writeInt64be 
 {-# INLINE fromInt64sbe #-}
 
 -- | Serialize an 'Int64' in little endian format.
@@ -247,7 +241,7 @@ fromInt64le = fromWriteSingleton writeInt64le
 
 -- | Serialize a list of 'Int64's in little endian format.
 fromInt64sle :: [Int64] -> Builder
-fromInt64sle = fromWrite1List writeInt64le 
+fromInt64sle = fromWriteList writeInt64le 
 {-# INLINE fromInt64sle #-}
 
 
@@ -267,7 +261,7 @@ fromInthost = fromWriteSingleton writeInthost
 -- | Serialize a list of 'Int's.
 -- See 'fromInthost' for usage considerations.
 fromIntshost :: [Int] -> Builder
-fromIntshost = fromWrite2List writeInthost 
+fromIntshost = fromWriteList writeInthost 
 {-# INLINE fromIntshost #-}
 
 -- | Write an 'Int16' in native host order and host endianness.
@@ -277,7 +271,7 @@ fromInt16host = fromWriteSingleton writeInt16host
 
 -- | Write a list of 'Int16's in native host order and host endianness.
 fromInt16shost :: [Int16] -> Builder
-fromInt16shost = fromWrite4List writeInt16host 
+fromInt16shost = fromWriteList writeInt16host 
 {-# INLINE fromInt16shost #-}
 
 -- | Write an 'Int32' in native host order and host endianness.
@@ -287,7 +281,7 @@ fromInt32host = fromWriteSingleton writeInt32host
 
 -- | Write a list of 'Int32's in native host order and host endianness.
 fromInt32shost :: [Int32] -> Builder
-fromInt32shost = fromWrite2List writeInt32host 
+fromInt32shost = fromWriteList writeInt32host 
 {-# INLINE fromInt32shost #-}
 
 -- | Write an 'Int64' in native host order and host endianness.
@@ -297,5 +291,5 @@ fromInt64host = fromWriteSingleton writeInt64host
 
 -- | Write a list of 'Int64's in native host order and host endianness.
 fromInt64shost :: [Int64] -> Builder
-fromInt64shost = fromWrite1List writeInt64host
+fromInt64shost = fromWriteList writeInt64host
 {-# INLINE fromInt64shost #-}

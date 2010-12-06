@@ -34,8 +34,8 @@ module Blaze.ByteString.Builder.ByteString
 
     ) where
 
-import Blaze.ByteString.Builder.Write
-import Blaze.ByteString.Builder.Internal
+import           Blaze.ByteString.Builder.Internal hiding (insertByteString)
+import qualified Blaze.ByteString.Builder.Internal as I   (insertByteString)
 
 import Foreign
 import Data.Monoid
@@ -59,7 +59,7 @@ import qualified Data.ByteString.Lazy.Internal as L
 -- | Write a strict 'S.ByteString' to a buffer.
 --
 writeByteString :: S.ByteString -> Write
-writeByteString bs = Write l io
+writeByteString bs = exactWrite l io
   where
   (fptr, o, l) = S.toForeignPtr bs
   io pf = withForeignPtr fptr $ \p -> copyBytes pf (p `plusPtr` o) l
@@ -98,12 +98,11 @@ fromByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                    -> S.ByteString -- ^ Strict 'S.ByteString' to serialize.
                    -> Builder      -- ^ Resulting 'Builder'.
 fromByteStringWith maxCopySize = 
-    Builder . step
+    \bs -> fromBuildStepCont $ step bs
   where
-    step :: S.ByteString -> BuildStep -> BuildStep
-    step !bs !k !op !ope
-      | maxCopySize < S.length bs = return $ ModifyChunks op (L.Chunk bs) k
-      | otherwise                 = copyByteStringStep bs k op ope
+    step !bs !k br@(BufRange !op _)
+      | maxCopySize < S.length bs = return $ I.insertByteString op bs k
+      | otherwise                 = copyByteStringStep bs k br
 {-# INLINE fromByteStringWith #-}
 
 -- | @copyByteString bs@ serialize the strict bytestring @bs@ by copying it to
@@ -113,30 +112,30 @@ fromByteStringWith maxCopySize =
 -- to be smallish (@<= 4kb@).
 --
 copyByteString :: S.ByteString -> Builder
-copyByteString = Builder . copyByteStringStep
+copyByteString = \bs -> fromBuildStepCont $ copyByteStringStep bs
 {-# INLINE copyByteString #-}
 
-copyByteStringStep :: S.ByteString -> BuildStep -> BuildStep
+copyByteStringStep :: S.ByteString 
+                   -> (BufRange -> IO (BuildSignal a))
+                   -> (BufRange -> IO (BuildSignal a))
 copyByteStringStep (S.PS ifp ioff isize) !k = 
     goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
   where
     !ipe = unsafeForeignPtrToPtr ifp `plusPtr` (ioff + isize)
-    goBS !ip !op !ope
+    goBS !ip !(BufRange op ope)
       | inpRemaining <= outRemaining = do
           copyBytes op ip inpRemaining
           touchForeignPtr ifp -- input consumed: OK to release from here
-          let !op' = op `plusPtr` inpRemaining
-          k op' ope
+          let !br' = BufRange (op `plusPtr` inpRemaining) ope
+          k br'
       | otherwise = do
           copyBytes op ip outRemaining
           let !ip' = ip `plusPtr` outRemaining
-          return $ BufferFull 1 ope (goBS ip')
+          return $ bufferFull 1 ope (goBS ip')
       where
         outRemaining = ope `minusPtr` op
         inpRemaining = ipe `minusPtr` ip
 {-# INLINE copyByteStringStep #-}
-
-test = toLazyByteString $ copyByteString (S.drop 10 $ S.pack [0..10])
 
 -- | @insertByteString bs@ serializes the strict bytestring @bs@ by inserting
 -- it directly as a chunk of the output stream. 
@@ -148,9 +147,9 @@ test = toLazyByteString $ copyByteString (S.drop 10 $ S.pack [0..10])
 --
 insertByteString :: S.ByteString -> Builder
 insertByteString = 
-    \bs -> Builder $ step bs
+    \bs -> fromBuildStepCont $ step bs
   where
-    step !bs !k !pf _ = return $ ModifyChunks pf (L.Chunk bs) k
+    step !bs !k !(BufRange op _) = return $ I.insertByteString op bs k
 {-# INLINE insertByteString #-}
 
 
