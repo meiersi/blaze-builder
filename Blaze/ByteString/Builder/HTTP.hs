@@ -1,8 +1,7 @@
-{-# OPTIONS_GHC -fglasgow-exts #-}
--- for unboxed shifts
-
-{-# LANGUAGE BangPatterns, CPP #-}
+{-# LANGUAGE BangPatterns, CPP, MagicHash #-}
 -- | Support for HTTP response encoding.
+--
+-- TODO: Cleanup!
 module Blaze.ByteString.Builder.HTTP where
 
 import Debug.Trace
@@ -14,19 +13,31 @@ import Foreign
 import qualified Data.ByteString.Lazy as L
 
 import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Write
+import Blaze.ByteString.Builder.Internal.Types
+import Blaze.ByteString.Builder.Internal.UncheckedShifts
 import Blaze.ByteString.Builder.Word
 
-#if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
-import GHC.Base
-import GHC.Word (Word32(..),Word16(..),Word64(..))
 
-#if WORD_SIZE_IN_BITS < 64 && __GLASGOW_HASKELL__ >= 608
-import GHC.Word (uncheckedShiftRL64#)
-#endif
-#else
-import Data.Word
-#endif
+-- | Write the least 8 bytes of a character.
+writeChar8 :: Char -> Write
+writeChar8 = writeWord8 . fromIntegral . ord
+
+-- | Write a CRLF sequence.
+writeCRLF :: Write
+writeCRLF = writeChar8 '\r' `mappend` writeChar8 '\n'
+{-# INLINE writeCRLF #-}
+
+-- | Execute a write
+{-# INLINE execWrite #-}
+execWrite :: Write -> Ptr Word8 -> IO ()
+execWrite w op = do
+    _ <- runWriteIO (runWrite w) op
+    return ()
+
+
+------------------------------------------------------------------------------
+-- Hex Encoding Infrastructure
+------------------------------------------------------------------------------
 
 pokeWord16Hex :: Word16 -> Ptr Word8 -> IO ()
 pokeWord16Hex x op = do
@@ -67,7 +78,7 @@ iterationsUntilZero f = go 0
 {-# INLINE iterationsUntilZero #-}
 
 writeWord16Hex :: Word16 -> Write
-writeWord16Hex = Write 4 . pokeWord16Hex
+writeWord16Hex = exactWrite 4 . pokeWord16Hex
 
 -- | Length of the hex-string required to encode the given 'Word32'.
 word32HexLength :: Word32 -> Int
@@ -75,48 +86,43 @@ word32HexLength = max 1 . iterationsUntilZero (`shiftr_w32` 4)
 {-# INLINE word32HexLength #-}
 
 writeWord32Hex :: Word32 -> Write
-writeWord32Hex w = Write len (pokeWord32HexN len w)
+writeWord32Hex w = 
+    boundedWrite (2 * sizeOf w) (writeN len $ pokeWord32HexN len w)
   where
     len = word32HexLength w
 {-# INLINE writeWord32Hex #-}
 
+{-
 test = flip (toLazyByteStringWith 32 32 32) L.empty
     $ chunkedTransferEncoding 
     $ chunkedTransferEncoding 
     $ mconcat . map oneLine $ [0..256]
   where
     oneLine x = fromWriteSingleton writeWord32Hex x `mappend` fromWord8 32
+-}
 
--- | Write the least 8 bytes of a character.
-writeChar8 :: Char -> Write
-writeChar8 = writeWord8 . fromIntegral . ord
-
--- | Write a CRLF sequence.
-writeCRLF :: Write
-writeCRLF = writeChar8 '\r' `mappend` writeChar8 '\n'
-{-# INLINE writeCRLF #-}
-
--- | Execute the write action contained in a 'Write'.
-execWrite :: Write -> Ptr Word8 -> IO ()
-execWrite (Write _ io) = io
-{-# INLINE execWrite #-}
+------------------------------------------------------------------------------
+-- Chunked transfer encoding
+------------------------------------------------------------------------------
 
 -- | Transform a builder such that it uses chunked HTTP transfer encoding.
 chunkedTransferEncoding :: Builder -> Builder
 chunkedTransferEncoding (Builder b) =
-    Builder transferEncodingStep
+    fromBuildStepCont transferEncodingStep
   where
-    transferEncodingStep k = go (b k)
+    transferEncodingStep k = go (b (buildStep k))
       where
-        go innerStep op ope
+        go :: BuildStep a -> BufRange -> IO (BuildSignal a)
+        go innerStep !(BufRange op ope)
           | outRemaining < minimalBufferSize = 
-              return $ BufferFull minimalBufferSize op (go innerStep)
+              return $ bufferFull minimalBufferSize op (go innerStep)
           | otherwise = do
               -- FIXME: Handle 64bit case where chunks could possibly be larger
               --        than the 4GB that we can represent. Unrealisitic... well
               --        you never know where your code ends up being used!
-              let !opInner  = op  `plusPtr` (chunkSizeLength + 2) -- leave space for chunk header
-                  !opeInner = ope `plusPtr` (-2)                  -- leave space for CRLF at end of data
+              let !brInner@(BufRange opInner opeInner) = BufRange 
+                     (op  `plusPtr` (chunkSizeLength + 2)) -- leave space for chunk header
+                     (ope `plusPtr` (-2)                 ) -- leave space for CRLF at end of data
 
                   -- writes the actual chunk size and the CRLF after the data
                   finishChunk !opInner' = do
@@ -128,31 +134,32 @@ chunkedTransferEncoding (Builder b) =
               -- write CRLF after chunk header, which is 2 bytes before data
               execWrite writeCRLF (opInner `plusPtr` (-2))
               -- execute inner builder with reduced boundaries
-              signal <- innerStep opInner opeInner 
+              signal <- runBuildStep innerStep brInner
               case signal of
-                Done opInner' 
+                Done opInner' x
                   | opInner == opInner ->      -- no data written => do not add header
-                      return $ Done op         -- otherwise the 0 chunk size would signal termination     
+                      return $ Done op x       -- otherwise the 0 chunk size would signal termination     
                   | otherwise          -> do
                       finishChunk opInner'
                       return $ Done 
-                        (opInner' `plusPtr` 2) -- CRLF at the end of data
+                        (opInner' `plusPtr` 2) x -- CRLF at the end of data
 
                 BufferFull minRequiredSize opInner' nextInnerStep 
                   | opInner == opInner' -> do
                       return $ BufferFull
-                        (minRequiredSize + 8)  -- add maximal encoding overhead
-                        op                     -- no data written => no header added
-                        (go nextInnerStep)     -- also add encoding info for next step
+                        (minRequiredSize + 8)           -- add maximal encoding overhead
+                        op                              -- no data written => no header added
+                        (buildStep $ go nextInnerStep)  -- also add encoding info for next step
 
                   | otherwise           -> do
                       finishChunk opInner'
                       return $ BufferFull 
-                        (minRequiredSize + 8)  -- add maximal encoding overhead
-                        (opInner' `plusPtr` 2) -- CRLF at the end of data
-                        (go nextInnerStep)     -- also add encoding info for next step
+                        (minRequiredSize + 8)           -- add maximal encoding overhead
+                        (opInner' `plusPtr` 2)          -- CRLF at the end of data
+                        (buildStep $ go nextInnerStep)  -- also add encoding info for next step
 
-                ModifyChunks _ _ _ -> error "chunkedTransferEncoding: ModifyChunks not yet supported"
+                InsertByteString opInner bs nextInnerStep -> do
+                  error "chunkedTransferEncoding: ModifyChunks not yet supported"
     
           where
             outRemaining    = ope `minusPtr` op
@@ -167,37 +174,4 @@ chunkedTransferEncoding (Builder b) =
 transferEncodingTerminator :: Builder
 transferEncodingTerminator = 
   fromWrite $ writeChar8 '0' `mappend` writeCRLF
-
-------------------------------------------------------------------------
--- Unchecked shifts
-
-{-# INLINE shiftr_w16 #-}
-shiftr_w16 :: Word16 -> Int -> Word16
-{-# INLINE shiftr_w32 #-}
-shiftr_w32 :: Word32 -> Int -> Word32
-{-# INLINE shiftr_w64 #-}
-shiftr_w64 :: Word64 -> Int -> Word64
-
-#if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
-shiftr_w16 (W16# w) (I# i) = W16# (w `uncheckedShiftRL#`   i)
-shiftr_w32 (W32# w) (I# i) = W32# (w `uncheckedShiftRL#`   i)
-
-#if WORD_SIZE_IN_BITS < 64
-shiftr_w64 (W64# w) (I# i) = W64# (w `uncheckedShiftRL64#` i)
-
-#if __GLASGOW_HASKELL__ <= 606
--- Exported by GHC.Word in GHC 6.8 and higher
-foreign import ccall unsafe "stg_uncheckedShiftRL64"
-    uncheckedShiftRL64#     :: Word64# -> Int# -> Word64#
-#endif
-
-#else
-shiftr_w64 (W64# w) (I# i) = W64# (w `uncheckedShiftRL#` i)
-#endif
-
-#else
-shiftr_w16 = shiftR
-shiftr_w32 = shiftR
-shiftr_w64 = shiftR
-#endif
 

@@ -20,6 +20,7 @@ module Blaze.ByteString.Builder.Internal.Write (
   , exactWrite
   , boundedWrite
   , runWrite
+  , runWriteIO
 
   -- * Constructing builders from writes
   , fromWrite
