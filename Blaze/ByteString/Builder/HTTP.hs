@@ -2,29 +2,26 @@
 -- | Support for HTTP response encoding.
 --
 -- TODO: Cleanup!
-module Blaze.ByteString.Builder.HTTP where
+module Blaze.ByteString.Builder.HTTP (
+  -- * Chunked HTTP transfer encoding
+    chunkedTransferEncoding
+  , chunkedTransferTerminator
+  ) where
 
-import Debug.Trace
-import Data.Char
 import Data.Monoid
 
 import Foreign
 
-import qualified Data.ByteString.Lazy as L
-
 import Blaze.ByteString.Builder.Internal
 import Blaze.ByteString.Builder.Internal.Types
 import Blaze.ByteString.Builder.Internal.UncheckedShifts
-import Blaze.ByteString.Builder.Word
 
+import qualified Blaze.ByteString.Builder.Char.Latin1 as Char8
 
--- | Write the least 8 bytes of a character.
-writeChar8 :: Char -> Write
-writeChar8 = writeWord8 . fromIntegral . ord
 
 -- | Write a CRLF sequence.
 writeCRLF :: Write
-writeCRLF = writeChar8 '\r' `mappend` writeChar8 '\n'
+writeCRLF = Char8.writeChar '\r' `mappend` Char8.writeChar '\n'
 {-# INLINE writeCRLF #-}
 
 -- | Execute a write
@@ -39,6 +36,7 @@ execWrite w op = do
 -- Hex Encoding Infrastructure
 ------------------------------------------------------------------------------
 
+{-
 pokeWord16Hex :: Word16 -> Ptr Word8 -> IO ()
 pokeWord16Hex x op = do
     pokeNibble 0 12
@@ -54,6 +52,11 @@ pokeWord16Hex x op = do
 
     pokeWord8 :: Int -> Word8 -> IO ()
     pokeWord8 off = poke (op `plusPtr` off)
+
+writeWord16Hex :: Word16 -> Write
+writeWord16Hex = exactWrite 4 . pokeWord16Hex
+
+-}
 
 pokeWord32HexN :: Int -> Word32 -> Ptr Word8 -> IO ()
 pokeWord32HexN n0 w0 op0 = 
@@ -77,28 +80,26 @@ iterationsUntilZero f = go 0
     go !count !x = go (count+1) (f x)
 {-# INLINE iterationsUntilZero #-}
 
-writeWord16Hex :: Word16 -> Write
-writeWord16Hex = exactWrite 4 . pokeWord16Hex
-
 -- | Length of the hex-string required to encode the given 'Word32'.
 word32HexLength :: Word32 -> Int
 word32HexLength = max 1 . iterationsUntilZero (`shiftr_w32` 4)
 {-# INLINE word32HexLength #-}
 
+{-
 writeWord32Hex :: Word32 -> Write
 writeWord32Hex w = 
     boundedWrite (2 * sizeOf w) (writeN len $ pokeWord32HexN len w)
   where
     len = word32HexLength w
 {-# INLINE writeWord32Hex #-}
+-}
 
 {-
 test = flip (toLazyByteStringWith 32 32 32) L.empty
-    $ chunkedTransferEncoding 
-    $ chunkedTransferEncoding 
+    $ chunkedTransferEncoding
     $ mconcat . map oneLine $ [0..256]
   where
-    oneLine x = fromWriteSingleton writeWord32Hex x `mappend` fromWord8 32
+    oneLine x = fromWriteSingleton writeWord32Hex x `mappend` Char8.fromChar ' '
 -}
 
 ------------------------------------------------------------------------------
@@ -120,7 +121,7 @@ chunkedTransferEncoding (Builder b) =
               -- FIXME: Handle 64bit case where chunks could possibly be larger
               --        than the 4GB that we can represent. Unrealisitic... well
               --        you never know where your code ends up being used!
-              let !brInner@(BufRange opInner opeInner) = BufRange 
+              let !brInner@(BufRange opInner _) = BufRange 
                      (op  `plusPtr` (chunkSizeLength + 2)) -- leave space for chunk header
                      (ope `plusPtr` (-2)                 ) -- leave space for CRLF at end of data
 
@@ -137,7 +138,7 @@ chunkedTransferEncoding (Builder b) =
               signal <- runBuildStep innerStep brInner
               case signal of
                 Done opInner' x
-                  | opInner == opInner ->      -- no data written => do not add header
+                  | opInner == opInner' ->     -- no data written => do not add header
                       return $ Done op x       -- otherwise the 0 chunk size would signal termination     
                   | otherwise          -> do
                       finishChunk opInner'
@@ -158,7 +159,7 @@ chunkedTransferEncoding (Builder b) =
                         (opInner' `plusPtr` 2)          -- CRLF at the end of data
                         (buildStep $ go nextInnerStep)  -- also add encoding info for next step
 
-                InsertByteString opInner bs nextInnerStep -> do
+                InsertByteString _ _ _ -> -- opInner bs nextInnerStep -> do
                   error "chunkedTransferEncoding: ModifyChunks not yet supported"
     
           where
@@ -171,7 +172,7 @@ chunkedTransferEncoding (Builder b) =
       
 
 -- | The '0\r\n' chunk header signaling the termination of the data transfer.
-transferEncodingTerminator :: Builder
-transferEncodingTerminator = 
-  fromWrite $ writeChar8 '0' `mappend` writeCRLF
+chunkedTransferTerminator :: Builder
+chunkedTransferTerminator = 
+  fromWrite $ Char8.writeChar '0' `mappend` writeCRLF
 
