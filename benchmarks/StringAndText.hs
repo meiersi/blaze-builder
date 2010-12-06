@@ -42,8 +42,8 @@ main = defaultMain
     , bench "fromStrictTextUnpacked :: StrictText --[Utf8 encoding]--> L.ByteString" $ whnf
         (L.length . Blaze.toLazyByteString . Blaze.fromText) benchStrictText
      
-    , bench "fromStrictTextFolded :: StrictText --[Utf8 encoding]--> L.ByteString" $ whnf
-        (L.length . Blaze.toLazyByteString . fromStrictTextFolded) benchStrictText
+    -- , bench "fromStrictTextFolded :: StrictText --[Utf8 encoding]--> L.ByteString" $ whnf
+        -- (L.length . Blaze.toLazyByteString . fromStrictTextFolded) benchStrictText
 
     , bench "TS.encodeUtf8 :: StrictText --[Utf8 encoding]--> S.ByteString" $ whnf
         (TS.encodeUtf8) benchStrictText
@@ -51,8 +51,8 @@ main = defaultMain
     , bench "fromLazyTextUnpacked :: LazyText --[Utf8 encoding]--> L.ByteString" $ whnf
         (L.length . Blaze.toLazyByteString . Blaze.fromLazyText) benchLazyText
 
-    , bench "fromLazyTextFolded :: LazyText --[Utf8 encoding]--> L.ByteString" $ whnf
-        (L.length . Blaze.toLazyByteString . fromLazyTextFolded) benchLazyText
+    -- , bench "fromLazyTextFolded :: LazyText --[Utf8 encoding]--> L.ByteString" $ whnf
+        -- (L.length . Blaze.toLazyByteString . fromLazyTextFolded) benchLazyText
 
     , bench "TL.encodeUtf8 :: LazyText --[Utf8 encoding]--> L.ByteString" $ whnf
         (L.length . TL.encodeUtf8) benchLazyText
@@ -83,11 +83,12 @@ benchLazyText :: TL.Text
 benchLazyText = TL.pack benchString
 {-# NOINLINE benchLazyText #-}
 
+{-
 
 -- | Encode the 'TS.Text' as UTF-8 by folding it and filling the raw buffer
 -- directly.
 fromStrictTextFolded :: TS.Text -> Blaze.Builder
-fromStrictTextFolded t = Blaze.Builder $ \k -> TS.foldr step k t
+fromStrictTextFolded t = Blaze.fromBuildStepCont $ \k -> TS.foldr step k t
   where
     step c k pf pe
       | pf' <= pe = do
@@ -95,10 +96,10 @@ fromStrictTextFolded t = Blaze.Builder $ \k -> TS.foldr step k t
           k pf' pe  -- here it would be great, if we wouldn't have to pass
                     -- around pe: requires a more powerful fold for StrictText.
       | otherwise =
-          return $ Blaze.BufferFull size pf $ \pfNew peNew -> do
-            let pfNew' = pfNew `plusPtr` size
+          return $ Blaze.bufferFull size pf $ \(Blaze.BufRange pfNew peNew) -> do
+            let !br' = Blaze.BufRange (pfNew `plusPtr` size) peNew
             io pfNew
-            k pfNew' peNew
+            k br'
       where
         pf' = pf `plusPtr` size
         Blaze.Write size io = Blaze.writeChar c
@@ -107,7 +108,7 @@ fromStrictTextFolded t = Blaze.Builder $ \k -> TS.foldr step k t
 -- | Encode the 'TL.Text' as UTF-8 by folding it and filling the raw buffer
 -- directly.
 fromLazyTextFolded :: TL.Text -> Blaze.Builder
-fromLazyTextFolded t = Blaze.Builder $ \k -> TL.foldr step k t
+fromLazyTextFolded t = Blaze.fromBuildStepContBuilder $ \k -> TL.foldr step k t
   where
     step c k pf pe
       | pf' <= pe = do
@@ -115,11 +116,12 @@ fromLazyTextFolded t = Blaze.Builder $ \k -> TL.foldr step k t
           k pf' pe  -- here it would be great, if we wouldn't have to pass
                     -- around pe: requires a more powerful fold for StrictText.
       | otherwise =
-          return $ Blaze.BufferFull size pf $ \pfNew peNew -> do
-            let pfNew' = pfNew `plusPtr` size
+          return $ Blaze.bufferFull size pf $ \(Blaze.BufRange pfNew peNew) -> do
+            let !br' = Blaze.BufRange (pfNew `plusPtr` size) peNew
             io pfNew
-            k pfNew' peNew
+            k br'
       where
         pf' = pf `plusPtr` size
         Blaze.Write size io = Blaze.writeChar c
 {-# INLINE fromLazyTextFolded #-}
+-}

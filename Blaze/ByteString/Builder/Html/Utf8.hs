@@ -36,17 +36,22 @@ import qualified Data.Text      as TS
 import qualified Data.Text.Lazy as TL
 
 import Blaze.ByteString.Builder
+import Blaze.ByteString.Builder.Internal
 import Blaze.ByteString.Builder.Char.Utf8
 
 -- | Write a HTML escaped and UTF-8 encoded Unicode character to a bufffer.
 --
 writeHtmlEscapedChar :: Char -> Write
-writeHtmlEscapedChar '<'  = writeByteString "&lt;"
-writeHtmlEscapedChar '>'  = writeByteString "&gt;"
-writeHtmlEscapedChar '&'  = writeByteString "&amp;"
-writeHtmlEscapedChar '"'  = writeByteString "&quot;"
-writeHtmlEscapedChar '\'' = writeByteString "&#39;"
-writeHtmlEscapedChar c    = writeChar c
+writeHtmlEscapedChar c0 = 
+    boundedWrite 6 (io c0)
+    -- WARNING: Don't forget to change the bound if you change the bytestrings.
+  where
+    io '<'  = runWrite $ writeByteString "&lt;"
+    io '>'  = runWrite $ writeByteString "&gt;"
+    io '&'  = runWrite $ writeByteString "&amp;"
+    io '"'  = runWrite $ writeByteString "&quot;"
+    io '\'' = runWrite $ writeByteString "&#39;"
+    io c    = runWrite $ writeChar c
 {-# INLINE writeHtmlEscapedChar #-}
 
 -- | /O(1)./ Serialize a HTML escaped Unicode character using the UTF-8
@@ -59,7 +64,7 @@ fromHtmlEscapedChar = fromWriteSingleton writeHtmlEscapedChar
 -- encoding.
 --
 fromHtmlEscapedString :: String -> Builder
-fromHtmlEscapedString = fromWrite1List writeHtmlEscapedChar
+fromHtmlEscapedString = fromWriteList writeHtmlEscapedChar
 
 -- | /O(n)/. Serialize a value by 'Show'ing it and then, HTML escaping and
 -- UTF-8 encoding the resulting 'String'.

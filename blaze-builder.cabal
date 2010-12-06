@@ -1,5 +1,5 @@
 Name:                blaze-builder
-Version:             0.2.0.3
+Version:             0.2.1.0
 Synopsis:            Efficient construction of bytestrings.
 
 Description:         
@@ -50,7 +50,6 @@ Library
   ghc-options:       -Wall
 
   exposed-modules:   Blaze.ByteString.Builder
-                     Blaze.ByteString.Builder.Write
                      Blaze.ByteString.Builder.Int
                      Blaze.ByteString.Builder.Word
                      Blaze.ByteString.Builder.ByteString
@@ -58,6 +57,9 @@ Library
                      Blaze.ByteString.Builder.Html.Utf8
 
                      Blaze.ByteString.Builder.Internal
+                     Blaze.ByteString.Builder.Internal.Write
+                     Blaze.ByteString.Builder.Internal.Types
+                     Blaze.ByteString.Builder.Internal.Buffer
   
   build-depends:     base == 4.* ,
                      bytestring == 0.9.* ,

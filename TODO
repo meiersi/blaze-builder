@@ -1,3 +1,7 @@
+
+!! UPDATE TODO !!
+
+!! UPDATE BENCHMARKS !!
   
   * custom serialization functions for lists of 'WordX's
       - benchmark chunk size speedup for more complicated computations of list
