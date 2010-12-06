@@ -32,24 +32,18 @@ module Blaze.ByteString.Builder.Internal (
   , putBuildStepCont
 
   -- * Writes
-  , Write
-  , WriteIO
-  , writeN
-  , exactWrite
-  , boundedWrite
-  , fromWrite
-  , fromWriteSingleton
-  , fromWriteList
-
-  -- ** Writing storables
-  , writeStorable
-  , fromStorable
-  , fromStorables
+  , module Blaze.ByteString.Builder.Internal.Write
 
   -- * Execution
   , toLazyByteString
+  , toLazyByteStringWith
+  , toByteString
+  , toByteStringIO
+  , toByteStringIOWith
 
   -- * Deafult Sizes
+  , defaultFirstBufferSize
+  , defaultMinimalBufferSize
   , defaultBufferSize
   , defaultMaximalCopySize 
 ) where
@@ -62,9 +56,7 @@ import qualified Data.ByteString.Lazy          as L
 import qualified Data.ByteString.Lazy.Internal as L
 
 import Blaze.ByteString.Builder.Internal.Types
-import Blaze.ByteString.Builder.Internal.Buffer
 import Blaze.ByteString.Builder.Internal.Write
-
 
 ------------------------------------------------------------------------------
 -- Internal global constants.
@@ -121,12 +113,238 @@ defaultMaximalCopySize = 2 * defaultMinimalBufferSize
 -- 'L.ByteString'. The remaining part of the buffer is spilled, if the
 -- reamining free space is smaller than the minimal desired buffer size.
 --
+{-# INLINE flush #-}
 flush :: Builder
 flush = fromBuildStepCont step
   where
     step k !(BufRange op _) = return $ insertByteString op S.empty k
-{-# INLINE flush #-}
 
+-- | Run a 'Builder' with the given buffer sizes.
+--
+-- Use this function for integrating the 'Builder' type with other libraries
+-- that generate lazy bytestrings.
+--
+-- Note that the builders should guarantee that on average the desired chunk
+-- size is attained. Builders may decide to start a new buffer and not
+-- completely fill the existing buffer, if this is faster. However, they should
+-- not spill too much of the buffer, if they cannot compensate for it.
+--
+-- A call @toLazyByteStringWith bufSize minBufSize firstBufSize@ will generate
+-- a lazy bytestring according to the following strategy. First, we allocate
+-- a buffer of size @firstBufSize@ and start filling it. If it overflows, we
+-- allocate a buffer of size @minBufSize@ and copy the first buffer to it in
+-- order to avoid generating a too small chunk. Finally, every next buffer will
+-- be of size @bufSize@. This, slow startup strategy is required to achieve
+-- good speed for short (<200 bytes) resulting bytestrings, as for them the
+-- allocation cost is of a large buffer cannot be compensated. Moreover, this
+-- strategy also allows us to avoid spilling too much memory for short
+-- resulting bytestrings.
+--
+-- Note that setting @firstBufSize >= minBufSize@ implies that the first buffer
+-- is no longer copied but allocated and filled directly. Hence, setting
+-- @firstBufSize = bufSize@ means that all chunks will use an underlying buffer
+-- of size @bufSize@. This is recommended, if you know that you always output
+-- more than @minBufSize@ bytes.
+toLazyByteStringWith 
+    :: Int           -- ^ Buffer size (upper-bounds the resulting chunk size).
+    -> Int           -- ^ Minimal free buffer space for continuing filling
+                     -- the same buffer after a 'flush' or a direct bytestring
+                     -- insertion. This corresponds to the minimal desired
+                     -- chunk size.
+    -> Int           -- ^ Size of the first buffer to be used and copied for
+                     -- larger resulting sequences
+    -> Builder       -- ^ Builder to run.
+    -> L.ByteString  -- ^ Lazy bytestring to output after the builder is
+                     -- finished.
+    -> L.ByteString  -- ^ Resulting lazy bytestring
+toLazyByteStringWith bufSize minBufSize firstBufSize (Builder b) k = 
+    S.inlinePerformIO $ fillFirstBuffer (b (buildStep finalStep))
+  where
+    finalStep (BufRange pf _) = return $ Done pf ()
+    -- fill a first very small buffer, if we need more space then copy it
+    -- to the new buffer of size 'minBufSize'. This way we don't pay the
+    -- allocation cost of the big 'bufSize' buffer, when outputting only
+    -- small sequences.
+    fillFirstBuffer !step0
+      | minBufSize <= firstBufSize = fillNewBuffer firstBufSize step0
+      | otherwise                  = do
+          fpbuf <- S.mallocByteString firstBufSize
+          withForeignPtr fpbuf $ \pf -> do
+              let !pe      = pf `plusPtr` firstBufSize
+                  mkbs pf' = S.PS fpbuf 0 (pf' `minusPtr` pf)
+                  {-# INLINE mkbs #-}
+              next <- runBuildStep step0 (BufRange pf pe)
+              case next of
+                  Done pf' _
+                    | pf' == pf -> return k
+                    | otherwise -> return $ L.Chunk (mkbs pf') k
+
+                  BufferFull newSize pf' nextStep  -> do
+                      let !l  = pf' `minusPtr` pf
+                      fillNewBuffer (max (l + newSize) minBufSize) $ buildStep $
+                          \(BufRange pfNew peNew) -> do
+                              copyBytes pfNew pf l
+                              let !br' = BufRange (pfNew `plusPtr` l) peNew
+                              runBuildStep nextStep br'
+                      
+                  InsertByteString pf' bs nextStep 
+                      | pf' == pf ->
+                          return $ L.Chunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep)
+                      | otherwise ->
+                          return $ L.Chunk (mkbs pf')
+                              (L.Chunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep))
+                    
+    -- allocate and fill a new buffer
+    fillNewBuffer !size !step0 = do
+        fpbuf <- S.mallocByteString size
+        withForeignPtr fpbuf $ fillBuffer fpbuf
+      where
+        fillBuffer fpbuf !pbuf = fill pbuf step0
+          where
+            !pe = pbuf `plusPtr` size
+            fill !pf !step = do
+                next <- runBuildStep step (BufRange pf pe)
+                let mkbs pf' = S.PS fpbuf (pf `minusPtr` pbuf) (pf' `minusPtr` pf)
+                    {-# INLINE mkbs #-}
+                case next of
+                    Done pf' _
+                      | pf' == pf -> return k
+                      | otherwise -> return $ L.Chunk (mkbs pf') k
+
+                    BufferFull newSize pf' nextStep 
+                      | pf' == pf -> 
+                          fillNewBuffer (max newSize bufSize) nextStep
+                      | otherwise -> 
+                          return $ L.Chunk (mkbs pf')
+                              (S.inlinePerformIO $ 
+                                  fillNewBuffer (max newSize bufSize) nextStep)
+                        
+                    InsertByteString  pf' bs nextStep
+                      | pf' == pf                      ->
+                          return $ L.Chunk bs (S.inlinePerformIO $ fill pf' nextStep)
+                      | minBufSize < pe `minusPtr` pf' ->
+                          return $ L.Chunk (mkbs pf')
+                              (L.Chunk bs (S.inlinePerformIO $ fill pf' nextStep))
+                      | otherwise                      ->
+                          return $ L.Chunk (mkbs pf')
+                              (L.Chunk bs (S.inlinePerformIO $ fillNewBuffer bufSize nextStep))
+
+
+-- | Extract the lazy 'L.ByteString' from the builder by running it with default
+-- buffer sizes. Use this function, if you do not have any special
+-- considerations with respect to buffer sizes.
+--
+-- @ 'toLazyByteString' b = 'toLazyByteStringWith' 'defaultBufferSize' 'defaultMinimalBufferSize' 'defaultFirstBufferSize' b L.empty@
+--
+-- Note that @'toLazyByteString'@ is a 'Monoid' homomorphism.
+--
+-- > toLazyByteString mempty          == mempty
+-- > toLazyByteString (x `mappend` y) == toLazyByteString x `mappend` toLazyByteString y
+--
+-- However, in the second equation, the left-hand-side is generally faster to
+-- execute.
+--
+toLazyByteString :: Builder -> L.ByteString
+toLazyByteString b = toLazyByteStringWith 
+    defaultBufferSize defaultMinimalBufferSize defaultFirstBufferSize b L.empty
+{-# INLINE toLazyByteString #-}
+
+-- | Pack the chunks of a lazy bytestring into a single strict bytestring.
+packChunks :: L.ByteString -> S.ByteString
+packChunks lbs = do
+    S.unsafeCreate (fromIntegral $ L.length lbs) (copyChunks lbs)
+  where
+    copyChunks !L.Empty                         !_pf = return ()
+    copyChunks !(L.Chunk (S.PS fpbuf o l) lbs') !pf  = do
+        withForeignPtr fpbuf $ \pbuf ->
+            copyBytes pf (pbuf `plusPtr` o) l
+        copyChunks lbs' (pf `plusPtr` l)
+
+-- | Run the builder to construct a strict bytestring containing the sequence
+-- of bytes denoted by the builder. This is done by first serializing to a lazy bytestring and then packing its
+-- chunks to a appropriately sized strict bytestring.
+--
+-- > toByteString = packChunks . toLazyByteString
+--
+-- Note that @'toByteString'@ is a 'Monoid' homomorphism.
+--
+-- > toByteString mempty          == mempty
+-- > toByteString (x `mappend` y) == toByteString x `mappend` toByteString y
+--
+-- However, in the second equation, the left-hand-side is generally faster to
+-- execute.
+--
+toByteString :: Builder -> S.ByteString
+toByteString = packChunks . toLazyByteString
+
+
+-- | @toByteStringIOWith bufSize io b@ runs the builder @b@ with a buffer of
+-- at least the size @bufSize@ and executes the 'IO' action @io@ whenever the
+-- buffer is full.
+--
+-- Compared to 'toLazyByteStringWith' this function requires less allocation,
+-- as the output buffer is only allocated once at the start of the
+-- serialization and whenever something bigger than the current buffer size has
+-- to be copied into the buffer, which should happen very seldomly for the
+-- default buffer size of 32kb. Hence, the pressure on the garbage collector is
+-- reduced, which can be an advantage when building long sequences of bytes.
+--
+toByteStringIOWith :: Int                      -- ^ Buffer size (upper bounds
+                                               -- the number of bytes forced
+                                               -- per call to the 'IO' action).
+                   -> (S.ByteString -> IO ())  -- ^ 'IO' action to execute per
+                                               -- full buffer, which is
+                                               -- referenced by a strict
+                                               -- 'S.ByteString'.
+                   -> Builder                  -- ^ 'Builder' to run.
+                   -> IO ()                    -- ^ Resulting 'IO' action.
+toByteStringIOWith bufSize io (Builder b) = 
+    fillBuffer bufSize (b (buildStep finalStep))
+  where
+    finalStep !(BufRange pf _) = return $ Done pf ()
+
+    fillBuffer !size step = do
+        S.mallocByteString size >>= fill
+      where
+        fill fpbuf = do
+            let !pf = unsafeForeignPtrToPtr fpbuf
+                !br = BufRange pf (pf `plusPtr` size)
+                -- safe due to later reference of fpbuf
+                -- BETTER than withForeignPtr, as we lose a tail call otherwise
+            signal <- runBuildStep step br
+            case signal of
+                Done pf' _ -> io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
+
+                BufferFull minSize pf' nextStep  -> do
+                    io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
+                    fillBuffer (max bufSize minSize) nextStep
+                    
+                InsertByteString pf' bs nextStep  -> do
+                    io $ S.PS fpbuf 0 (pf' `minusPtr` pf)
+                    io bs
+                    fillBuffer bufSize nextStep
+
+-- | Run the builder with a 'defaultBufferSize'd buffer and execute the given
+-- 'IO' action whenever the buffer is full or gets flushed.
+--
+-- @ 'toByteStringIO' = 'toByteStringIOWith' 'defaultBufferSize'@
+--
+-- This is a 'Monoid' homomorphism in the following sense.
+--
+-- > toByteStringIO io mempty          == return ()
+-- > toByteStringIO io (x `mappend` y) == toByteStringIO io x >> toByteStringIO io y
+--
+toByteStringIO :: (S.ByteString -> IO ()) -> Builder -> IO ()
+toByteStringIO = toByteStringIOWith defaultBufferSize
+{-# INLINE toByteStringIO #-}
+
+
+------------------------------------------------------------------------------
+-- Draft of new builder/put execution code
+------------------------------------------------------------------------------
+
+{- FIXME: Generalize this code such that it can replace the above clunky
+ - implementations.
               
 -- | A monad for lazily composing lazy bytestrings using continuations.
 newtype LBSM a = LBSM { unLBSM :: (a, L.ByteString -> L.ByteString) }
@@ -179,5 +397,7 @@ test2 x = L.toChunks $ toLazyByteString2 $ fromBuilder $ mconcat
   , traceBuilder "after flush"
   , fromWord8 x
   ]
+
+-}
 
 -}

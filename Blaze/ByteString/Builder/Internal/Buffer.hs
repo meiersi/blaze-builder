@@ -24,6 +24,8 @@ module Blaze.ByteString.Builder.Internal.Buffer (
   , allocBuffer 
   , reuseBuffer 
   , nextSlice 
+  , updateEndOfSlice
+  , execBuildStep
 
   -- ** Conversion to bytestings
   , unsafeFreezeBuffer 

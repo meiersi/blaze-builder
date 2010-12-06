@@ -35,45 +35,26 @@ import qualified Data.Text.Lazy          as TL
 import qualified Data.Text.Lazy.Encoding as TS -- imported for documentation links
 
 import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Write
 
 -- | Write a UTF-8 encoded Unicode character to a buffer.
 --
--- Note that the control flow of 'writeChar' is more complicated than the one
--- of 'writeWord8', as the size of the write depends on the 'Char' written.
--- Therefore,
---
--- > fromWrite $ writeChar a `mappend` writeChar b
---
--- must not always be faster than
---
--- > fromChar a `mappend` fromChar b
---
--- Use benchmarking to make informed decisions.
---
-
--- FIXME: Use a Write that always checks if 4 bytes are available and only take
--- care of the precise pointer advance once the data has been written. Either
--- formulate it using continuation passing or returning the increment using the
--- IO action. The latter is probably simpler and better understandable.
---
-writeChar :: Char -> Write
-writeChar = encodeCharUtf8 f1 f2 f3 f4
-  where
-    f1 x = Write 1 $ \ptr -> poke ptr x
-
-    f2 x1 x2 = Write 2 $ \ptr -> do poke ptr x1
-                                    poke (ptr `plusPtr` 1) x2
-
-    f3 x1 x2 x3 = Write 3 $ \ptr -> do poke ptr x1
-                                       poke (ptr `plusPtr` 1) x2
-                                       poke (ptr `plusPtr` 2) x3
-
-    f4 x1 x2 x3 x4 = Write 4 $ \ptr -> do poke ptr x1
-                                          poke (ptr `plusPtr` 1) x2
-                                          poke (ptr `plusPtr` 2) x3
-                                          poke (ptr `plusPtr` 3) x4
 {-# INLINE writeChar #-}
+writeChar :: Char -> Write
+writeChar c = boundedWrite 4 (encodeCharUtf8 f1 f2 f3 f4 c)
+  where
+    f1 x1          = writeN 1 $ \op -> do pokeByteOff op 0 x1
+
+    f2 x1 x2       = writeN 2 $ \op -> do pokeByteOff op 0 x1
+                                          pokeByteOff op 1 x2
+                   
+    f3 x1 x2 x3    = writeN 3 $ \op -> do pokeByteOff op 0 x1
+                                          pokeByteOff op 1 x2
+                                          pokeByteOff op 2 x3
+
+    f4 x1 x2 x3 x4 = writeN 4 $ \op -> do pokeByteOff op 0 x1
+                                          pokeByteOff op 1 x2
+                                          pokeByteOff op 2 x3
+                                          pokeByteOff op 3 x4
 
 -- | Encode a Unicode character to another datatype, using UTF-8. This function
 -- acts as an abstract way of encoding characters, as it is unaware of what
@@ -113,7 +94,7 @@ fromChar = fromWriteSingleton writeChar
 -- | /O(n)/. Serialize a Unicode 'String' using the UTF-8 encoding.
 --
 fromString :: String -> Builder
-fromString = fromWrite1List writeChar
+fromString = fromWriteList writeChar
 -- Performance note: ^^^
 --
 --   fromWrite2List made things slightly worse for the blaze-html benchmarks

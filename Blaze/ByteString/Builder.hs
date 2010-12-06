@@ -69,8 +69,10 @@ module Blaze.ByteString.Builder
 
       -- * Executing builders
     , toLazyByteString
-    -- , toLazyByteStringWith
-    -- , toByteString
+    , toLazyByteStringWith
+    , toByteString
+    , toByteStringIO
+    , toByteStringIOWith
 
     ) where
 
