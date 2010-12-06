@@ -1,3 +1,32 @@
+* 0.2.1.0
+
+  Incorporated several design changes:
+    - Writable buffer range is now represented in a packed form. This improves
+      speed slightly, as less currying is used.
+    - Writes are abstracted such that their internal representation can be
+      exchanged without breaking other library code.
+    - Writes are represented in a form that allows for efficient monoid
+      instances for branching code like UTF-8 encoding. For single character
+      encoding this results currently in a slight slowdown due to GHC not
+      recognizing the strictness of the returned value. This will be fixed in
+      the future.
+    - BuildSteps support returning a result in `Done`, which enables to 
+      implement a `Put` monad using CPS.
+    - chunked list writes were removed, as they result in worse performance
+      when writing non-trivial lists. (cf. benchmarks)
+    - An internal buffering abstraction is introduced, which is used both
+      by the adaption of the `binary` package, as well as by the
+      `blaze-builder-enumeratee` package, to execute puts and builders.
+      It will be used later also by the execution functions of the
+      `blaze-builder` package.
+  
+  Implemented new functionality
+    - `Blaze.ByteString.Builder.HTTP` provides a builder transformer for 
+       doing in-buffer chunked HTTP encoding of an arbitary other builder.
+    - `Blaze.ByteString.Builder.Char.Latin1` provides writes and builders for
+      serializing characters using the `Latin1` (ISO_8859-1) charset. This
+      corresponds to what the bytestring library refers to as the Char8
+      encoding.
 
 * 0.2.0.2
 
