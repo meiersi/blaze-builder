@@ -53,4 +53,4 @@ Library
   -- FIXME: Ensure dependencies are strict enough
   build-depends:     base == 4.* ,
                      bytestring == 0.9.* ,
-                     text == 0.10.*
+                     text >= 0.10 && < 0.12
