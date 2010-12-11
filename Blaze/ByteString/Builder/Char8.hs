@@ -2,8 +2,8 @@
 -- ignore warning from 'import Data.Text.Encoding'
 
 -- |
--- Module      : Blaze.ByteString.Builder.Char.Utf8
--- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
+-- Module      : Blaze.ByteString.Builder.Char8
+-- Copyright   : (c) 2010 Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
@@ -14,13 +14,12 @@
 -- protocols. If you need to //serialize// Unicode characters use one of the 
 -- UTF encodings (e.g. 'Blaze.ByteString.Builder.Char.UTF-8').
 --
--- 'Write's and 'Builder's for serializing Unicode characters using the *lossy*
--- Latin-1 (ISO 8859-1) encoding. Non-representable characters are dropped.
+-- 'Write's and 'Builder's for serializing the lower 8-bits of characters.
 --
 -- This corresponds to what the 'bytestring' package offer in
 -- 'Data.ByteString.Char8'.
 --
-module Blaze.ByteString.Builder.Char.Latin1
+module Blaze.ByteString.Builder.Char8
     ( 
       -- * Writing Latin-1 (ISO 8859-1) encodable characters to a buffer
       writeChar
@@ -41,46 +40,38 @@ import qualified Data.Text.Encoding      as TS -- imported for documentation lin
 import qualified Data.Text.Lazy          as TL
 import qualified Data.Text.Lazy.Encoding as TS -- imported for documentation links
 
-import qualified Data.ByteString.Internal as S (c2w)
-
 import Blaze.ByteString.Builder.Internal
+import Blaze.ByteString.Builder.Word
 
--- | Write a UTF-8 encoded Unicode character to a buffer.
+-- | Write the lower 8-bits of a character to a buffer.
 --
 {-# INLINE writeChar #-}
 writeChar :: Char -> Write
-writeChar c0 = boundedWrite 1 (wio c0)
-  where
-    wio c | c < '\xFF' = writeN 1 $ \op -> poke op (S.c2w c)
-          | otherwise  = writeN 0 $ \_  -> return ()
+writeChar = writeWord8 . fromIntegral . ord
 
--- | /O(1)/. Serialize a Unicode character using the UTF-8 encoding.
+-- | /O(1)/. Serialize the lower 8-bits of a character.
 --
 fromChar :: Char -> Builder
 fromChar = fromWriteSingleton writeChar
 
--- | /O(n)/. Serialize the Latin-1 encodable characters of a Unicode 'String'.
+-- | /O(n)/. Serialize the lower 8-bits of all characters of a string
 --
 fromString :: String -> Builder
 fromString = fromWriteList writeChar
 
--- | /O(n)/. Serialize a value by 'Show'ing it and Latin-1 encoding the
--- encodable characters of the resulting 'String'.
+-- | /O(n)/. Serialize a value by 'Show'ing it and serializing the lower 8-bits
+-- of the resulting string.
 --
 fromShow :: Show a => a -> Builder
 fromShow = fromString . show
 
--- | /O(n)/. Serialize the encodable characters of a strict Unicode 'TS.Text'
--- value using the Latin-1 encoding.
+-- | /O(n)/. Serialize the lower 8-bits of all characters in the strict text.
 --
 {-# INLINE fromText #-}
 fromText :: TS.Text -> Builder
 fromText = fromString . TS.unpack
 
-
-
--- | /O(n)/. Serialize the encodable characters of a lazy Unicode 'TS.Text'
--- value using the Latin-1 encoding.
+-- | /O(n)/. Serialize the lower 8-bits of all characters in the lazy text.
 --
 {-# INLINE fromLazyText #-}
 fromLazyText :: TL.Text -> Builder

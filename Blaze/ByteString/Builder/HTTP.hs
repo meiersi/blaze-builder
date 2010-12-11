@@ -17,7 +17,7 @@ import Blaze.ByteString.Builder.Internal
 import Blaze.ByteString.Builder.Internal.Types
 import Blaze.ByteString.Builder.Internal.UncheckedShifts
 
-import qualified Blaze.ByteString.Builder.Char.Latin1 as Char8
+import qualified Blaze.ByteString.Builder.Char8 as Char8
 
 -- only required by test-code
 -- import qualified Data.ByteString.Lazy as L
