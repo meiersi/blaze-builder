@@ -23,10 +23,9 @@
   Implemented new functionality
     - `Blaze.ByteString.Builder.HTTP` provides a builder transformer for 
        doing in-buffer chunked HTTP encoding of an arbitary other builder.
-    - `Blaze.ByteString.Builder.Char.Latin1` provides writes and builders for
-      serializing characters using the `Latin1` (ISO_8859-1) charset. This
-      corresponds to what the bytestring library refers to as the Char8
-      encoding.
+    - `Blaze.ByteString.Builder.Char8` provides functions to serialize the
+       lower 8-bits of characters similiar to what `Data.ByteString.Char8`
+       provides for bytestrings.
 
 * 0.2.0.3
   

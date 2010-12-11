@@ -1,6 +1,6 @@
 Name:                blaze-builder
 Version:             0.2.1.0
-Synopsis:            Efficient construction of bytestrings.
+Synopsis:            Efficient buffered output.
 
 Description:         
                      This library provides an abstraction of buffered output of
@@ -54,7 +54,7 @@ Library
                      Blaze.ByteString.Builder.Word
                      Blaze.ByteString.Builder.ByteString
                      Blaze.ByteString.Builder.Char.Utf8
-                     Blaze.ByteString.Builder.Char.Latin1
+                     Blaze.ByteString.Builder.Char8
                      Blaze.ByteString.Builder.Html.Utf8
                      Blaze.ByteString.Builder.HTTP
 
