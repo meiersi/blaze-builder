@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, CPP, MagicHash #-}
+{-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings #-}
 -- | Support for HTTP response encoding.
 --
 -- TODO: Cleanup!
@@ -9,6 +9,7 @@ module Blaze.ByteString.Builder.HTTP (
   ) where
 
 import Data.Monoid
+import qualified Data.ByteString as S
 
 import Foreign
 
@@ -17,6 +18,11 @@ import Blaze.ByteString.Builder.Internal.Types
 import Blaze.ByteString.Builder.Internal.UncheckedShifts
 
 import qualified Blaze.ByteString.Builder.Char.Latin1 as Char8
+
+-- only required by test-code
+-- import qualified Data.ByteString.Lazy as L
+-- import qualified Blaze.ByteString.Builder.ByteString  as B
+-- import Data.ByteString.Char8 ()
 
 
 -- | Write a CRLF sequence.
@@ -85,19 +91,22 @@ word32HexLength :: Word32 -> Int
 word32HexLength = max 1 . iterationsUntilZero (`shiftr_w32` 4)
 {-# INLINE word32HexLength #-}
 
-{-
 writeWord32Hex :: Word32 -> Write
 writeWord32Hex w = 
     boundedWrite (2 * sizeOf w) (writeN len $ pokeWord32HexN len w)
   where
     len = word32HexLength w
 {-# INLINE writeWord32Hex #-}
--}
 
 {-
 test = flip (toLazyByteStringWith 32 32 32) L.empty
     $ chunkedTransferEncoding
-    $ mconcat . map oneLine $ [0..256]
+    $ mconcat $ map oneLine [0..16] ++
+                [B.insertByteString "hello"] ++
+                map oneLine [0,1] ++
+                [B.insertByteString ""] ++
+                map oneLine [0..16]
+               
   where
     oneLine x = fromWriteSingleton writeWord32Hex x `mappend` Char8.fromChar ' '
 -}
@@ -115,60 +124,83 @@ chunkedTransferEncoding (Builder b) =
       where
         go :: BuildStep a -> BufRange -> IO (BuildSignal a)
         go innerStep !(BufRange op ope)
+          -- FIXME: Assert that outRemaining < maxBound :: Word32
           | outRemaining < minimalBufferSize = 
               return $ bufferFull minimalBufferSize op (go innerStep)
           | otherwise = do
-              -- FIXME: Handle 64bit case where chunks could possibly be larger
-              --        than the 4GB that we can represent. Unrealisitic... well
-              --        you never know where your code ends up being used!
               let !brInner@(BufRange opInner _) = BufRange 
-                     (op  `plusPtr` (chunkSizeLength + 2)) -- leave space for chunk header
-                     (ope `plusPtr` (-2)                 ) -- leave space for CRLF at end of data
+                     (op  `plusPtr` (chunkSizeLength + 2))     -- leave space for chunk header
+                     (ope `plusPtr` (-maxAfterBufferOverhead)) -- leave space at end of data
 
-                  -- writes the actual chunk size and the CRLF after the data
-                  finishChunk !opInner' = do
-                      pokeWord32HexN chunkSizeLength 
-                          (fromIntegral $ opInner' `minusPtr` opInner)
-                          op
-                      execWrite writeCRLF opInner'
+                  -- wraps the chunk, if it is non-empty, and returns the
+                  -- signal constructed with the correct end-of-data pointer
+                  {-# INLINE wrapChunk #-}
+                  wrapChunk :: Ptr Word8 -> (Ptr Word8 -> IO (BuildSignal a)) 
+                            -> IO (BuildSignal a)
+                  wrapChunk !opInner' mkSignal 
+                    | opInner' == opInner = mkSignal op
+                    | otherwise           = do
+                        pokeWord32HexN chunkSizeLength 
+                            (fromIntegral $ opInner' `minusPtr` opInner)
+                            op
+                        execWrite writeCRLF (opInner `plusPtr` (-2))
+                        execWrite writeCRLF opInner'
+                        mkSignal (opInner' `plusPtr` 2)
 
-              -- write CRLF after chunk header, which is 2 bytes before data
-              execWrite writeCRLF (opInner `plusPtr` (-2))
               -- execute inner builder with reduced boundaries
               signal <- runBuildStep innerStep brInner
               case signal of
-                Done opInner' x
-                  | opInner == opInner' ->     -- no data written => do not add header
-                      return $ Done op x       -- otherwise the 0 chunk size would signal termination     
-                  | otherwise          -> do
-                      finishChunk opInner'
-                      return $ Done 
-                        (opInner' `plusPtr` 2) x -- CRLF at the end of data
+                Done opInner' x ->
+                    wrapChunk opInner' $ \op' -> 
+                      return $! done op' x
 
-                BufferFull minRequiredSize opInner' nextInnerStep 
-                  | opInner == opInner' -> do
-                      return $ BufferFull
-                        (minRequiredSize + 8)           -- add maximal encoding overhead
-                        op                              -- no data written => no header added
-                        (buildStep $ go nextInnerStep)  -- also add encoding info for next step
+                BufferFull minRequiredSize opInner' nextInnerStep ->
+                    wrapChunk opInner' $ \op' ->
+                      return $! bufferFull 
+                        (minRequiredSize + maxEncodingOverhead) 
+                        op'
+                        (go nextInnerStep)  
 
-                  | otherwise           -> do
-                      finishChunk opInner'
-                      return $ BufferFull 
-                        (minRequiredSize + 8)           -- add maximal encoding overhead
-                        (opInner' `plusPtr` 2)          -- CRLF at the end of data
-                        (buildStep $ go nextInnerStep)  -- also add encoding info for next step
+                InsertByteString opInner' bs nextInnerStep 
+                  | S.null bs ->                        -- flush
+                      wrapChunk opInner' $ \op' ->
+                        return $! insertByteString 
+                          op' S.empty 
+                          (go nextInnerStep)
 
-                InsertByteString _ _ _ -> -- opInner bs nextInnerStep -> do
-                  error "chunkedTransferEncoding: ModifyChunks not yet supported"
-    
+                  | otherwise ->                        -- insert non-empty bytestring
+                      wrapChunk opInner' $ \op' -> do
+                        -- add header for inserted bytestring
+                        -- FIXME: assert(S.length bs < maxBound :: Word32)
+                        !op'' <- (`runWriteIO` op') $ runWrite $
+                            writeWord32Hex (fromIntegral $ S.length bs) 
+                            `mappend` writeCRLF
+                        -- insert bytestring and write CRLF in next buildstep
+                        return $! InsertByteString
+                          op'' bs
+                          (unBuilder (fromWrite writeCRLF) $ 
+                            buildStep $ go nextInnerStep)
+                  
           where
+            -- minimal size guaranteed for actual data no need to require more
+            -- than 1 byte to guarantee progress the larger sizes will be
+            -- hopefully provided by the driver or requested by the wrapped
+            -- builders.
+            minimalChunkSize  = 1   
+                                    
+            -- overhead computation
+            maxBeforeBufferOverhead = sizeOf (undefined :: Int) + 2 -- max chunk size and CRLF after header
+            maxAfterBufferOverhead  = 2 +                           -- CRLF after data
+                                      sizeOf (undefined :: Int) + 2 -- max bytestring size, CRLF after header
+
+            maxEncodingOverhead = maxBeforeBufferOverhead + maxAfterBufferOverhead
+
+            minimalBufferSize = minimalChunkSize + maxEncodingOverhead
+
+            -- remaining and required space computation
+            outRemaining :: Int
             outRemaining    = ope `minusPtr` op
             chunkSizeLength = word32HexLength $ fromIntegral outRemaining
-            
-            minimalChunkSize  = 32   -- minimal size guaranteed for actual data
-            minimalBufferSize = 
-                minimalChunkSize + 8 -- add maximal chunk overhead
       
 
 -- | The '0\r\n' chunk header signaling the termination of the data transfer.
