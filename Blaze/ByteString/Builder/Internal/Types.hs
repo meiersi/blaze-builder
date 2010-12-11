@@ -61,7 +61,9 @@ buildStep = BuildStep
 -- The 'Builder' Monoid and the 'Put' Monad
 ------------------------------------------------------------------------------
 
-newtype Builder = Builder (forall r. BuildStep r -> BuildStep r)
+newtype Builder = Builder { 
+    unBuilder :: forall r. BuildStep r -> BuildStep r 
+  }
 
 instance Monoid Builder where
   mempty = Builder id
