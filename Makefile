@@ -7,9 +7,9 @@
 #########
 
 GHC6 = ghc-6.12.3
-GHC7 = ghc-7.0.0.20100924
+GHC7 = ghc-7.0.1
 
-GHC = $(GHC6)
+GHC = $(GHC7)
 
 GHCI = ghci-6.12.3
 
@@ -126,7 +126,7 @@ plot-all:
 ##############################################################################
 
 test:
-	$(GHC) --make -O2 -itests -main-is Tests Tests
+	$(GHC) --make -fforce-recomp -O2 -itests -main-is Tests Tests
 	./tests/Tests
 
 clean-tests:
