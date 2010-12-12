@@ -1,3 +1,10 @@
+* 0.2.1.1
+  
+  - Reexport 'Write' datatype and 'fromWriteList', 'fromWriteSingleton',
+    'fromWrite' functions together with writes and builders for storables.
+  - Add 'MonoPatBinds' language extension to (hopefully) solve the issues
+    caused by GHC bug http://hackage.haskell.org/trac/ghc/ticket/4498
+
 * 0.2.1.0
 
   Incorporated several design changes:
