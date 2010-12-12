@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, BangPatterns, Rank2Types #-}
+{-# LANGUAGE CPP, BangPatterns, Rank2Types, MonoPatBinds #-}
 -- |
 -- Module      : Blaze.ByteString.Builder.Internal
 -- Copyright   : (c) 2010 Simon Meier
