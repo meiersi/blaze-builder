@@ -58,7 +58,7 @@
 
 module Blaze.ByteString.Builder
     ( 
-      -- * The @Builder@ type
+      -- * The 'Builder' type
       Builder
 
       -- * Creating builders
@@ -73,6 +73,17 @@ module Blaze.ByteString.Builder
     , toByteString
     , toByteStringIO
     , toByteStringIOWith
+
+    -- * 'Write's
+    , Write
+    , fromWrite
+    , fromWriteSingleton
+    , fromWriteList
+
+    -- ** Writing 'Storable's
+    , writeStorable
+    , fromStorable
+    , fromStorables
 
     ) where
 
