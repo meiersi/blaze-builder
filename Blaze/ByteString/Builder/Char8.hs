@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-} 
+{-# LANGUAGE MonoPatBinds #-}
 -- ignore warning from 'import Data.Text.Encoding'
 
 -- |

@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings #-}
+{-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings, MonoPatBinds #-}
 -- | Support for HTTP response encoding.
 --
 -- TODO: Cleanup!

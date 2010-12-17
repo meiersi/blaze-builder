@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, BangPatterns #-}
+{-# LANGUAGE CPP, BangPatterns, MonoPatBinds #-}
 -- |
 -- Module      : Blaze.ByteString.Builder.Internal.WriteIO
 -- Copyright   : (c) 2010 Simon Meier

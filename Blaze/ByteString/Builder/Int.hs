@@ -1,3 +1,4 @@
+{-# LANGUAGE MonoPatBinds #-}
 -- |
 -- Module      : Blaze.ByteString.Builder.Int
 -- Copyright   : (c) 2010 Simon Meier

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, BangPatterns, OverloadedStrings #-}
+{-# LANGUAGE CPP, BangPatterns, OverloadedStrings, MonoPatBinds #-}
 
 -- |
 -- Module      : Blaze.ByteString.Builder.ByteString
