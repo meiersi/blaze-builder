@@ -1,7 +1,7 @@
 {-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings, MonoPatBinds #-}
 -- | Support for HTTP response encoding.
 --
--- TODO: Cleanup!
+-- TODO: Improve documentation.
 module Blaze.ByteString.Builder.HTTP (
   -- * Chunked HTTP transfer encoding
     chunkedTransferEncoding
@@ -9,13 +9,15 @@ module Blaze.ByteString.Builder.HTTP (
   ) where
 
 import Data.Monoid
-import qualified Data.ByteString as S
+import qualified Data.ByteString       as S
+import Data.ByteString.Char8 ()
 
 import Foreign
 
 import Blaze.ByteString.Builder.Internal
 import Blaze.ByteString.Builder.Internal.Types
 import Blaze.ByteString.Builder.Internal.UncheckedShifts
+import Blaze.ByteString.Builder.ByteString (copyByteString)
 
 import qualified Blaze.ByteString.Builder.Char8 as Char8
 
@@ -203,8 +205,7 @@ chunkedTransferEncoding (Builder b) =
             chunkSizeLength = word32HexLength $ fromIntegral outRemaining
       
 
--- | The '0\r\n' chunk header signaling the termination of the data transfer.
+-- | The zero-length chunk '0\r\n\r\n' signaling the termination of the data transfer.
 chunkedTransferTerminator :: Builder
-chunkedTransferTerminator = 
-  fromWrite $ Char8.writeChar '0' `mappend` writeCRLF
+chunkedTransferTerminator = copyByteString "0\r\n\r\n"
 
