@@ -46,12 +46,12 @@ writeHtmlEscapedChar c0 =
     boundedWrite 6 (io c0)
     -- WARNING: Don't forget to change the bound if you change the bytestrings.
   where
-    io '<'  = runWrite $ writeByteString "&lt;"
-    io '>'  = runWrite $ writeByteString "&gt;"
-    io '&'  = runWrite $ writeByteString "&amp;"
-    io '"'  = runWrite $ writeByteString "&quot;"
-    io '\'' = runWrite $ writeByteString "&#39;"
-    io c    = runWrite $ writeChar c
+    io '<'  = getPoke $ writeByteString "&lt;"
+    io '>'  = getPoke $ writeByteString "&gt;"
+    io '&'  = getPoke $ writeByteString "&amp;"
+    io '"'  = getPoke $ writeByteString "&quot;"
+    io '\'' = getPoke $ writeByteString "&#39;"
+    io c    = getPoke $ writeChar c
 {-# INLINE writeHtmlEscapedChar #-}
 
 -- | /O(1)./ Serialize a HTML escaped Unicode character using the UTF-8

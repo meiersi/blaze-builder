@@ -21,7 +21,7 @@ module Blaze.ByteString.Builder.Internal.Write (
   -- * Writing to abuffer
   , Write
   , getBound
-  , runWrite
+  , getPoke
 
   , exactWrite
   , boundedWrite
@@ -86,9 +86,9 @@ newtype Poke =
 data Write = Write {-# UNPACK #-} !Int Poke
 
 -- | Extract the 'Poke' action of a write.
-{-# INLINE runWrite #-}
-runWrite :: Write -> Poke
-runWrite (Write _ wio) = wio
+{-# INLINE getPoke #-}
+getPoke :: Write -> Poke
+getPoke (Write _ wio) = wio
 
 -- | Extract the maximal number of bytes that this write could write.
 {-# INLINE getBound #-}
@@ -150,7 +150,7 @@ boundedWrite = Write
 writeIf :: (a -> Bool) -> (a -> Write) -> (a -> Write) -> (a -> Write)
 writeIf p wTrue wFalse x = 
   boundedWrite (max (getBound $ wTrue x) (getBound $ wFalse x)) 
-               (if p x then runWrite $ wTrue x else runWrite $ wFalse x)
+               (if p x then getPoke $ wTrue x else getPoke $ wFalse x)
 
 -- | Create a builder that execute a single 'Write'.
 {-# INLINE fromWrite #-}

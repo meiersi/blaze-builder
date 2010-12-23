@@ -36,7 +36,7 @@ writeCRLF = Char8.writeChar '\r' `mappend` Char8.writeChar '\n'
 {-# INLINE execWrite #-}
 execWrite :: Write -> Ptr Word8 -> IO ()
 execWrite w op = do
-    _ <- runPoke (runWrite w) op
+    _ <- runPoke (getPoke w) op
     return ()
 
 
@@ -174,7 +174,7 @@ chunkedTransferEncoding (Builder b) =
                       wrapChunk opInner' $ \op' -> do
                         -- add header for inserted bytestring
                         -- FIXME: assert(S.length bs < maxBound :: Word32)
-                        !op'' <- (`runPoke` op') $ runWrite $
+                        !op'' <- (`runPoke` op') $ getPoke $
                             writeWord32Hex (fromIntegral $ S.length bs) 
                             `mappend` writeCRLF
                         -- insert bytestring and write CRLF in next buildstep
