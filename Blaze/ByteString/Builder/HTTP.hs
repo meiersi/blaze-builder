@@ -95,7 +95,7 @@ word32HexLength = max 1 . iterationsUntilZero (`shiftr_w32` 4)
 
 writeWord32Hex :: Word32 -> Write
 writeWord32Hex w = 
-    boundedWrite (2 * sizeOf w) (writeN len $ pokeWord32HexN len w)
+    boundedWrite (2 * sizeOf w) (pokeN len $ pokeWord32HexN len w)
   where
     len = word32HexLength w
 {-# INLINE writeWord32Hex #-}

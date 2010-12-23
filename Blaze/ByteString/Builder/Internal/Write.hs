@@ -16,7 +16,7 @@ module Blaze.ByteString.Builder.Internal.Write (
   -- * Abstracting writes to a buffer
     Write
   , Poke
-  , writeN
+  , pokeN
   , exactWrite
   , boundedWrite
   , runWrite
@@ -89,13 +89,13 @@ instance Monoid Write where
   {-# INLINE mconcat #-}
 
 
--- | @writeN size io@ creates a write that denotes the writing of @size@ bytes
+-- | @pokeN size io@ creates a write that denotes the writing of @size@ bytes
 -- to a buffer using the IO action @io@. Note that @io@ MUST write EXACTLY @size@
 -- bytes to the buffer!
-writeN :: Int 
+pokeN :: Int 
        -> (Ptr Word8 -> IO ()) -> Poke
-writeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
-{-# INLINE writeN #-}
+pokeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
+{-# INLINE pokeN #-}
 
 
 -- | @exactWrite size io@ creates a bounded write that can later be converted to
@@ -104,7 +104,7 @@ writeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
 exactWrite :: Int 
            -> (Ptr Word8 -> IO ()) 
            -> Write
-exactWrite size io = Write size (writeN size io)
+exactWrite size io = Write size (pokeN size io)
 {-# INLINE exactWrite #-}
 
 -- | @boundedWrite size write@ creates a bounded write from a @write@ that does

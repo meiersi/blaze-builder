@@ -42,19 +42,19 @@ import Blaze.ByteString.Builder.Internal
 writeChar :: Char -> Write
 writeChar c = boundedWrite 4 (encodeCharUtf8 f1 f2 f3 f4 c)
   where
-    f1 x1          = writeN 1 $ \op -> do pokeByteOff op 0 x1
+    f1 x1          = pokeN 1 $ \op -> do pokeByteOff op 0 x1
 
-    f2 x1 x2       = writeN 2 $ \op -> do pokeByteOff op 0 x1
-                                          pokeByteOff op 1 x2
+    f2 x1 x2       = pokeN 2 $ \op -> do pokeByteOff op 0 x1
+                                         pokeByteOff op 1 x2
                    
-    f3 x1 x2 x3    = writeN 3 $ \op -> do pokeByteOff op 0 x1
-                                          pokeByteOff op 1 x2
-                                          pokeByteOff op 2 x3
+    f3 x1 x2 x3    = pokeN 3 $ \op -> do pokeByteOff op 0 x1
+                                         pokeByteOff op 1 x2
+                                         pokeByteOff op 2 x3
 
-    f4 x1 x2 x3 x4 = writeN 4 $ \op -> do pokeByteOff op 0 x1
-                                          pokeByteOff op 1 x2
-                                          pokeByteOff op 2 x3
-                                          pokeByteOff op 3 x4
+    f4 x1 x2 x3 x4 = pokeN 4 $ \op -> do pokeByteOff op 0 x1
+                                         pokeByteOff op 1 x2
+                                         pokeByteOff op 2 x3
+                                         pokeByteOff op 3 x4
 
 -- | Encode a Unicode character to another datatype, using UTF-8. This function
 -- acts as an abstract way of encoding characters, as it is unaware of what
