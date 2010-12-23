@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, BangPatterns, MonoPatBinds #-}
 -- |
--- Module      : Blaze.ByteString.Builder.Internal.WriteIO
+-- Module      : Blaze.ByteString.Builder.Internal.Poke
 -- Copyright   : (c) 2010 Simon Meier
 --               (c) 2010 Jasper van der Jeugt
 -- License     : BSD3-style (see LICENSE)
@@ -15,12 +15,12 @@
 module Blaze.ByteString.Builder.Internal.Write (
   -- * Abstracting writes to a buffer
     Write
-  , WriteIO
+  , Poke
   , writeN
   , exactWrite
   , boundedWrite
   , runWrite
-  , runWriteIO
+  , runPoke
 
   -- * Constructing builders from writes
   , fromWrite
@@ -44,7 +44,7 @@ import Blaze.ByteString.Builder.Internal.Types
 
 
 ------------------------------------------------------------------------------
--- The Write WriteIO Type
+-- The Write Poke Type
 ------------------------------------------------------------------------------
 
 -- Sadly GHC is not smart enough: code where we branch and each branch should
@@ -52,7 +52,7 @@ import Blaze.ByteString.Builder.Internal.Types
 -- least not such that it returns the value of the branches unpacked.
 --
 -- Hmm.. at least he behaves much better for the Monoid instance of Write
--- than the one for WriteIO. Serializing UTF-8 chars gets a slowdown of a
+-- than the one for Poke. Serializing UTF-8 chars gets a slowdown of a
 -- factor 2 when 2 chars are composed. Perhaps I should try out the writeList
 -- instances also, as they may be more sensitive to to much work per Char.
 --
@@ -60,21 +60,21 @@ import Blaze.ByteString.Builder.Internal.Types
 -- | A write to a buffer.
 --
 -- FIXME: Find better name: what about 'Poke' ?
-newtype WriteIO = 
-    WriteIO { runWriteIO :: Ptr Word8 -> IO (Ptr Word8) }
+newtype Poke = 
+    Poke { runPoke :: Ptr Word8 -> IO (Ptr Word8) }
 
 -- | A write of a bounded number of bytes.
-data Write = Write {-# UNPACK #-} !Int WriteIO
+data Write = Write {-# UNPACK #-} !Int Poke
 
--- | Extract the 'WriteIO' action of a write.
+-- | Extract the 'Poke' action of a write.
 {-# INLINE runWrite #-}
-runWrite :: Write -> WriteIO
+runWrite :: Write -> Poke
 runWrite (Write _ wio) = wio
 
-instance Monoid WriteIO where
-  mempty = WriteIO $ return
+instance Monoid Poke where
+  mempty = Poke $ return
   {-# INLINE mempty #-}
-  (WriteIO w1) `mappend` (WriteIO w2) = WriteIO $ w1 >=> w2
+  (Poke w1) `mappend` (Poke w2) = Poke $ w1 >=> w2
   {-# INLINE mappend #-}
   mconcat = foldr mappend mempty
   {-# INLINE mconcat #-}
@@ -93,8 +93,8 @@ instance Monoid Write where
 -- to a buffer using the IO action @io@. Note that @io@ MUST write EXACTLY @size@
 -- bytes to the buffer!
 writeN :: Int 
-       -> (Ptr Word8 -> IO ()) -> WriteIO
-writeN size io = WriteIO $ \op -> io op >> return (op `plusPtr` size)
+       -> (Ptr Word8 -> IO ()) -> Poke
+writeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
 {-# INLINE writeN #-}
 
 
@@ -109,7 +109,7 @@ exactWrite size io = Write size (writeN size io)
 
 -- | @boundedWrite size write@ creates a bounded write from a @write@ that does
 -- not write more than @size@ bytes.
-boundedWrite :: Int -> WriteIO -> Write
+boundedWrite :: Int -> Poke -> Write
 boundedWrite = Write
 {-# INLINE boundedWrite #-}
 
@@ -119,7 +119,7 @@ fromWrite (Write maxSize wio) =
   where
     step k (BufRange op ope)
       | op `plusPtr` maxSize <= ope = do
-          op' <- runWriteIO wio op
+          op' <- runPoke wio op
           let !br' = BufRange op' ope
           k br'
       | otherwise = return $ bufferFull maxSize op (step k)
@@ -133,7 +133,7 @@ fromWriteSingleton write =
       where
         step k (BufRange op ope)
           | op `plusPtr` maxSize <= ope = do
-              op' <- runWriteIO wio op
+              op' <- runPoke wio op
               let !br' = BufRange op' ope
               k br'
           | otherwise = return $ bufferFull maxSize op (step k)
@@ -156,7 +156,7 @@ fromWriteList write =
 
             go xs@(x':xs') !op
               | op `plusPtr` maxSize <= ope0 = do
-                  !op' <- runWriteIO wio op
+                  !op' <- runPoke wio op
                   go xs' op'
               | otherwise = return $ bufferFull maxSize op (step xs k)
               where
