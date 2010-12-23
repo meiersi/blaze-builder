@@ -13,14 +13,19 @@
 -- builders for (smallish) bounded size writes to a buffer.
 --
 module Blaze.ByteString.Builder.Internal.Write (
-  -- * Abstracting writes to a buffer
-    Write
-  , Poke
+  -- * Poking a buffer
+    Poke
+  , runPoke
   , pokeN
+
+  -- * Writing to abuffer
+  , Write
+  , getBound
+  , runWrite
+
   , exactWrite
   , boundedWrite
-  , runWrite
-  , runPoke
+  , writeIf
 
   -- * Constructing builders from writes
   , fromWrite
@@ -44,7 +49,7 @@ import Blaze.ByteString.Builder.Internal.Types
 
 
 ------------------------------------------------------------------------------
--- The Write Poke Type
+-- Poking a buffer and writing to a buffer
 ------------------------------------------------------------------------------
 
 -- Sadly GHC is not smart enough: code where we branch and each branch should
@@ -57,13 +62,27 @@ import Blaze.ByteString.Builder.Internal.Types
 -- instances also, as they may be more sensitive to to much work per Char.
 --
 
--- | A write to a buffer.
---
--- FIXME: Find better name: what about 'Poke' ?
+-- | Changing a sequence of bytes starting from the given pointer. 'Poke's are
+-- the most primitive buffer manipulation. In most cases, you don't use the
+-- explicitely but as part of a 'Write', which also tells how many bytes will
+-- be changed at most. 
 newtype Poke = 
     Poke { runPoke :: Ptr Word8 -> IO (Ptr Word8) }
 
 -- | A write of a bounded number of bytes.
+--
+-- When defining a function @write :: a -> Write@ for some @a@, then it is
+-- important to ensure that the bound on the number of bytes written is
+-- data-independent. Formally, 
+--
+--  @ forall x y. getBound (write x) = getBound (write y) @
+--
+-- The idea is that this data-independent bound is specified such that the
+-- compiler can optimize the check, if there are enough free bytes in the buffer,
+-- to a single subtraction between the pointer to the next free byte and the
+-- pointer to the end of the buffer with this constant bound of the maximal
+-- number of bytes to be written.
+--
 data Write = Write {-# UNPACK #-} !Int Poke
 
 -- | Extract the 'Poke' action of a write.
@@ -71,48 +90,70 @@ data Write = Write {-# UNPACK #-} !Int Poke
 runWrite :: Write -> Poke
 runWrite (Write _ wio) = wio
 
+-- | Extract the maximal number of bytes that this write could write.
+{-# INLINE getBound #-}
+getBound :: Write -> Int
+getBound (Write bound _) = bound
+
 instance Monoid Poke where
-  mempty = Poke $ return
   {-# INLINE mempty #-}
-  (Poke w1) `mappend` (Poke w2) = Poke $ w1 >=> w2
+  mempty = Poke $ return
+
   {-# INLINE mappend #-}
-  mconcat = foldr mappend mempty
+  (Poke po1) `mappend` (Poke po2) = Poke $ po1 >=> po2
+
   {-# INLINE mconcat #-}
+  mconcat = foldr mappend mempty
 
 instance Monoid Write where
-  mempty = Write 0 mempty
   {-# INLINE mempty #-}
+  mempty = Write 0 mempty
+
+  {-# INLINE mappend #-}
   (Write bound1 w1) `mappend` (Write bound2 w2) =
     Write (bound1 + bound2) (w1 `mappend` w2)
-  {-# INLINE mappend #-}
-  mconcat = foldr mappend mempty
+  
   {-# INLINE mconcat #-}
+  mconcat = foldr mappend mempty
 
 
 -- | @pokeN size io@ creates a write that denotes the writing of @size@ bytes
 -- to a buffer using the IO action @io@. Note that @io@ MUST write EXACTLY @size@
 -- bytes to the buffer!
+{-# INLINE pokeN #-}
 pokeN :: Int 
        -> (Ptr Word8 -> IO ()) -> Poke
 pokeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
-{-# INLINE pokeN #-}
 
 
 -- | @exactWrite size io@ creates a bounded write that can later be converted to
 -- a builder that writes exactly @size@ bytes. Note that @io@ MUST write
 -- EXACTLY @size@ bytes to the buffer!
+{-# INLINE exactWrite #-}
 exactWrite :: Int 
            -> (Ptr Word8 -> IO ()) 
            -> Write
 exactWrite size io = Write size (pokeN size io)
-{-# INLINE exactWrite #-}
 
 -- | @boundedWrite size write@ creates a bounded write from a @write@ that does
 -- not write more than @size@ bytes.
+{-# INLINE boundedWrite #-}
 boundedWrite :: Int -> Poke -> Write
 boundedWrite = Write
-{-# INLINE boundedWrite #-}
 
+-- | @writeIf p wTrue wFalse x@ creates a 'Write' with a 'Poke' equal to @wTrue
+-- x@, if @p x@ and equal to @wFalse x@ otherwise. The bound of this new
+-- 'Write' is the maximum of the bounds for either 'Write'. This yields a data
+-- independent bound, if the bound for @wTrue@ and @wFalse@ is already data
+-- independent.
+{-# INLINE writeIf #-}
+writeIf :: (a -> Bool) -> (a -> Write) -> (a -> Write) -> (a -> Write)
+writeIf p wTrue wFalse x = 
+  boundedWrite (max (getBound $ wTrue x) (getBound $ wFalse x)) 
+               (if p x then runWrite $ wTrue x else runWrite $ wFalse x)
+
+-- | Create a builder that execute a single 'Write'.
+{-# INLINE fromWrite #-}
 fromWrite :: Write -> Builder
 fromWrite (Write maxSize wio) =
     fromBuildStepCont step
@@ -123,9 +164,9 @@ fromWrite (Write maxSize wio) =
           let !br' = BufRange op' ope
           k br'
       | otherwise = return $ bufferFull maxSize op (step k)
-{-# INLINE fromWrite #-}
 
-fromWriteSingleton :: (a -> Write) -> a -> Builder
+{-# INLINE fromWriteSingleton #-}
+fromWriteSingleton :: (a -> Write) -> (a -> Builder)
 fromWriteSingleton write = 
     mkBuilder
   where
@@ -139,7 +180,6 @@ fromWriteSingleton write =
           | otherwise = return $ bufferFull maxSize op (step k)
           where
             Write maxSize wio = write x
-{-# INLINE fromWriteSingleton #-}
 
 -- | Construct a 'Builder' writing a list of data one element at a time.
 fromWriteList :: (a -> Write) -> [a] -> Builder
