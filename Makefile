@@ -22,11 +22,12 @@ bench-all: bench-compression bench-string-and-text bench-throughput bench-chunke
 clean-bench-all:
 	rm -f benchmarks/*.o benchmarks/*.hi
 	rm -f benchmarks/Throughput/*.o benchmarks/Throughput/*.hi
-	rm -f Text/Blaze/Builder.o Text/Blaze/Builder.hi
-	rm -f Text/Blaze/Builder/*.o Text/Blaze/Builder/*.hi
-	rm -f Text/Blaze/Builder/Char/*.o Text/Blaze/Builder/Char/*.hi
-	rm -f Text/Blaze/Builder/Html/*.o Text/Blaze/Builder/Html/*.hi
-	rm -f Text/Blaze/Builder/Core/*.o Text/Blaze/Builder/Core/*.hi
+	rm -f Blaze/ByteString/Builder.o Blaze/ByteString/Builder.hi
+	rm -f Blaze/ByteString/Builder/*.o Blaze/ByteString/Builder/*.hi
+	rm -f Blaze/ByteString/Builder/Internal/*.o Blaze/ByteString/Builder/Internal/*.hi
+	rm -f Blaze/ByteString/Builder/Char/*.o Blaze/ByteString/Builder/Char/*.hi
+	rm -f Blaze/ByteString/Builder/Html/*.o Blaze/ByteString/Builder/Html/*.hi
+	rm -f Blaze/ByteString/Builder/Core/*.o Blaze/ByteString/Builder/Core/*.hi
 	rm -f benchmarks/Compression benchmarks/StringAndText benchmarks/BenchThroughput benchmarks/ChunkedWrite benchmarks/BlazeVsBinary
 	rm -f Criterion/*.o Criterion/*.hi
 	rm -f Criterion/ScalingBenchmark
