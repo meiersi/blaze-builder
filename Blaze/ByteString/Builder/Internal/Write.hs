@@ -12,6 +12,8 @@
 -- A general and efficient write type that allows for the easy construction of
 -- builders for (smallish) bounded size writes to a buffer.
 --
+-- FIXME: Improve documentation.
+--
 module Blaze.ByteString.Builder.Internal.Write (
   -- * Poking a buffer
     Poke
@@ -26,6 +28,9 @@ module Blaze.ByteString.Builder.Internal.Write (
   , exactWrite
   , boundedWrite
   , writeIf
+  , writeEq
+  , writeOrdering
+  , writeOrd
 
   -- * Constructing builders from writes
   , fromWrite
@@ -149,8 +154,36 @@ boundedWrite = Write
 {-# INLINE writeIf #-}
 writeIf :: (a -> Bool) -> (a -> Write) -> (a -> Write) -> (a -> Write)
 writeIf p wTrue wFalse x = 
-  boundedWrite (max (getBound $ wTrue x) (getBound $ wFalse x)) 
-               (if p x then getPoke $ wTrue x else getPoke $ wFalse x)
+    boundedWrite (max (getBound $ wTrue x) (getBound $ wFalse x)) 
+                 (if p x then getPoke $ wTrue x else getPoke $ wFalse x)
+
+-- | Compare the value to a test value and use the first write action for the
+-- equal case and the second write action for the non-equal case.
+{-# INLINE writeEq #-}
+writeEq :: Eq a => a -> (a -> Write) -> (a -> Write) -> (a -> Write)
+writeEq test = writeIf (test ==)
+
+-- | TODO: Test this. It might well be too difficult to use.
+--   FIXME: Better name required!
+{-# INLINE writeOrdering #-}
+writeOrdering :: (a -> Ordering) 
+              -> (a -> Write) -> (a -> Write) -> (a -> Write)
+              -> (a -> Write)
+writeOrdering ord wLT wEQ wGT x = 
+    boundedWrite bound (case ord x of LT -> getPoke $ wLT x; 
+                                      EQ -> getPoke $ wEQ x; 
+                                      GT -> getPoke $ wGT x)
+  where
+    bound = max (getBound $ wLT x) (max (getBound $ wEQ x) (getBound $ wGT x))
+
+-- | A write combinator useful to build decision trees for deciding what value
+-- to write with a constant bound on the maximal number of bytes written.
+{-# INLINE writeOrd #-}
+writeOrd :: Ord a 
+       => a
+       -> (a -> Write) -> (a -> Write) -> (a -> Write)
+       -> (a -> Write)
+writeOrd test = writeOrdering (`compare` test)
 
 -- | Create a builder that execute a single 'Write'.
 {-# INLINE fromWrite #-}
