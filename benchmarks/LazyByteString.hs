@@ -26,7 +26,6 @@ import qualified Data.ByteString.Lazy          as L
 import qualified Data.ByteString.Lazy.Internal as L
 
 import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Write
 import Blaze.ByteString.Builder.Word
 import Blaze.ByteString.Builder.ByteString
 
@@ -145,27 +144,31 @@ fromWriteUnfoldr :: (b -> Write) -> (a -> Maybe (b, a)) -> a -> Builder
 fromWriteUnfoldr write = 
     makeBuilder
   where
-    makeBuilder f x0 = Builder $ step x0
+    makeBuilder f x0 = fromBuildStepCont $ step x0
       where
         step x1 !k = fill x1
           where
-            fill x !pf0 !pe0 = go (f x) pf0
+            fill x !(BufRange pf0 pe0) = go (f x) pf0
               where
-                go !Nothing        !pf = k pf pe0
+                go !Nothing        !pf = do
+                    let !br' = BufRange pf pe0
+                    k br'
                 go !(Just (y, x')) !pf
-                  | pf `plusPtr` size <= pe0 = do
-                      io pf
-                      go (f x') (pf `plusPtr` size)
-                  | otherwise = return $ BufferFull size pf $ \pfNew peNew -> do 
-                      io pfNew
-                      fill x' (pfNew `plusPtr` size) peNew
+                  | pf `plusPtr` bound <= pe0 = do
+                      !pf' <- runWrite (write y) pf
+                      go (f x') pf'
+                  | otherwise = return $ bufferFull bound pf $ 
+                      \(BufRange pfNew peNew) -> do 
+                          !pfNew' <- runWrite (write y) pfNew
+                          fill x' (BufRange pfNew' peNew)
                   where
-                    !(Write size io) = write y
+                    bound = getBound $ write y
 {-# INLINE fromWriteUnfoldr #-}
 
 -- Filtering and mapping
 ------------------------
 
+test :: Int -> (L.ByteString, L.ByteString)
 test i = 
     ((L.filter ((==0) . (`mod` 3)) $ x) ,
      (filterBlaze ((==0) . (`mod` 3)) $ x))
@@ -199,17 +202,17 @@ mapLazyByteString f = mapFilterMapLazyByteString f (const True) id
 mapFilterMapByteString :: (Word8 -> Word8) -> (Word8 -> Bool) -> (Word8 -> Word8) 
                        -> S.ByteString -> Builder
 mapFilterMapByteString f p g = 
-    \bs -> Builder $ step bs
+    \bs -> fromBuildStepCont $ step bs
   where
     step (S.PS ifp ioff isize) !k = 
         goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
       where
         !ipe = unsafeForeignPtrToPtr ifp `plusPtr` (ioff + isize)
-        goBS !ip0 !op0 !ope
+        goBS !ip0 !br@(BufRange op0 ope)
           | ip0 >= ipe = do touchForeignPtr ifp -- input buffer consumed
-                            k op0 ope
+                            k br
           | op0 < ope  = goPartial (ip0 `plusPtr` min outRemaining inpRemaining)
-          | otherwise  = return $ BufferFull 1 op0 (goBS ip0) 
+          | otherwise  = return $ bufferFull 1 op0 (goBS ip0) 
           where
             outRemaining = ope `minusPtr` op0
             inpRemaining = ipe `minusPtr` ip0
@@ -223,7 +226,7 @@ mapFilterMapByteString f p g =
                         then poke op (f w') >> go (ip `plusPtr` 1) (op `plusPtr` 1)
                         else                   go (ip `plusPtr` 1) op
                   | otherwise =
-                      goBS ip op ope
+                      goBS ip (BufRange op ope)
 {-# INLINE mapFilterMapByteString #-}
 
 mapFilterMapLazyByteString :: (Word8 -> Word8) -> (Word8 -> Bool) -> (Word8 -> Word8) 
@@ -257,39 +260,43 @@ fromWriteReplicated :: (a -> Write) -> Int -> a -> Builder
 fromWriteReplicated write = 
     makeBuilder
   where
-    makeBuilder !n0 x = Builder $ step 
+    makeBuilder !n0 x = fromBuildStepCont $ step 
       where
-        Write size io = write x
+        bound = getBound $ write x
         step !k = fill n0
           where
-            fill !n1 !pf0 !pe0 = go n1 pf0
+            fill !n1 !(BufRange pf0 pe0) = go n1 pf0
               where
-                go 0 !pf = k pf pe0
+                go 0 !pf = do
+                    let !br' = BufRange pf pe0
+                    k br'
                 go n !pf
-                  | pf `plusPtr` size <= pe0 = do
-                      io pf
-                      go (n-1) (pf `plusPtr` size)
-                  | otherwise = return $ BufferFull size pf $ \pfNew peNew -> do 
-                      io pfNew
-                      fill (n-1) (pfNew `plusPtr` size) peNew
+                  | pf `plusPtr` bound <= pe0 = do
+                      pf' <- runWrite (write x) pf
+                      go (n-1) pf'
+                  | otherwise = return $ bufferFull bound pf $ 
+                      \(BufRange pfNew peNew) -> do 
+                          pfNew' <- runWrite (write x) pfNew
+                          fill (n-1) (BufRange pfNew' peNew)
 {-# INLINE fromWriteReplicated #-}
 
 -- FIXME: Output repeated bytestrings for large replications.
 fromReplicateWord8 :: Int -> Word8 -> Builder
 fromReplicateWord8 !n0 x = 
-    Builder $ step
+    fromBuildStepCont $ step
   where
     step !k = fill n0
       where
-        fill !n !pf !pe
-          | n <= 0    = k pf pe
+        fill !n !br@(BufRange pf pe)
+          | n <= 0    = k br
           | pf' <= pe = do
               _ <- S.memset pf x (fromIntegral n) -- FIXME: This conversion looses information for 64 bit systems.
-              k pf' pe
+              let !br' = BufRange pf' pe
+              k br'
           | otherwise  = do
               let !l = pe `minusPtr` pf
               _ <- S.memset pf x (fromIntegral l) -- FIXME: This conversion looses information for 64 bit systems.
-              return $ BufferFull 1 pe $ fill (n - l)
+              return $ bufferFull 1 pe $ fill (n - l)
           where
             pf' = pf `plusPtr` n
 {-# INLINE fromReplicateWord8 #-}
@@ -370,7 +377,7 @@ intersperseBlaze w lbs0 =
 ----------
 
 packBlaze :: [Word8] -> L.ByteString
-packBlaze = toLazyByteString . fromWrite1List writeWord8
+packBlaze = toLazyByteString . fromWriteList writeWord8
 
 
 -- Reverse
@@ -408,3 +415,37 @@ copyBlaze = toLazyByteString . copyLazyByteString
 ---------------------------------
 
 
+-- blockwise mapping
+--------------------
+
+{-
+{-# INLINE putWriteBlocks #-}
+putWriteBlocks :: Int -> (Ptr Word8 -> Write) -> S.ByteString -> Put S.ByteString
+putWriteBlocks blockSize write =
+    \bs -> putStepCont $ step bs
+  where
+    step (S.PS ifp ioff isize) !k =
+        goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
+      where
+        !ipe = unsafeForeignPtrToPtr ifp `plusPtr` (ioff + isize)
+        goBS !ip0 !op0 !ope
+          | ip0 >= ipe = do touchForeignPtr ifp -- input buffer consumed
+                            k op0 ope
+          | op0 < ope  = goPartial (ip0 `plusPtr` min outRemaining inpRemaining)
+          | otherwise  = return $ BufferFull 1 op0 (goBS ip0) 
+          where
+            outRemaining = ope `minusPtr` op0
+            inpRemaining = ipe `minusPtr` ip0
+            goPartial !ipeTmp = go ip0 op0
+              where
+                go !ip !op
+                  | ip < ipeTmp = do
+                      w <- peek ip
+                      let w' = g w
+                      if p w'
+                        then poke op (f w') >> go (ip `plusPtr` 1) (op `plusPtr` 1)
+                        else                   go (ip `plusPtr` 1) op
+                  | otherwise =
+                      goBS ip op ope
+
+-}
