@@ -24,10 +24,12 @@ module Blaze.ByteString.Builder.Internal.Write (
   , Write
   , runWrite
   , getBound
+  , getBound'
   , getPoke
 
   , exactWrite
   , boundedWrite
+  , writeLiftIO
   , writeIf
   , writeEq
   , writeOrdering
@@ -106,6 +108,16 @@ runWrite = runPoke . getPoke
 getBound :: Write -> Int
 getBound (Write bound _) = bound
 
+-- | Extract the maximal number of bytes that this write could write in any
+-- case. Assumes that the bound of the write is data-independent.
+{-# INLINE getBound' #-}
+getBound' :: String             -- ^ Name of caller: for debugging purposes.
+          -> (a -> Write) 
+          -> Int
+getBound' msg write =
+    getBound $ write $ error $ 
+    "getBound' called from " ++ msg ++ ": write bound is not data-independent."
+
 instance Monoid Poke where
   {-# INLINE mempty #-}
   mempty = Poke $ return
@@ -151,6 +163,14 @@ exactWrite size io = Write size (pokeN size io)
 {-# INLINE boundedWrite #-}
 boundedWrite :: Int -> Poke -> Write
 boundedWrite = Write
+
+-- | @writeLiftIO io write@ creates a write executes the @io@ action to compute
+-- the value that is then written.
+{-# INLINE writeLiftIO #-}
+writeLiftIO :: (a -> Write) -> IO a -> Write
+writeLiftIO write io =
+    Write (getBound' "writeLiftIO" write) 
+          (Poke $ \pf -> do x <- io; runWrite (write x) pf)
 
 -- | @writeIf p wTrue wFalse x@ creates a 'Write' with a 'Poke' equal to @wTrue
 -- x@, if @p x@ and equal to @wFalse x@ otherwise. The bound of this new

@@ -103,6 +103,9 @@ bench-lazy-bytestring:
 	$(GHC) --make -O2 -fforce-recomp -ibenchmarks -main-is LazyByteString LazyByteString
 	./benchmarks/LazyByteString --resamples 10000
 
+core-lazy-bytestring:
+	ghc-core -- --make -O2 -fforce-recomp -ibenchmarks -main-is LazyByteString LazyByteString
+
 # Benchmark benefit of compaction before compression
 bench-server:
 	$(GHC) --make -O2 -ibenchmarks -main-is BenchmarkServer BenchmarkServer

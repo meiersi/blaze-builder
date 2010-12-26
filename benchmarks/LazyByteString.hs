@@ -13,6 +13,7 @@
 -- implemented with slicing only.
 module LazyByteString where -- (main)  where
 
+import Data.Char
 import Data.Word
 import Data.Monoid 
 import Data.List 
@@ -21,13 +22,18 @@ import Criterion.Main
 
 import Foreign 
 import qualified Data.ByteString               as S
+import qualified Data.ByteString.Unsafe        as S
 import qualified Data.ByteString.Internal      as S
 import qualified Data.ByteString.Lazy          as L
 import qualified Data.ByteString.Lazy.Internal as L
 
+import Data.ByteString.Base64
+
 import Blaze.ByteString.Builder.Internal
+import Blaze.ByteString.Builder.Internal.UncheckedShifts
 import Blaze.ByteString.Builder.Word
 import Blaze.ByteString.Builder.ByteString
+import qualified Blaze.ByteString.Builder.Char8 as C8
 
 ------------------------------------------------------------------------------
 -- Benchmarks
@@ -37,6 +43,13 @@ main :: IO ()
 main = do
     let (chunkInfos, benchmarks) = unzip 
           [ lazyVsBlaze
+              ( "base64"
+              , L.fromChunks . return . encode
+              , toLazyByteString . encodeBase64
+              , (\i -> S.drop 13 $ S.pack $ take i $ cycle [0..])
+              , n)
+          {-
+          , lazyVsBlaze
               ( "copy"
               , L.copy
               , copyBlaze
@@ -66,6 +79,7 @@ main = do
               , unfoldrBlaze countToZero
               , id
               , n )
+          -}
           ]
     sequence_ (intersperse (putStrLn "") chunkInfos)
     putStrLn ""
@@ -406,7 +420,6 @@ packBlaze = toLazyByteString . fromWriteList writeWord8
 -- copy
 -------
 
--- FIXME: Implement wrapping
 copyBlaze :: L.ByteString -> L.ByteString
 copyBlaze = toLazyByteString . copyLazyByteString
 
@@ -418,34 +431,166 @@ copyBlaze = toLazyByteString . copyLazyByteString
 -- blockwise mapping
 --------------------
 
-{-
-{-# INLINE putWriteBlocks #-}
-putWriteBlocks :: Int -> (Ptr Word8 -> Write) -> S.ByteString -> Put S.ByteString
-putWriteBlocks blockSize write =
-    \bs -> putStepCont $ step bs
+{-# INLINE poke8 #-}
+poke8 :: Word8 -> Ptr Word8 -> IO ()
+poke8 = flip poke
+
+-- | @writeBase64 w@ writes the lower @24@ bits as four times 6 bit in
+-- little-endian order encoded using the standard alphabeth of Base 64 encoding
+-- as defined in <http://www.apps.ietf.org/rfc/rfc4648.html>.
+--
+{-# INLINE write6bitsBase64 #-}
+write6bitsBase64 :: Word32 -> Write
+write6bitsBase64 = exactWrite 1  . poke6bitsBase64
+
+{-# INLINE poke6bitsBase64 #-}
+poke6bitsBase64 :: Word32 -> Ptr Word8 -> IO ()
+poke6bitsBase64 w = poke8 (alphabet `S.unsafeIndex` fromIntegral (w .&. 63))
+    {-
+    | i <  26   = withOffsets  0 'A'
+    | i <  52   = withOffsets 26 'a'
+    | i <  62   = withOffsets 52 '0'
+    | i == 62   = poke8 $ fromIntegral $ ord '+'
+    | otherwise = poke8 $ fromIntegral $ ord '/'
   where
-    step (S.PS ifp ioff isize) !k =
+    i :: Int
+    i = fromIntegral (w .&. 63)
+
+    {-# INLINE withOffsets #-}
+    withOffsets neg pos = poke8 $ fromIntegral (i + ord pos - neg)
+    -}
+
+{-# INLINE writePaddedBitsBase64 #-}
+writePaddedBitsBase64 :: Bool             -- ^ Only 8 bits have to be output.
+                      -> Word32           -- ^ Input whose lower 8 or 16 bits need to be output.
+                      -> Write
+writePaddedBitsBase64 only8 w =
+    write6bitsBase64 (w `shiftr_w32` 18)                         `mappend`
+    write6bitsBase64 (w `shiftr_w32` 12)                         `mappend`
+    writeIf (const only8) (const $ C8.writeChar '=')
+                          (write6bitsBase64 . (`shiftr_w32`  6)) 
+                          w                                      `mappend`
+    C8.writeChar '='
+
+{-# INLINE write24bitsBase64 #-}
+write24bitsBase64 :: Word32 -> Write
+write24bitsBase64 w = write6bitsBase64 (w `shiftr_w32` 18) `mappend`
+                      write6bitsBase64 (w `shiftr_w32` 12) `mappend`
+                      write6bitsBase64 (w `shiftr_w32`  6) `mappend`
+                      write6bitsBase64 (w                )
+
+-- ASSUMES bits 25 - 31 are zero.
+{-# INLINE write24bitsBase64' #-}
+write24bitsBase64' :: Word32 -> Write
+write24bitsBase64' w = 
+    exactWrite 4 $ \p -> do
+      poke (castPtr p              ) =<< enc (w `shiftR` 12)
+      poke (castPtr $ p `plusPtr` 2) =<< enc (w .&.   0xfff)
+  where
+    {-# INLINE enc #-}
+    enc = peekElemOff (unsafeForeignPtrToPtr encodeTable') . fromIntegral
+
+-----------------------------------------------------------------------------------
+-- From Data.ByteString.Base64 by Bryan O'Sullivan
+alphabet :: S.ByteString
+alphabet = S.pack $ [65..90] ++ [97..122] ++ [48..57] ++ [43,47]
+{-# NOINLINE alphabet #-}
+
+encodeTable' :: ForeignPtr Word16
+encodeTable' = unsafePerformIO $ do
+  fp <- mallocForeignPtrArray 4096
+  let ix = fromIntegral . S.index alphabet
+  withForeignPtr fp $ \p ->
+    sequence_ [ pokeElemOff p (j*64+k) ((ix k `shiftL` 8) .|. ix j)
+              | j <- [0..63], k <- [0..63] ]
+  return fp
+{-# NOINLINE encodeTable' #-} 
+-----------------------------------------------------------------------------------
+
+encodeBase64 :: S.ByteString -> Builder
+encodeBase64 bs0 = 
+    fromPut $ putWriteBlocks 3 peekAndWrite3 bs0 >>= (putBuilder . complete)
+  where
+
+    {-# INLINE peekAndWrite3 #-}
+    peekAndWrite3 ip = writeLiftIO write24bitsBase64' $ do
+        b0 <- peekByte 0
+        b1 <- peekByte 1
+        b2 <- peekByte 2
+        return $ (b0 `shiftL` 16) .|. (b1 `shiftL` 8) .|. b2
+      where
+        peekByte :: Int -> IO Word32
+        peekByte off = fmap fromIntegral $ (peekByteOff ip off :: IO Word8)
+
+    {-# INLINE complete #-}
+    complete bs
+      | S.null bs = mempty
+      | otherwise = fromWrite $ 
+          writePaddedBitsBase64 (S.length bs == 1) $
+              shiftedByte 0 16 .|.
+              (if (S.length bs == 1) then 0 else shiftedByte 1 8)
+      where
+        {-# INLINE shiftedByte #-}
+        shiftedByte i shift = fromIntegral (bs `S.unsafeIndex` i) `shiftL` shift
+            
+                  
+
+
+chunks3 :: [Word8] -> [Word32]
+chunks3 (b0 : b1 : b2 : bs) = 
+    ((fromIntegral b0 `shiftL` 16) .|. 
+     (fromIntegral b1 `shiftL`  8) .|. 
+     (fromIntegral b2            )
+    ) : chunks3 bs
+chunks3 _                   = []
+
+cmpWriteToLib :: [Word8] -> (L.ByteString, L.ByteString)
+cmpWriteToLib bs = 
+    -- ( toLazyByteString $ fromWriteList write24bitsBase64 $ chunks3 bs
+    ( toLazyByteString $ encodeBase64 $ S.pack bs
+    , (`L.Chunk` L.empty) $ encode $ S.pack bs )
+
+test3 = cmpWriteToLib $ []
+      
+test2 = toLazyByteString $ encodeBase64 $ S.pack [0..]
+
+{-# INLINE putWriteBlocks #-}
+putWriteBlocks :: Int                  -- ^ Block size.
+               -> (Ptr Word8 -> Write) -- ^ 'Write' given a pointer to the
+                                       --   beginning of the block.
+               -> S.ByteString         -- ^ 'S.ByteString' to consume blockwise.
+               -> Put S.ByteString     -- ^ 'Put' returning the remaining
+                                       --   bytes, which are guaranteed to be
+                                       --   fewer than the block size.
+putWriteBlocks blockSize write =
+    \bs -> putBuildStepCont $ step bs
+  where
+    step (S.PS ifp ioff isize) !k = 
         goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
       where
         !ipe = unsafeForeignPtrToPtr ifp `plusPtr` (ioff + isize)
-        goBS !ip0 !op0 !ope
-          | ip0 >= ipe = do touchForeignPtr ifp -- input buffer consumed
-                            k op0 ope
-          | op0 < ope  = goPartial (ip0 `plusPtr` min outRemaining inpRemaining)
-          | otherwise  = return $ BufferFull 1 op0 (goBS ip0) 
+        goBS !ip0 !br@(BufRange op0 ope)
+          | ip0 `plusPtr` blockSize > ipe = do 
+              touchForeignPtr ifp -- input buffer consumed
+              let !bs' = S.PS ifp (ip0 `minusPtr` unsafeForeignPtrToPtr ifp) 
+                                  (ipe `minusPtr` ip0)
+              k bs' br
+
+          | op0 `plusPtr` writeBound < ope  = 
+              goPartial (ip0 `plusPtr` (blockSize * min outRemaining inpRemaining))
+
+          | otherwise  = return $ bufferFull writeBound op0 (goBS ip0) 
           where
-            outRemaining = ope `minusPtr` op0
-            inpRemaining = ipe `minusPtr` ip0
+            writeBound   = getBound' "putWriteBlocks" write 
+            outRemaining = (ope `minusPtr` op0) `div` writeBound
+            inpRemaining = (ipe `minusPtr` ip0) `div` blockSize
+
             goPartial !ipeTmp = go ip0 op0
               where
                 go !ip !op
                   | ip < ipeTmp = do
-                      w <- peek ip
-                      let w' = g w
-                      if p w'
-                        then poke op (f w') >> go (ip `plusPtr` 1) (op `plusPtr` 1)
-                        else                   go (ip `plusPtr` 1) op
+                      op' <- runWrite (write ip) op
+                      go (ip `plusPtr` blockSize) op'
                   | otherwise =
-                      goBS ip op ope
+                      goBS ip (BufRange op ope)
 
--}
