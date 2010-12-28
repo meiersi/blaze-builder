@@ -30,6 +30,7 @@ module Blaze.ByteString.Builder.Internal (
   , Put
   , putBuilder
   , putBuildStepCont
+  , putLiftIO
 
   -- * Writes
   , module Blaze.ByteString.Builder.Internal.Write

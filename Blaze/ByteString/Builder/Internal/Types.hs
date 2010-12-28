@@ -134,4 +134,10 @@ putBuilder (Builder build) = Put $ \k -> build (k ())
 fromPut :: Put a -> Builder
 fromPut (Put put) = Builder $ \k -> put (\_ -> k)
 
+-- Lifting IO actions
+---------------------
 
+-- | Lift the given IO action.
+{-# INLINE putLiftIO #-}
+putLiftIO :: IO a -> Put a
+putLiftIO io = putBuildStepCont $ \k br -> io >>= (`k` br)
