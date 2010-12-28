@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, OverloadedStrings #-}
 -- |
 -- Module      : LazyByteString
 -- Copyright   : (c) 2010 Simon Meier
@@ -18,6 +18,7 @@ import Data.Word
 import Data.Monoid 
 import Data.List 
 
+import Control.Monad
 import Criterion.Main
 
 import Foreign 
@@ -40,12 +41,28 @@ import Blaze.ByteString.Builder.ByteString
 main :: IO ()
 main = do
     let (chunkInfos, benchmarks) = unzip 
+          {-
+          [ lazyVsBlaze
+              ( "base64mime"
+              , L.fromChunks . return . joinWith "\r\n" 76 . encode
+              , toLazyByteString . encodeBase64MIME
+              , (\i -> S.drop 13 $ S.pack $ take i $ cycle [0..])
+              , n)
+          -}
+          [ lazyVsBlaze
+              ( "joinWith"
+              , L.fromChunks . return . joinWith "\r\n" 76
+              , toLazyByteString . intersperseBlocks 76 "\r\n"
+              , (\i -> S.drop 13 $ S.pack $ take i $ cycle [0..])
+              , n)
+          {-
           [ lazyVsBlaze
               ( "base64"
               , L.fromChunks . return . encode
               , toLazyByteString . encodeBase64
               , (\i -> S.drop 13 $ S.pack $ take i $ cycle [0..])
               , n)
+          -}
           {-
           , lazyVsBlaze
               ( "copy"
@@ -93,8 +110,8 @@ lazyVsBlaze (cmpName, lazy, blaze, prep, n) =
          showChunksize implLazy  lazy
          showChunksize implBlaze blaze
     , bgroup cmpName 
-        [ mkBench implLazy  lazy
-        , mkBench implBlaze blaze
+        [ mkBench implBlaze blaze
+        , mkBench implLazy  lazy
         ]
     )
   where
@@ -425,6 +442,38 @@ copyBlaze = toLazyByteString . copyLazyByteString
 -- ?? packCString, packCStringLen
 ---------------------------------
 
+-- joinWith
+--------------------------------------------
+
+intersperseBlocks :: Int -> S.ByteString -> S.ByteString -> Builder
+intersperseBlocks blockSize sep (S.PS ifp ioff isize) = 
+    fromPut $ do
+        lastBS <- go (ip0 `plusPtr` ioff) 
+        unless (S.null lastBS) (putBuilder $ fromByteString lastBS)
+  where
+    ip0 = unsafeForeignPtrToPtr ifp
+    ipe = ip0 `plusPtr` (ioff + isize)
+    go !ip 
+      | ip `plusPtr` blockSize >= ipe =
+          return $ S.PS ifp (ip `minusPtr` ip0) (ipe `minusPtr` ip)
+      | otherwise = do
+          putBuilder $ fromByteString (S.PS ifp (ip `minusPtr` ip0) blockSize)
+                       `mappend` fromByteString sep
+          go (ip `plusPtr` blockSize)
+
+intersperseLazyBlocks :: Int -> Builder -> L.ByteString -> Builder
+intersperseLazyBlocks blockSize sep bs =
+    go (splitLazyAt blockSize bs)
+  where
+    go (pre, suf)
+      | L.null suf = fromLazyByteString pre
+      | otherwise  = fromLazyByteString pre `mappend` sep `mappend`
+                     go (splitLazyAt blockSize suf)
+
+encodeBase64MIME :: S.ByteString -> Builder
+encodeBase64MIME =
+  intersperseLazyBlocks 76 (fromByteString "\r\n") . toLazyByteString . encodeBase64
+
 
 -- test blockwise mapping on base64 encoding
 --------------------------------------------
@@ -439,11 +488,15 @@ copyBlaze = toLazyByteString . copyLazyByteString
 -- TODO implement encoding of lazy bytestrings, implement joinWith
 -- functionality, and convencience function for MIME base-64 encoding.
 encodeBase64 :: S.ByteString -> Builder
-encodeBase64 = 
+encodeBase64 = encodeLazyBase64 . L.fromChunks . return
+
+encodeLazyBase64 :: L.ByteString -> Builder
+encodeLazyBase64 = 
     mkBuilder
   where
-    mkBuilder bs = 
-        fromPut $ putWriteBlocks 3 writeBase64 bs >>= (putBuilder . complete)
+    mkBuilder bs = fromPut $ do
+        remainder <- putWriteLazyBlocks 3 writeBase64 bs 
+        putBuilder $ complete remainder
 
     {-# INLINE writeBase64 #-}
     writeBase64 ip = 
@@ -541,6 +594,36 @@ putWriteBlocks blockSize write =
                       goBS ip (BufRange op ope)
 
 
+{-# INLINE putWriteLazyBlocks #-}
+putWriteLazyBlocks :: Int                  -- ^ Block size.
+                   -> (Ptr Word8 -> Write) -- ^ 'Write' given a pointer to the
+                                           --   beginning of the block.
+                   -> L.ByteString         -- ^ 'L.ByteString' to consume blockwise.
+                   -> Put S.ByteString     -- ^ 'Put' returning the remaining
+                                           --   bytes, which are guaranteed to be
+                                           --   fewer than the block size.
+putWriteLazyBlocks blockSize write =
+    go
+  where
+    go L.Empty          = return S.empty
+    go (L.Chunk bs lbs) = do
+      bsRem <- putWriteBlocks blockSize write bs
+      case S.length bsRem of
+        lRem 
+          | lRem <= 0 -> go lbs
+          | otherwise -> do
+              let (lbsPre, lbsSuf) = 
+                      L.splitAt (fromIntegral $ blockSize - lRem) lbs
+              case S.concat $ bsRem : L.toChunks lbsPre of
+                block@(S.PS bfp boff bsize)
+                  | bsize < blockSize -> return block
+                  | otherwise         -> do
+                      putBuilder $ fromWrite $ 
+                        write (unsafeForeignPtrToPtr bfp `plusPtr` boff)
+                      putLiftIO $ touchForeignPtr bfp
+                      go lbsSuf 
+                          
+
 ------------------------------------------------------------------------------
 -- Testing code
 ------------------------------------------------------------------------------
@@ -628,3 +711,24 @@ write24bitsBase64' w =
     enc = peekElemOff (unsafeForeignPtrToPtr encodeTable) . fromIntegral
 
 -}
+
+-------------------------------------------------------------------------------
+-- A faster split for lazy bytestrings
+-------------------------------------------------------------------------------
+
+-- | /O(n\/c)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
+splitLazyAt :: Int -> L.ByteString -> (L.ByteString, L.ByteString)
+splitLazyAt n cs0
+  | n <= 0    = (L.Empty, cs0)
+  | otherwise = split cs0
+  where
+    split L.Empty        = (L.Empty, L.Empty)
+    split (L.Chunk c cs)
+      | n < len  = case S.splitAt    n         c  of
+          (pre, suf) -> (L.Chunk pre L.Empty, L.Chunk suf cs)
+      | otherwise = case splitLazyAt (n - len) cs of
+          (pre, suf) -> (L.Chunk c   pre    , suf           )
+      where
+        len = S.length c
+
+
