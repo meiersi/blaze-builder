@@ -111,6 +111,11 @@ test = flip (toLazyByteStringWith 32 32 32) L.empty
                
   where
     oneLine x = fromWriteSingleton writeWord32Hex x `mappend` Char8.fromChar ' '
+
+test = print $ toLazyByteString
+    $ chunkedTransferEncoding  body `mappend` chunkedTransferTerminator
+
+body = copyByteString "maa" `mappend` copyByteString "foo" `mappend` copyByteString "bar"
 -}
 
 ------------------------------------------------------------------------------
@@ -122,9 +127,10 @@ chunkedTransferEncoding :: Builder -> Builder
 chunkedTransferEncoding (Builder b) =
     fromBuildStepCont transferEncodingStep
   where
-    transferEncodingStep k = go (b (buildStep k))
+    finalStep !(BufRange op _) = return $ Done op ()
+
+    transferEncodingStep k = go (b (buildStep finalStep))
       where
-        go :: BuildStep a -> BufRange -> IO (BuildSignal a)
         go innerStep !(BufRange op ope)
           -- FIXME: Assert that outRemaining < maxBound :: Word32
           | outRemaining < minimalBufferSize = 
@@ -152,9 +158,10 @@ chunkedTransferEncoding (Builder b) =
               -- execute inner builder with reduced boundaries
               signal <- runBuildStep innerStep brInner
               case signal of
-                Done opInner' x ->
-                    wrapChunk opInner' $ \op' -> 
-                      return $! done op' x
+                Done opInner' _ ->
+                    wrapChunk opInner' $ \op' -> do
+                      let !br' = BufRange op' ope
+                      k br'
 
                 BufferFull minRequiredSize opInner' nextInnerStep ->
                     wrapChunk opInner' $ \op' ->
@@ -208,4 +215,5 @@ chunkedTransferEncoding (Builder b) =
 -- | The zero-length chunk '0\r\n\r\n' signaling the termination of the data transfer.
 chunkedTransferTerminator :: Builder
 chunkedTransferTerminator = copyByteString "0\r\n\r\n"
+
 

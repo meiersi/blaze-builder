@@ -1,3 +1,8 @@
+* 0.2.1.4 
+   
+  - Fixed bug: appending to 'chunkedTransferEncoding somebuilder' also encoded
+    the appended builder, which is obviously wrong.
+
 * 0.2.1.3
 
   - Fixed bug: 'chunkedTransferTerminator' is now correctly set to "0\r\n\r\n".
