@@ -19,6 +19,7 @@ import Data.Monoid
 import Data.List 
 
 import Control.Monad
+import Control.Arrow (second)
 import Criterion.Main
 
 import Foreign 
@@ -41,6 +42,12 @@ import Blaze.ByteString.Builder.ByteString
 main :: IO ()
 main = do
     let (chunkInfos, benchmarks) = unzip 
+          [ lazyVsBlaze
+              ( "partitionLazy"
+              , (uncurry mappend) . L.partition ((0 <) . sin . fromIntegral)
+              , (uncurry mappend) . partitionLazy ((0 <) . sin . fromIntegral)
+              , (\i -> L.drop 13 $ L.pack $ take i $ cycle [0..])
+              , n)
           {-
           [ lazyVsBlaze
               ( "base64mime"
@@ -49,12 +56,14 @@ main = do
               , (\i -> S.drop 13 $ S.pack $ take i $ cycle [0..])
               , n)
           -}
+          {-
           [ lazyVsBlaze
               ( "joinWith"
               , L.fromChunks . return . joinWith "\r\n" 76
               , toLazyByteString . intersperseBlocks 76 "\r\n"
               , (\i -> S.drop 13 $ S.pack $ take i $ cycle [0..])
               , n)
+          -}
           {-
           [ lazyVsBlaze
               ( "base64"
@@ -732,3 +741,42 @@ splitLazyAt n cs0
         len = S.length c
 
 
+-------------------------------------------------------------------------------
+-- A faster partition for strict and lazy bytestrings
+-------------------------------------------------------------------------------
+
+{-# INLINE partitionStrict #-}
+partitionStrict :: (Word8 -> Bool) -> S.ByteString -> (S.ByteString, S.ByteString)
+partitionStrict f (S.PS ifp ioff ilen) = 
+    second S.reverse $ S.inlinePerformIO $ do
+        ofp <- S.mallocByteString ilen
+        withForeignPtr ifp $ wrapper ofp
+  where
+    wrapper !ofp !ip0 = 
+        go (ip0 `plusPtr` ioff) op0 (op0 `plusPtr` ilen)
+      where
+        op0 = unsafeForeignPtrToPtr ofp
+
+        go !ip !opl !oph
+          | oph == opl = return (S.PS ofp 0 olen, S.PS ofp olen (ilen - olen))
+          | otherwise  = do
+              x <- peek ip
+              if f x 
+                then do poke opl x 
+                        go (ip `plusPtr` 1) (opl `plusPtr` 1) oph
+                else do let oph' = oph `plusPtr` (-1)
+                        poke oph' x
+                        go (ip `plusPtr` 1) opl               oph'
+
+          where
+            olen = opl `minusPtr` op0
+
+{-# INLINE partitionLazy #-}
+partitionLazy :: (Word8 -> Bool) -> L.ByteString -> (L.ByteString, L.ByteString)
+partitionLazy f = 
+    L.foldrChunks partitionOne (L.empty, L.empty)
+  where
+    partitionOne bs (ls, rs) = 
+        (L.Chunk l ls, L.Chunk r rs)
+      where
+        (l, r) = partitionStrict f bs
