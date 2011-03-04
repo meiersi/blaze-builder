@@ -42,12 +42,14 @@ import Blaze.ByteString.Builder.ByteString
 main :: IO ()
 main = do
     let (chunkInfos, benchmarks) = unzip 
+          {-
           [ lazyVsBlaze
               ( "partitionLazy"
               , (uncurry mappend) . L.partition ((0 <) . sin . fromIntegral)
               , (uncurry mappend) . partitionLazy ((0 <) . sin . fromIntegral)
               , (\i -> L.drop 13 $ L.pack $ take i $ cycle [0..])
               , n)
+          -}
           {-
           [ lazyVsBlaze
               ( "base64mime"
@@ -64,14 +66,12 @@ main = do
               , (\i -> S.drop 13 $ S.pack $ take i $ cycle [0..])
               , n)
           -}
-          {-
           [ lazyVsBlaze
               ( "base64"
               , L.fromChunks . return . encode
               , toLazyByteString . encodeBase64
               , (\i -> S.drop 13 $ S.pack $ take i $ cycle [0..])
               , n)
-          -}
           {-
           , lazyVsBlaze
               ( "copy"
