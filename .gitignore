@@ -15,6 +15,7 @@ benchmarks/FastPut
 benchmarks/BuilderBufferRange
 benchmarks/BoundedWrite
 benchmarks/UnboxedAppend
+benchmarks/Utf8IO
 
 Criterion/ScalingBenchmark
 

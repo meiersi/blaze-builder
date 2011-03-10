@@ -7,7 +7,7 @@
 #########
 
 GHC6 = ghc-6.12.3
-GHC7 = ghc-7.0.1
+GHC7 = ghc-7.0.2
 
 GHC = $(GHC7)
 
@@ -34,6 +34,16 @@ clean-bench-all:
 
 ## Individual benchmarks
 ########################
+
+# utf8 writing to a file
+utf8-io:
+	$(GHC) --make -O2 -fforce-recomp -main-is Utf8IO benchmarks/Utf8IO.hs
+	time ./benchmarks/Utf8IO via-text    100000000 /dev/null
+	time ./benchmarks/Utf8IO text        100000000 /dev/null
+	time ./benchmarks/Utf8IO blaze       100000000 /dev/null
+	time ./benchmarks/Utf8IO base        100000000 /dev/null
+	time ./benchmarks/Utf8IO utf8-light  100000000 /dev/null
+	time ./benchmarks/Utf8IO utf8-string 100000000 /dev/null
 
 # 'blaze-builder' vs. 'binary' comparision
 bench-blaze-vs-binary:
