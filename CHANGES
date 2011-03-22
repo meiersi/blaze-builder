@@ -1,3 +1,7 @@
+* 0.3.0.0
+
+  - Renamings in internal modules: WriteIO -> Poke and associated functions.
+
 * 0.2.1.4 
    
   - Fixed bug: appending to 'chunkedTransferEncoding somebuilder' also encoded
