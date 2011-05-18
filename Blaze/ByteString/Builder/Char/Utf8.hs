@@ -111,19 +111,12 @@ fromShow = fromString . show
 
 -- | /O(n)/. Serialize a strict Unicode 'TS.Text' value using the UTF-8 encoding.
 --
--- Note that this function is currently faster than 'TS.encodeUtf8' provided by
--- "Data.Text.Encoding". Moreover, 'fromText' is also lazy, while 'TL.encodeUtf8'
--- is strict.
---
 fromText :: TS.Text -> Builder
 fromText = fromString . TS.unpack
 {-# INLINE fromText #-}
 
 
 -- | /O(n)/. Serialize a lazy Unicode 'TL.Text' value using the UTF-8 encoding.
---
--- Note that this function is currently faster than 'TL.encodeUtf8' provided by
--- "Data.Text.Lazy.Encoding".
 --
 fromLazyText :: TL.Text -> Builder
 fromLazyText = fromString . TL.unpack

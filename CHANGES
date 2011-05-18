@@ -1,3 +1,11 @@
+* 0.3.0.1
+
+  - Remove comparison to the 'text' library encoding functions of
+    'Blaze.Builder.Char.Utf8.fromText' and
+    'Blaze.Builder.Char.Utf8.fromLazyText'. Bryan O'Sullivan reported that on
+    his 64-bit system with GHC 7.0.3 the 'text' library is 5x faster than the
+    'blaze-builder' library.
+
 * 0.3.0.0
 
   - Renamings in internal modules: WriteIO -> Poke and associated functions.
