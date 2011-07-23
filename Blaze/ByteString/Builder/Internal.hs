@@ -112,7 +112,7 @@ nonEmptyChunk bs lbs | S.null bs = lbs
 
 -- | Output all data written in the current buffer and start a new chunk.
 --
--- The use uf this function depends on how the resulting bytestrings are
+-- The use of this function depends on how the resulting bytestrings are
 -- consumed. 'flush' is possibly not very useful in non-interactive scenarios.
 -- However, it is kept for compatibility with the builder provided by
 -- Data.Binary.Builder.
