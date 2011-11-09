@@ -7,7 +7,7 @@
 #########
 
 GHC6 = ghc-6.12.3
-GHC7 = ghc-7.0.2
+GHC7 = ghc-7.0.3
 
 GHC = $(GHC7)
 
