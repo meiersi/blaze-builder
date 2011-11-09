@@ -67,5 +67,5 @@ Library
                      Blaze.ByteString.Builder.ByteString
 
   build-depends:     base == 4.* ,
-                     new-bytestring == 0.0.* ,
-                     text >= 0.10 && < 0.12
+                     bytestring >= 0.9.3 && < 0.10,
+                     text       >= 0.10  && < 0.12
