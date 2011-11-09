@@ -1,10 +1,7 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-} 
 {-# LANGUAGE MonoPatBinds #-}
--- ignore warning from 'import Data.Text.Encoding'
-
 -- |
 -- Module      : Blaze.ByteString.Builder.Char8
--- Copyright   : (c) 2010 Simon Meier
+-- Copyright   : (c) 2010-2011 Simon Meier
 -- License     : BSD3-style (see LICENSE)
 -- 
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
@@ -22,58 +19,46 @@
 --
 module Blaze.ByteString.Builder.Char8
     ( 
-      -- * Writing Latin-1 (ISO 8859-1) encodable characters to a buffer
-      writeChar
-
       -- * Creating Builders from Latin-1 (ISO 8859-1) encodable characters
-    , fromChar
+      fromChar
     , fromString
     , fromShow
     , fromText
     , fromLazyText
     ) where
 
-import Foreign
-import Data.Char (ord)
-
 import qualified Data.Text               as TS
-import qualified Data.Text.Encoding      as TS -- imported for documentation links
 import qualified Data.Text.Lazy          as TL
-import qualified Data.Text.Lazy.Encoding as TS -- imported for documentation links
 
-import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Word
-
--- | Write the lower 8-bits of a character to a buffer.
---
-{-# INLINE writeChar #-}
-writeChar :: Char -> Write
-writeChar = writeWord8 . fromIntegral . ord
+import Data.ByteString.Lazy.Builder (Builder, char8, string8)
 
 -- | /O(1)/. Serialize the lower 8-bits of a character.
 --
 fromChar :: Char -> Builder
-fromChar = fromWriteSingleton writeChar
+fromChar = char8
 
 -- | /O(n)/. Serialize the lower 8-bits of all characters of a string
 --
 fromString :: String -> Builder
-fromString = fromWriteList writeChar
+fromString = string8
 
--- | /O(n)/. Serialize a value by 'Show'ing it and serializing the lower 8-bits
--- of the resulting string.
+-- | /O(n)/. Serialize a value by 'Show'ing it and serializing the
+-- lower 8-bits of the resulting string.
 --
 fromShow :: Show a => a -> Builder
-fromShow = fromString . show
+fromShow = string8 . show
 
--- | /O(n)/. Serialize the lower 8-bits of all characters in the strict text.
+-- | /O(n)/. Serialize the lower 8-bits of all characters in the
+-- strict text.
 --
 {-# INLINE fromText #-}
 fromText :: TS.Text -> Builder
-fromText = fromString . TS.unpack
+fromText = string8 . TS.unpack
 
--- | /O(n)/. Serialize the lower 8-bits of all characters in the lazy text.
+-- | /O(n)/. Serialize the lower 8-bits of all characters in the
+-- lazy text.
 --
 {-# INLINE fromLazyText #-}
 fromLazyText :: TL.Text -> Builder
-fromLazyText = fromString . TL.unpack
+fromLazyText = string8 . TL.unpack
+

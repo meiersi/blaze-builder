@@ -69,25 +69,16 @@ module Blaze.ByteString.Builder
 
       -- * Executing builders
     , toLazyByteString
-    , toLazyByteStringWith
-    , toByteString
-    , toByteStringIO
-    , toByteStringIOWith
-
-    -- * 'Write's
-    , Write
-    , fromWrite
-    , fromWriteSingleton
-    , fromWriteList
-
-    -- ** Writing 'Storable's
-    , writeStorable
-    , fromStorable
-    , fromStorables
+    -- , toLazyByteStringWith
+    -- , toByteString
+    -- , toByteStringIO
+    -- , toByteStringIOWith
 
     ) where
 
-import Blaze.ByteString.Builder.Internal
+import Data.ByteString.Lazy.Builder
+import Data.ByteString.Lazy.Builder.Extras (flush)
+
 import Blaze.ByteString.Builder.Int
 import Blaze.ByteString.Builder.Word
 import Blaze.ByteString.Builder.ByteString

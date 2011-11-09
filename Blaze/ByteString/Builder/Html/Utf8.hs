@@ -19,9 +19,6 @@ module Blaze.ByteString.Builder.Html.Utf8
     ( 
       module Blaze.ByteString.Builder.Char.Utf8
 
-      -- * Writing HTML escaped and UTF-8 encoded characters to a buffer
-    , writeHtmlEscapedChar
-
       -- * Creating Builders from HTML escaped and UTF-8 encoded characters
     , fromHtmlEscapedChar
     , fromHtmlEscapedString
@@ -30,41 +27,56 @@ module Blaze.ByteString.Builder.Html.Utf8
     , fromHtmlEscapedLazyText
     ) where
 
-import Data.ByteString.Char8 ()  -- for the 'IsString' instance of bytesrings
-
 import qualified Data.Text      as TS
 import qualified Data.Text.Lazy as TL
 
-import Blaze.ByteString.Builder
-import Blaze.ByteString.Builder.Internal
+import           Data.ByteString.Lazy.Builder
+import qualified Data.ByteString.Lazy.Builder.BasicEncoding as E
+import           Data.ByteString.Lazy.Builder.BasicEncoding
+                   ( ifB, fromF, (>*<), (>$<) )
+
 import Blaze.ByteString.Builder.Char.Utf8
 
--- | Write a HTML escaped and UTF-8 encoded Unicode character to a bufffer.
+-- | Write a HTML escaped and UTF-8 encoded Unicode character to a
+-- bufffer.
 --
-writeHtmlEscapedChar :: Char -> Write
-writeHtmlEscapedChar c0 = 
-    boundedWrite 6 (io c0)
-    -- WARNING: Don't forget to change the bound if you change the bytestrings.
+{-# INLINE charUtf8HtmlEscaped #-}
+charUtf8HtmlEscaped :: E.BoundedEncoding Char
+charUtf8HtmlEscaped =
+    -- the maximum of the characters to escape is '>'; i.e.,
+    --   maximum "<>&\"'" == '>'
+    ifB (>  '>')  E.charUtf8 $
+    ifB (== '<' ) (fixed4 ('&',('l',('t',';')))) $
+    ifB (== '>' ) (fixed4 ('&',('g',('t',';')))) $
+    ifB (== '&' ) (fixed5 ('&',('a',('m',('p',';'))))) $
+    ifB (== '"' ) (fixed6 ('&',('q',('u',('o',('t',';')))))) $
+    ifB (== '\'') (fixed5 ('&',('#',('3',('9',';'))))) $
+    (fromF E.char8) -- fallback for chars smaller than '>' 
   where
-    io '<'  = getPoke $ writeByteString "&lt;"
-    io '>'  = getPoke $ writeByteString "&gt;"
-    io '&'  = getPoke $ writeByteString "&amp;"
-    io '"'  = getPoke $ writeByteString "&quot;"
-    io '\'' = getPoke $ writeByteString "&#39;"
-    io c    = getPoke $ writeChar c
-{-# INLINE writeHtmlEscapedChar #-}
+    {-# INLINE fixed4 #-}
+    fixed4 x = fromF $ const x >$< 
+        E.char8 >*< E.char8 >*< E.char8 >*< E.char8
+
+    {-# INLINE fixed5 #-}
+    fixed5 x = fromF $ const x >$< 
+        E.char8 >*< E.char8 >*< E.char8 >*< E.char8 >*< E.char8
+
+    {-# INLINE fixed6 #-}
+    fixed6 x = fromF $ const x >$< 
+        E.char8 >*< E.char8 >*< E.char8 >*< E.char8 >*< E.char8 >*< E.char8
+
 
 -- | /O(1)./ Serialize a HTML escaped Unicode character using the UTF-8
 -- encoding.
 --
 fromHtmlEscapedChar :: Char -> Builder
-fromHtmlEscapedChar = fromWriteSingleton writeHtmlEscapedChar
+fromHtmlEscapedChar = E.encodeWithB charUtf8HtmlEscaped
 
 -- | /O(n)/. Serialize a HTML escaped Unicode 'String' using the UTF-8
 -- encoding.
 --
 fromHtmlEscapedString :: String -> Builder
-fromHtmlEscapedString = fromWriteList writeHtmlEscapedChar
+fromHtmlEscapedString = E.encodeListWithB charUtf8HtmlEscaped
 
 -- | /O(n)/. Serialize a value by 'Show'ing it and then, HTML escaping and
 -- UTF-8 encoding the resulting 'String'.

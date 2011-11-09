@@ -1,20 +1,26 @@
 Name:                blaze-builder
-Version:             0.3.0.1
+Version:             0.4.0.0
 Synopsis:            Efficient buffered output.
 
 Description:         
-                     This library provides an abstraction of buffered output of
-                     byte streams and several convenience functions to exploit
-                     it. For example, it allows to efficiently serialize
-                     Haskell values to lazy bytestrings with a large average
-                     chunk size. The large average chunk size allows to make
-                     good use of cache prefetching in later processing steps
-                     (e.g. compression) and reduces the sytem call overhead
-                     when writing the resulting lazy bytestring to a file or
-                     sending it over the network.
+                     /This package is deprecated./ Its sole purpose is to
+                     simplify the transition of 'blaze-builder' users to the new
+                     'Builder' provided by the 'bytestring' library
+                     (<http://hackage.haskell.org/package/bytestring> starting
+                     from version 0.9.3.0). 
+                     .
+                     It reexports the functions
+                     from the bytestring library such that it provides the same
+                     interface as previous versions of the 'blaze-builder'
+                     library except for 'Write's and the exotic builder
+                     execution functions ('toLazyByteStringWith',
+                     'toByteString', 'toByteStringIO', 'toByteStringIOWith').
+                     See "Data.ByteString.Lazy.Builder.BasicEncoding" and
+                     "Data.ByteString.Lazy.Builder.Extras" in the 'bytestring'
+                     libray for the appropriate replacements of them.
 
 Author:              Jasper Van der Jeugt, Simon Meier
-Copyright:           2010 Simon Meier
+Copyright:           2010-2011 Simon Meier
                      2010 Jasper Van der Jeugt
 Maintainer:          Simon Meier <iridcode@gmail.com>
 
@@ -50,21 +56,16 @@ Library
   ghc-options:       -Wall
 
   exposed-modules:   Blaze.ByteString.Builder
-                     Blaze.ByteString.Builder.Int
-                     Blaze.ByteString.Builder.Word
-                     Blaze.ByteString.Builder.ByteString
                      Blaze.ByteString.Builder.Char.Utf8
                      Blaze.ByteString.Builder.Char8
                      Blaze.ByteString.Builder.Html.Utf8
                      Blaze.ByteString.Builder.HTTP
 
-                     Blaze.ByteString.Builder.Internal
-                     Blaze.ByteString.Builder.Internal.Write
-                     Blaze.ByteString.Builder.Internal.Types
-                     Blaze.ByteString.Builder.Internal.Buffer
+  other-modules:
+                     Blaze.ByteString.Builder.Int
+                     Blaze.ByteString.Builder.Word
+                     Blaze.ByteString.Builder.ByteString
 
-  other-modules:     Blaze.ByteString.Builder.Internal.UncheckedShifts
-  
   build-depends:     base == 4.* ,
-                     bytestring == 0.9.* ,
+                     new-bytestring == 0.0.* ,
                      text >= 0.10 && < 0.12

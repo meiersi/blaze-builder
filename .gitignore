@@ -21,3 +21,5 @@ Criterion/ScalingBenchmark
 
 tests/LlvmSegfault
 tests/Tests
+
+/cabal-dev/

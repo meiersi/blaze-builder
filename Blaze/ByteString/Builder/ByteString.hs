@@ -20,8 +20,7 @@
 module Blaze.ByteString.Builder.ByteString
     ( 
     -- * Strict bytestrings
-      writeByteString
-    , fromByteString
+      fromByteString
     , fromByteStringWith
     , copyByteString
     , insertByteString
@@ -34,36 +33,14 @@ module Blaze.ByteString.Builder.ByteString
 
     ) where
 
-import           Blaze.ByteString.Builder.Internal hiding (insertByteString)
-import qualified Blaze.ByteString.Builder.Internal as I   (insertByteString)
-
-import Foreign
-import Data.Monoid
-
-import qualified Data.ByteString      as S
-import qualified Data.ByteString.Lazy as L
-
-#ifdef BYTESTRING_IN_BASE
-import qualified Data.ByteString.Base as S
-import qualified Data.ByteString.Lazy.Base as L -- FIXME: check if this is the right module
-#else
-import qualified Data.ByteString.Internal as S
-import qualified Data.ByteString.Lazy.Internal as L
-#endif
-
+import qualified Data.ByteString             as S
+import qualified Data.ByteString.Lazy        as L
+import           Data.ByteString.Lazy.Builder
+import           Data.ByteString.Lazy.Builder.Extras
 
 ------------------------------------------------------------------------------
 -- Strict ByteStrings
 ------------------------------------------------------------------------------
-
--- | Write a strict 'S.ByteString' to a buffer.
---
-writeByteString :: S.ByteString -> Write
-writeByteString bs = exactWrite l io
-  where
-  (fptr, o, l) = S.toForeignPtr bs
-  io pf = withForeignPtr fptr $ \p -> copyBytes pf (p `plusPtr` o) l
-{-# INLINE writeByteString #-}
 
 -- | Smart serialization of a strict bytestring.
 --
@@ -79,7 +56,7 @@ writeByteString bs = exactWrite l io
 -- 'insertByteString' functions. 
 --
 fromByteString :: S.ByteString -> Builder
-fromByteString = fromByteStringWith defaultMaximalCopySize
+fromByteString = byteString
 {-# INLINE fromByteString #-}
 
 
@@ -97,14 +74,9 @@ fromByteString = fromByteStringWith defaultMaximalCopySize
 fromByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                    -> S.ByteString -- ^ Strict 'S.ByteString' to serialize.
                    -> Builder      -- ^ Resulting 'Builder'.
-fromByteStringWith maxCopySize = 
-    \bs -> fromBuildStepCont $ step bs
-  where
-    step !bs !k br@(BufRange !op _)
-      | maxCopySize < S.length bs = return $ I.insertByteString op bs k
-      | otherwise                 = copyByteStringStep bs k br
+fromByteStringWith = byteStringThreshold
 {-# INLINE fromByteStringWith #-}
-
+ 
 -- | @copyByteString bs@ serialize the strict bytestring @bs@ by copying it to
 -- the output buffer. 
 --
@@ -112,30 +84,8 @@ fromByteStringWith maxCopySize =
 -- to be smallish (@<= 4kb@).
 --
 copyByteString :: S.ByteString -> Builder
-copyByteString = \bs -> fromBuildStepCont $ copyByteStringStep bs
+copyByteString = byteStringCopy
 {-# INLINE copyByteString #-}
-
-copyByteStringStep :: S.ByteString 
-                   -> (BufRange -> IO (BuildSignal a))
-                   -> (BufRange -> IO (BuildSignal a))
-copyByteStringStep (S.PS ifp ioff isize) !k = 
-    goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
-  where
-    !ipe = unsafeForeignPtrToPtr ifp `plusPtr` (ioff + isize)
-    goBS !ip !(BufRange op ope)
-      | inpRemaining <= outRemaining = do
-          copyBytes op ip inpRemaining
-          touchForeignPtr ifp -- input consumed: OK to release from here
-          let !br' = BufRange (op `plusPtr` inpRemaining) ope
-          k br'
-      | otherwise = do
-          copyBytes op ip outRemaining
-          let !ip' = ip `plusPtr` outRemaining
-          return $ bufferFull 1 ope (goBS ip')
-      where
-        outRemaining = ope `minusPtr` op
-        inpRemaining = ipe `minusPtr` ip
-{-# INLINE copyByteStringStep #-}
 
 -- | @insertByteString bs@ serializes the strict bytestring @bs@ by inserting
 -- it directly as a chunk of the output stream. 
@@ -146,10 +96,7 @@ copyByteStringStep (S.PS ifp ioff isize) !k =
 -- to be processed efficiently.
 --
 insertByteString :: S.ByteString -> Builder
-insertByteString = 
-    \bs -> fromBuildStepCont $ step bs
-  where
-    step !bs !k !(BufRange op _) = return $ I.insertByteString op bs k
+insertByteString = byteStringInsert
 {-# INLINE insertByteString #-}
 
 
@@ -170,7 +117,7 @@ insertByteString =
 -- 'copyLazyByteString' or 'insertLazyByteString' functions. 
 --
 fromLazyByteString :: L.ByteString -> Builder
-fromLazyByteString = fromLazyByteStringWith defaultMaximalCopySize
+fromLazyByteString = lazyByteString
 {-# INLINE fromLazyByteString #-}
 
 -- | /O(n)/. Serialize a lazy bytestring chunk-wise according to the same rules
@@ -188,10 +135,8 @@ fromLazyByteString = fromLazyByteStringWith defaultMaximalCopySize
 fromLazyByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                        -> L.ByteString -- ^ Lazy 'L.ByteString' to serialize.
                        -> Builder      -- ^ Resulting 'Builder'.
-fromLazyByteStringWith maxCopySize = 
-  L.foldrChunks (\bs b -> fromByteStringWith maxCopySize bs `mappend` b) mempty
+fromLazyByteStringWith = lazyByteStringThreshold
 {-# INLINE fromLazyByteStringWith #-}
-
 
 -- | /O(n)/. Serialize a lazy bytestring by copying /all/ chunks sequentially
 -- to the output buffer.
@@ -199,8 +144,7 @@ fromLazyByteStringWith maxCopySize =
 -- See 'copyByteString' for usage considerations.
 --
 copyLazyByteString :: L.ByteString -> Builder
-copyLazyByteString = 
-  L.foldrChunks (\bs b -> copyByteString bs `mappend` b) mempty
+copyLazyByteString = lazyByteStringCopy
 {-# INLINE copyLazyByteString #-}
 
 -- | /O(n)/. Serialize a lazy bytestring by inserting /all/ its chunks directly
@@ -212,7 +156,6 @@ copyLazyByteString =
 -- need an /O(1)/ lazy bytestring insert based on difference lists.
 --
 insertLazyByteString :: L.ByteString -> Builder
-insertLazyByteString =
-  L.foldrChunks (\bs b -> insertByteString bs `mappend` b) mempty
+insertLazyByteString = lazyByteStringInsert
 {-# INLINE insertLazyByteString #-}
 

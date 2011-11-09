@@ -1,3 +1,17 @@
+* 0.4.0.0
+
+  - This is a transitional package to simplify the transition of blaze-builder
+    users to the new bytestring builder. It provides the same interface as
+    previous versions of blaze-builder except for 'Write's and the exotic
+    builder execution functions
+    (toLazyByteStringWith, toByteString, toByteStringIO, toByteStringIOWith).
+
+    See 'Data.ByteString.Lazy.Builder.BasicEncoding' and
+    'Data.ByteString.Lazy.Builder.Extras' for the appropriate replacements
+    of them.
+
+  - Removed all internal files
+
 * 0.3.0.1
 
   - Remove comparison to the 'text' library encoding functions of
