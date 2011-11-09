@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      : Blaze.ByteString.Builder
@@ -70,16 +71,52 @@ module Blaze.ByteString.Builder
       -- * Executing builders
     , toLazyByteString
     -- , toLazyByteStringWith
-    -- , toByteString
+    , toByteString
     -- , toByteStringIO
     -- , toByteStringIOWith
 
     ) where
 
-import Data.ByteString.Lazy.Builder
-import Data.ByteString.Lazy.Builder.Extras (flush)
+import qualified Data.ByteString                              as S
+import qualified Data.ByteString.Internal                     as S
+import qualified Data.ByteString.Lazy                         as L
+import qualified Data.ByteString.Lazy.Internal                as L
+import           Data.ByteString.Lazy.Builder
+import           Data.ByteString.Lazy.Builder.Extras (flush)
+                 
+import           Blaze.ByteString.Builder.Int
+import           Blaze.ByteString.Builder.Word
+import           Blaze.ByteString.Builder.ByteString
 
-import Blaze.ByteString.Builder.Int
-import Blaze.ByteString.Builder.Word
-import Blaze.ByteString.Builder.ByteString
+import           Foreign
+
+
+
+-- | Pack the chunks of a lazy bytestring into a single strict bytestring.
+packChunks :: L.ByteString -> S.ByteString
+packChunks lbs = do
+    S.unsafeCreate (fromIntegral $ L.length lbs) (copyChunks lbs)
+  where
+    copyChunks !L.Empty                         !_pf = return ()
+    copyChunks !(L.Chunk (S.PS fpbuf o l) lbs') !pf  = do
+        withForeignPtr fpbuf $ \pbuf ->
+            copyBytes pf (pbuf `plusPtr` o) l
+        copyChunks lbs' (pf `plusPtr` l)
+
+-- | Run the builder to construct a strict bytestring containing the sequence
+-- of bytes denoted by the builder. This is done by first serializing to a lazy bytestring and then packing its
+-- chunks to a appropriately sized strict bytestring.
+--
+-- > toByteString = packChunks . toLazyByteString
+--
+-- Note that @'toByteString'@ is a 'Monoid' homomorphism.
+--
+-- > toByteString mempty          == mempty
+-- > toByteString (x `mappend` y) == toByteString x `mappend` toByteString y
+--
+-- However, in the second equation, the left-hand-side is generally faster to
+-- execute.
+--
+toByteString :: Builder -> S.ByteString
+toByteString = packChunks . toLazyByteString
 
