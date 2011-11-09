@@ -60,8 +60,6 @@ Library
                      Blaze.ByteString.Builder.Char8
                      Blaze.ByteString.Builder.Html.Utf8
                      Blaze.ByteString.Builder.HTTP
-
-  other-modules:
                      Blaze.ByteString.Builder.Int
                      Blaze.ByteString.Builder.Word
                      Blaze.ByteString.Builder.ByteString
