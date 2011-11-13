@@ -12,7 +12,8 @@ import           Data.ByteString.Char8 () -- IsString instance
 
 import           Data.ByteString.Lazy.Builder
 import           Data.ByteString.Lazy.Builder.Extras
-import qualified Data.ByteString.Lazy.Builder.BasicEncoding as E
+import qualified Data.ByteString.Lazy.Builder.BasicEncoding        as E
+import qualified Data.ByteString.Lazy.Builder.BasicEncoding.Extras as E
 
 ------------------------------------------------------------------------------
 -- Chunked transfer encoding
