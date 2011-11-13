@@ -49,21 +49,17 @@ charUtf8HtmlEscaped =
     ifB (== '<' ) (fixed4 ('&',('l',('t',';')))) $
     ifB (== '>' ) (fixed4 ('&',('g',('t',';')))) $
     ifB (== '&' ) (fixed5 ('&',('a',('m',('p',';'))))) $
-    ifB (== '"' ) (fixed6 ('&',('q',('u',('o',('t',';')))))) $
+    ifB (== '"' ) (fixed5 ('&',('#',('3',('4',';'))))) $
     ifB (== '\'') (fixed5 ('&',('#',('3',('9',';'))))) $
     (fromF E.char8) -- fallback for chars smaller than '>' 
   where
     {-# INLINE fixed4 #-}
     fixed4 x = fromF $ const x >$< 
-        E.char8 >*< E.char8 >*< E.char8 >*< E.char8
+        E.char7 >*< E.char7 >*< E.char7 >*< E.char7
 
     {-# INLINE fixed5 #-}
     fixed5 x = fromF $ const x >$< 
-        E.char8 >*< E.char8 >*< E.char8 >*< E.char8 >*< E.char8
-
-    {-# INLINE fixed6 #-}
-    fixed6 x = fromF $ const x >$< 
-        E.char8 >*< E.char8 >*< E.char8 >*< E.char8 >*< E.char8 >*< E.char8
+        E.char7 >*< E.char7 >*< E.char7 >*< E.char7 >*< E.char7
 
 
 -- | /O(1)./ Serialize a HTML escaped Unicode character using the UTF-8

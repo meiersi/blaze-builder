@@ -10,6 +10,8 @@
     'Data.ByteString.Lazy.Builder.Extras' for the appropriate replacements
     of them.
 
+  - HTML escaping now uses &#34; to escape ". This save one byte per escaping.
+
   - Removed all internal files
 
 * 0.3.0.1
