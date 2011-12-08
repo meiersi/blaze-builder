@@ -1,8 +1,10 @@
-dist
+dist/
 *.o
 *.hi
 *.pdf
 *.png
+
+cabal-dev/
 
 benchmarks/BlazeVsBinary
 benchmarks/ChunkedWrite

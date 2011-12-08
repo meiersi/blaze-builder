@@ -1,5 +1,10 @@
 * 0.3.0.1
 
+  - Fix build warning in Blaze.ByteString.Builder.Word 
+    (contributed by Greg Weber)
+
+* 0.3.0.1
+
   - Remove comparison to the 'text' library encoding functions of
     'Blaze.Builder.Char.Utf8.fromText' and
     'Blaze.Builder.Char.Utf8.fromLazyText'. Bryan O'Sullivan reported that on
