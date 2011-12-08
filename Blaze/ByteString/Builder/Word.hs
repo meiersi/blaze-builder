@@ -97,7 +97,7 @@ import Blaze.ByteString.Builder.Internal.UncheckedShifts
 import Foreign
 
 #if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
-import GHC.Word (Word32(..),Word16(..),Word64(..))
+import GHC.Word ( )
 #else
 import Data.Word
 #endif
