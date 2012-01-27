@@ -1,3 +1,6 @@
+* 0.3.1.0
+  - Widened dependencies on text and bytestring
+
 * 0.3.0.1
 
   - Fix build warning in Blaze.ByteString.Builder.Word 
