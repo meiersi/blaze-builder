@@ -42,6 +42,7 @@ module Blaze.ByteString.Builder.Internal.Buffer (
 
 import Prelude
 import Foreign
+import Foreign.ForeignPtr.Unsafe
 
 import qualified Data.ByteString      as S
 

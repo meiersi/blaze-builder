@@ -38,6 +38,7 @@ import           Blaze.ByteString.Builder.Internal hiding (insertByteString)
 import qualified Blaze.ByteString.Builder.Internal as I   (insertByteString)
 
 import Foreign
+import Foreign.ForeignPtr.Unsafe
 import Data.Monoid
 
 import qualified Data.ByteString      as S
