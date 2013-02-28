@@ -50,6 +50,7 @@ module Blaze.ByteString.Builder.Internal (
 ) where
 
 import Foreign
+import Foreign.ForeignPtr.Unsafe
 
 import Control.Monad (unless)
 
