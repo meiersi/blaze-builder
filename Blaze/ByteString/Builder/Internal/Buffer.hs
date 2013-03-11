@@ -41,8 +41,8 @@ module Blaze.ByteString.Builder.Internal.Buffer (
   ) where
 
 import Prelude
-import Foreign
-import Foreign.ForeignPtr.Unsafe
+import Foreign                   (Word8, ForeignPtr, Ptr, plusPtr, minusPtr)
+import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
 
 import qualified Data.ByteString      as S
 
