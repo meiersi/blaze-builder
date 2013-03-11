@@ -1,4 +1,8 @@
-{-# LANGUAGE CPP, BangPatterns, MonoPatBinds #-}
+{-# LANGUAGE CPP, BangPatterns #-}
+
+#ifdef USE_MONO_PAT_BINDS
+{-# LANGUAGE MonoPatBinds #-}
+#endif
 -- |
 -- Module      : Blaze.ByteString.Builder.Internal.Poke
 -- Copyright   : (c) 2010 Simon Meier

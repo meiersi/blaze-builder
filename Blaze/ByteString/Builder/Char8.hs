@@ -1,6 +1,11 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
-{-# LANGUAGE MonoPatBinds #-}
 -- ignore warning from 'import Data.Text.Encoding'
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+
+{-# LANGUAGE CPP #-}
+
+#ifdef USE_MONO_PAT_BINDS
+{-# LANGUAGE MonoPatBinds #-}
+#endif
 
 -- |
 -- Module      : Blaze.ByteString.Builder.Char8

@@ -1,4 +1,9 @@
-{-# LANGUAGE CPP, MagicHash, MonoPatBinds #-}
+{-# LANGUAGE CPP, MagicHash #-}
+
+#ifdef USE_MONO_PAT_BINDS
+{-# LANGUAGE MonoPatBinds #-}
+#endif
+
 -- |
 -- Module      : Blaze.ByteString.Builder.Internal.UncheckedShifts
 -- Copyright   : (c) 2010 Simon Meier

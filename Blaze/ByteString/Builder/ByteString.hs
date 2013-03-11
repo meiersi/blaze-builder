@@ -1,4 +1,8 @@
-{-# LANGUAGE CPP, BangPatterns, OverloadedStrings, MonoPatBinds #-}
+{-# LANGUAGE CPP, BangPatterns, OverloadedStrings #-}
+
+#ifdef USE_MONO_PAT_BINDS
+{-# LANGUAGE MonoPatBinds #-}
+#endif
 
 -- |
 -- Module      : Blaze.ByteString.Builder.ByteString

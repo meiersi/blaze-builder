@@ -1,4 +1,9 @@
-{-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings, MonoPatBinds #-}
+{-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings #-}
+
+#ifdef USE_MONO_PAT_BINDS
+{-# LANGUAGE MonoPatBinds #-}
+#endif
+
 -- | Support for HTTP response encoding.
 --
 -- TODO: Improve documentation.

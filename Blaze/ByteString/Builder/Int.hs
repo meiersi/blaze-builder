@@ -1,4 +1,9 @@
+{-# LANGUAGE CPP #-}
+
+#ifdef USE_MONO_PAT_BINDS
 {-# LANGUAGE MonoPatBinds #-}
+#endif
+
 -- |
 -- Module      : Blaze.ByteString.Builder.Int
 -- Copyright   : (c) 2010 Simon Meier

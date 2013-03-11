@@ -1,4 +1,9 @@
-{-# LANGUAGE CPP, BangPatterns, Rank2Types, MonoPatBinds #-}
+{-# LANGUAGE CPP, BangPatterns, Rank2Types #-}
+
+#ifdef USE_MONO_PAT_BINDS
+{-# LANGUAGE MonoPatBinds #-}
+#endif
+
 -- |
 -- Module      : Blaze.ByteString.Builder.Internal.Types
 -- Copyright   : (c) 2010 Simon Meier

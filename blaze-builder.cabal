@@ -53,6 +53,9 @@ Library
   if impl(ghc >= 7.4)
       cpp-options:   -DHAS_FOREIGN_UNSAFE_MODULE
 
+  -- GHC 7.0.x and lower required MonoPatBinds feature
+  if impl(ghc < 7.2)
+      cpp-options:   -DUSE_MONO_PAT_BINDS
 
   exposed-modules:   Blaze.ByteString.Builder
                      Blaze.ByteString.Builder.Int

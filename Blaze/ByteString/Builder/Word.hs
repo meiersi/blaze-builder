@@ -1,4 +1,9 @@
-{-# LANGUAGE CPP, MonoPatBinds #-}
+{-# LANGUAGE CPP #-}
+
+#ifdef USE_MONO_PAT_BINDS
+{-# LANGUAGE MonoPatBinds #-}
+#endif
+
 -- |
 -- Module      : Blaze.ByteString.Builder.Word
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
