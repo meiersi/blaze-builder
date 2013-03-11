@@ -40,9 +40,12 @@ module Blaze.ByteString.Builder.Internal.Buffer (
   , runPut
   ) where
 
-import Prelude
+#ifdef HAS_FOREIGN_UNSAFE_MODULE
 import Foreign                   (Word8, ForeignPtr, Ptr, plusPtr, minusPtr)
 import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
+#else
+import Foreign                   (unsafeForeignPtrToPtr, Word8, ForeignPtr, Ptr, plusPtr, minusPtr)
+#endif
 
 import qualified Data.ByteString      as S
 

@@ -37,8 +37,13 @@ module Blaze.ByteString.Builder.ByteString
 import           Blaze.ByteString.Builder.Internal hiding (insertByteString)
 import qualified Blaze.ByteString.Builder.Internal as I   (insertByteString)
 
+#ifdef HAS_FOREIGN_UNSAFE_MODULE
 import Foreign                   (withForeignPtr, touchForeignPtr, copyBytes, plusPtr, minusPtr)
 import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
+#else
+import Foreign                   (unsafeForeignPtrToPtr, withForeignPtr, touchForeignPtr, copyBytes, plusPtr, minusPtr)
+#endif
+
 import Data.Monoid
 
 import qualified Data.ByteString      as S
@@ -48,7 +53,8 @@ import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Base as S
 import qualified Data.ByteString.Lazy.Base as L -- FIXME: check if this is the right module
 #else
-import qualified Data.ByteString.Internal as S
+import qualified Data.ByteString.Internal      as S
+import qualified Data.ByteString.Lazy.Internal as L
 #endif
 
 

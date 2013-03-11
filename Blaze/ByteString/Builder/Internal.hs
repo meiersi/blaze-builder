@@ -49,8 +49,12 @@ module Blaze.ByteString.Builder.Internal (
   , defaultMaximalCopySize
 ) where
 
+#ifdef HAS_FOREIGN_UNSAFE_MODULE
 import Foreign                   (withForeignPtr, sizeOf, copyBytes, plusPtr, minusPtr)
 import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
+#else
+import Foreign                   (unsafeForeignPtrToPtr, withForeignPtr, sizeOf, copyBytes, plusPtr, minusPtr)
+#endif
 
 import Control.Monad (unless)
 

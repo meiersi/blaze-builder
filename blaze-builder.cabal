@@ -49,6 +49,11 @@ Source-repository head
 Library
   ghc-options:       -Wall
 
+  -- Earlier versions of GHC did not split off unsafe functions in "Foreign"
+  if impl(ghc >= 7.4)
+      cpp-options:   -DHAS_FOREIGN_UNSAFE_MODULE
+
+
   exposed-modules:   Blaze.ByteString.Builder
                      Blaze.ByteString.Builder.Int
                      Blaze.ByteString.Builder.Word
