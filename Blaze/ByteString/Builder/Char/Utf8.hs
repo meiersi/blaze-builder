@@ -1,20 +1,20 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-} 
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 -- ignore warning from 'import Data.Text.Encoding'
 
 -- |
 -- Module      : Blaze.ByteString.Builder.Char.Utf8
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
 --
 -- 'Write's and 'Builder's for serializing Unicode characters using the UTF-8
--- encoding. 
+-- encoding.
 --
 module Blaze.ByteString.Builder.Char.Utf8
-    ( 
+    (
       -- * Writing UTF-8 encoded characters to a buffer
       writeChar
 
@@ -46,7 +46,7 @@ writeChar c = boundedWrite 4 (encodeCharUtf8 f1 f2 f3 f4 c)
 
     f2 x1 x2       = pokeN 2 $ \op -> do pokeByteOff op 0 x1
                                          pokeByteOff op 1 x2
-                   
+
     f3 x1 x2 x3    = pokeN 3 $ \op -> do pokeByteOff op 0 x1
                                          pokeByteOff op 1 x2
                                          pokeByteOff op 2 x3

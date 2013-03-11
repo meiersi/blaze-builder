@@ -3,7 +3,7 @@
 -- Module      : Blaze.ByteString.Builder.Internal.Buffer
 -- Copyright   : (c) 2010 Simon Meier
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
@@ -16,25 +16,25 @@ module Blaze.ByteString.Builder.Internal.Buffer (
     Buffer
 
   -- ** Status information
-  , freeSize 
-  , sliceSize 
-  , bufferSize 
+  , freeSize
+  , sliceSize
+  , bufferSize
 
   -- ** Creation and modification
-  , allocBuffer 
-  , reuseBuffer 
-  , nextSlice 
+  , allocBuffer
+  , reuseBuffer
+  , nextSlice
   , updateEndOfSlice
   , execBuildStep
 
   -- ** Conversion to bytestings
-  , unsafeFreezeBuffer 
-  , unsafeFreezeNonEmptyBuffer 
+  , unsafeFreezeBuffer
+  , unsafeFreezeNonEmptyBuffer
 
   -- * Buffer allocation strategies
   , BufferAllocStrategy
-  , allNewBuffersStrategy 
-  , reuseBufferStrategy 
+  , allNewBuffersStrategy
+  , reuseBufferStrategy
 
   -- * Executing puts respect to some monad
   , runPut
@@ -74,7 +74,7 @@ sliceSize (Buffer _ p0 op _) = op `minusPtr` p0
 
 -- | The size of the whole byte array underlying the buffer.
 bufferSize :: Buffer -> Int
-bufferSize (Buffer fpbuf _ _ ope) = 
+bufferSize (Buffer fpbuf _ _ ope) =
     ope `minusPtr` unsafeForeignPtrToPtr fpbuf
 
 -- | @allocBuffer size@ allocates a new buffer of size @size@.
@@ -99,7 +99,7 @@ reuseBuffer (Buffer fpbuf _ _ ope) = Buffer fpbuf p0 p0 ope
 -- filled again) referential transparency may be lost.
 {-# INLINE unsafeFreezeBuffer #-}
 unsafeFreezeBuffer :: Buffer -> S.ByteString
-unsafeFreezeBuffer (Buffer fpbuf p0 op _) = 
+unsafeFreezeBuffer (Buffer fpbuf p0 op _) =
     S.PS fpbuf (p0 `minusPtr` unsafeForeignPtrToPtr fpbuf) (op `minusPtr` p0)
 
 -- | Convert a buffer to a non-empty bytestring. See 'unsafeFreezeBuffer' for
@@ -113,14 +113,14 @@ unsafeFreezeNonEmptyBuffer buf
 -- | Update the end of slice pointer.
 {-# INLINE updateEndOfSlice #-}
 updateEndOfSlice :: Buffer    -- Old buffer
-                 -> Ptr Word8 -- New end of slice  
+                 -> Ptr Word8 -- New end of slice
                  -> Buffer    -- Updated buffer
 updateEndOfSlice (Buffer fpbuf p0 _ ope) op' = Buffer fpbuf p0 op' ope
 
 -- | Execute a build step on the given buffer.
 {-# INLINE execBuildStep #-}
 execBuildStep :: BuildStep a
-              -> Buffer  
+              -> Buffer
               -> IO (BuildSignal a)
 execBuildStep step (Buffer _ _ op ope) = runBuildStep step (BufRange op ope)
 
@@ -142,10 +142,10 @@ nextSlice minSize (Buffer fpbuf _ op ope)
 -- buffer to use and how to compute a new buffer @nextBuf minSize buf@ with at
 -- least size @minSize@ from a filled buffer @buf@. The double nesting of the
 -- @IO@ monad helps to ensure that the reference to the filled buffer @buf@ is
--- lost as soon as possible, but the new buffer doesn't have to be allocated 
+-- lost as soon as possible, but the new buffer doesn't have to be allocated
 -- too early.
 type BufferAllocStrategy = (IO Buffer, Int -> Buffer -> IO (IO Buffer))
-  
+
 -- | The simplest buffer allocation strategy: whenever a buffer is requested,
 -- allocate a new one that is big enough for the next build step to execute.
 --
@@ -155,13 +155,13 @@ type BufferAllocStrategy = (IO Buffer, Int -> Buffer -> IO (IO Buffer))
 -- special circumstances.
 allNewBuffersStrategy :: Int                 -- Minimal buffer size.
                       -> BufferAllocStrategy
-allNewBuffersStrategy bufSize = 
+allNewBuffersStrategy bufSize =
     ( allocBuffer bufSize
     , \reqSize _ -> return (allocBuffer (max reqSize bufSize)) )
 
 -- | An unsafe, but possibly more efficient buffer allocation strategy:
 -- reuse the buffer, if it is big enough for the next build step to execute.
-reuseBufferStrategy :: IO Buffer          
+reuseBufferStrategy :: IO Buffer
                     -> BufferAllocStrategy
 reuseBufferStrategy buf0 =
     (buf0, tryReuseBuffer)
@@ -179,7 +179,7 @@ reuseBufferStrategy buf0 =
 --
 -- TODO: Generalize over buffer allocation strategy.
 {-# INLINE runPut #-}
-runPut :: Monad m 
+runPut :: Monad m
        => (IO (BuildSignal a) -> m (BuildSignal a)) -- lifting of buildsteps
        -> (Int -> Buffer -> m Buffer) -- output function for a guaranteedly non-empty buffer, the returned buffer will be filled next
        -> (S.ByteString -> m ())    -- output function for guaranteedly non-empty bytestrings, that are inserted directly into the stream
@@ -194,7 +194,7 @@ runPut liftIO outputBuf outputBS (Put put) =
     runStep step buf@(Buffer fpbuf p0 op ope) = do
         let !br = BufRange op ope
         signal <- liftIO $ runBuildStep step br
-        case signal of 
+        case signal of
             Done op' x ->         -- put completed, buffer partially runSteped
                 return (x, Buffer fpbuf p0 op' ope)
 

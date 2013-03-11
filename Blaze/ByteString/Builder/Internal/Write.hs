@@ -4,7 +4,7 @@
 -- Copyright   : (c) 2010 Simon Meier
 --               (c) 2010 Jasper van der Jeugt
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
@@ -73,15 +73,15 @@ import Blaze.ByteString.Builder.Internal.Types
 -- | Changing a sequence of bytes starting from the given pointer. 'Poke's are
 -- the most primitive buffer manipulation. In most cases, you don't use the
 -- explicitely but as part of a 'Write', which also tells how many bytes will
--- be changed at most. 
-newtype Poke = 
+-- be changed at most.
+newtype Poke =
     Poke { runPoke :: Ptr Word8 -> IO (Ptr Word8) }
 
 -- | A write of a bounded number of bytes.
 --
 -- When defining a function @write :: a -> Write@ for some @a@, then it is
 -- important to ensure that the bound on the number of bytes written is
--- data-independent. Formally, 
+-- data-independent. Formally,
 --
 --  @ forall x y. getBound (write x) = getBound (write y) @
 --
@@ -112,10 +112,10 @@ getBound (Write bound _) = bound
 -- case. Assumes that the bound of the write is data-independent.
 {-# INLINE getBound' #-}
 getBound' :: String             -- ^ Name of caller: for debugging purposes.
-          -> (a -> Write) 
+          -> (a -> Write)
           -> Int
 getBound' msg write =
-    getBound $ write $ error $ 
+    getBound $ write $ error $
     "getBound' called from " ++ msg ++ ": write bound is not data-independent."
 
 instance Monoid Poke where
@@ -135,7 +135,7 @@ instance Monoid Write where
   {-# INLINE mappend #-}
   (Write bound1 w1) `mappend` (Write bound2 w2) =
     Write (bound1 + bound2) (w1 `mappend` w2)
-  
+
   {-# INLINE mconcat #-}
   mconcat = foldr mappend mempty
 
@@ -144,7 +144,7 @@ instance Monoid Write where
 -- to a buffer using the IO action @io@. Note that @io@ MUST write EXACTLY @size@
 -- bytes to the buffer!
 {-# INLINE pokeN #-}
-pokeN :: Int 
+pokeN :: Int
        -> (Ptr Word8 -> IO ()) -> Poke
 pokeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
 
@@ -153,8 +153,8 @@ pokeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
 -- a builder that writes exactly @size@ bytes. Note that @io@ MUST write
 -- EXACTLY @size@ bytes to the buffer!
 {-# INLINE exactWrite #-}
-exactWrite :: Int 
-           -> (Ptr Word8 -> IO ()) 
+exactWrite :: Int
+           -> (Ptr Word8 -> IO ())
            -> Write
 exactWrite size io = Write size (pokeN size io)
 
@@ -169,7 +169,7 @@ boundedWrite = Write
 {-# INLINE writeLiftIO #-}
 writeLiftIO :: (a -> Write) -> IO a -> Write
 writeLiftIO write io =
-    Write (getBound' "writeLiftIO" write) 
+    Write (getBound' "writeLiftIO" write)
           (Poke $ \pf -> do x <- io; runWrite (write x) pf)
 
 -- | @writeIf p wTrue wFalse x@ creates a 'Write' with a 'Poke' equal to @wTrue
@@ -179,8 +179,8 @@ writeLiftIO write io =
 -- independent.
 {-# INLINE writeIf #-}
 writeIf :: (a -> Bool) -> (a -> Write) -> (a -> Write) -> (a -> Write)
-writeIf p wTrue wFalse x = 
-    boundedWrite (max (getBound $ wTrue x) (getBound $ wFalse x)) 
+writeIf p wTrue wFalse x =
+    boundedWrite (max (getBound $ wTrue x) (getBound $ wFalse x))
                  (if p x then getPoke $ wTrue x else getPoke $ wFalse x)
 
 -- | Compare the value to a test value and use the first write action for the
@@ -192,12 +192,12 @@ writeEq test = writeIf (test ==)
 -- | TODO: Test this. It might well be too difficult to use.
 --   FIXME: Better name required!
 {-# INLINE writeOrdering #-}
-writeOrdering :: (a -> Ordering) 
+writeOrdering :: (a -> Ordering)
               -> (a -> Write) -> (a -> Write) -> (a -> Write)
               -> (a -> Write)
-writeOrdering ord wLT wEQ wGT x = 
-    boundedWrite bound (case ord x of LT -> getPoke $ wLT x; 
-                                      EQ -> getPoke $ wEQ x; 
+writeOrdering ord wLT wEQ wGT x =
+    boundedWrite bound (case ord x of LT -> getPoke $ wLT x;
+                                      EQ -> getPoke $ wEQ x;
                                       GT -> getPoke $ wGT x)
   where
     bound = max (getBound $ wLT x) (max (getBound $ wEQ x) (getBound $ wGT x))
@@ -205,7 +205,7 @@ writeOrdering ord wLT wEQ wGT x =
 -- | A write combinator useful to build decision trees for deciding what value
 -- to write with a constant bound on the maximal number of bytes written.
 {-# INLINE writeOrd #-}
-writeOrd :: Ord a 
+writeOrd :: Ord a
        => a
        -> (a -> Write) -> (a -> Write) -> (a -> Write)
        -> (a -> Write)
@@ -226,7 +226,7 @@ fromWrite (Write maxSize wio) =
 
 {-# INLINE fromWriteSingleton #-}
 fromWriteSingleton :: (a -> Write) -> (a -> Builder)
-fromWriteSingleton write = 
+fromWriteSingleton write =
     mkBuilder
   where
     mkBuilder x = fromBuildStepCont step
@@ -242,7 +242,7 @@ fromWriteSingleton write =
 
 -- | Construct a 'Builder' writing a list of data one element at a time.
 fromWriteList :: (a -> Write) -> [a] -> Builder
-fromWriteList write = 
+fromWriteList write =
     makeBuilder
   where
     makeBuilder xs0 = fromBuildStepCont $ step xs0
@@ -271,7 +271,7 @@ fromWriteList write =
 
 -- | Write a storable value.
 {-# INLINE writeStorable #-}
-writeStorable :: Storable a => a -> Write 
+writeStorable :: Storable a => a -> Write
 writeStorable x = exactWrite (sizeOf x) (\op -> poke (castPtr op) x)
 
 -- | A builder that serializes a storable value. No alignment is done.

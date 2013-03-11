@@ -67,7 +67,7 @@ writeWord16Hex = exactWrite 4 . pokeWord16Hex
 -}
 
 pokeWord32HexN :: Int -> Word32 -> Ptr Word8 -> IO ()
-pokeWord32HexN n0 w0 op0 = 
+pokeWord32HexN n0 w0 op0 =
     go w0 (op0 `plusPtr` (n0 - 1))
   where
     go !w !op
@@ -94,7 +94,7 @@ word32HexLength = max 1 . iterationsUntilZero (`shiftr_w32` 4)
 {-# INLINE word32HexLength #-}
 
 writeWord32Hex :: Word32 -> Write
-writeWord32Hex w = 
+writeWord32Hex w =
     boundedWrite (2 * sizeOf w) (pokeN len $ pokeWord32HexN len w)
   where
     len = word32HexLength w
@@ -108,7 +108,7 @@ test = flip (toLazyByteStringWith 32 32 32) L.empty
                 map oneLine [0,1] ++
                 [B.insertByteString ""] ++
                 map oneLine [0..16]
-               
+
   where
     oneLine x = fromWriteSingleton writeWord32Hex x `mappend` Char8.fromChar ' '
 
@@ -133,22 +133,22 @@ chunkedTransferEncoding (Builder b) =
       where
         go innerStep !(BufRange op ope)
           -- FIXME: Assert that outRemaining < maxBound :: Word32
-          | outRemaining < minimalBufferSize = 
+          | outRemaining < minimalBufferSize =
               return $ bufferFull minimalBufferSize op (go innerStep)
           | otherwise = do
-              let !brInner@(BufRange opInner _) = BufRange 
+              let !brInner@(BufRange opInner _) = BufRange
                      (op  `plusPtr` (chunkSizeLength + 2))     -- leave space for chunk header
                      (ope `plusPtr` (-maxAfterBufferOverhead)) -- leave space at end of data
 
                   -- wraps the chunk, if it is non-empty, and returns the
                   -- signal constructed with the correct end-of-data pointer
                   {-# INLINE wrapChunk #-}
-                  wrapChunk :: Ptr Word8 -> (Ptr Word8 -> IO (BuildSignal a)) 
+                  wrapChunk :: Ptr Word8 -> (Ptr Word8 -> IO (BuildSignal a))
                             -> IO (BuildSignal a)
-                  wrapChunk !opInner' mkSignal 
+                  wrapChunk !opInner' mkSignal
                     | opInner' == opInner = mkSignal op
                     | otherwise           = do
-                        pokeWord32HexN chunkSizeLength 
+                        pokeWord32HexN chunkSizeLength
                             (fromIntegral $ opInner' `minusPtr` opInner)
                             op
                         execWrite writeCRLF (opInner `plusPtr` (-2))
@@ -165,16 +165,16 @@ chunkedTransferEncoding (Builder b) =
 
                 BufferFull minRequiredSize opInner' nextInnerStep ->
                     wrapChunk opInner' $ \op' ->
-                      return $! bufferFull 
-                        (minRequiredSize + maxEncodingOverhead) 
+                      return $! bufferFull
+                        (minRequiredSize + maxEncodingOverhead)
                         op'
-                        (go nextInnerStep)  
+                        (go nextInnerStep)
 
-                InsertByteString opInner' bs nextInnerStep 
+                InsertByteString opInner' bs nextInnerStep
                   | S.null bs ->                        -- flush
                       wrapChunk opInner' $ \op' ->
-                        return $! insertByteString 
-                          op' S.empty 
+                        return $! insertByteString
+                          op' S.empty
                           (go nextInnerStep)
 
                   | otherwise ->                        -- insert non-empty bytestring
@@ -182,21 +182,21 @@ chunkedTransferEncoding (Builder b) =
                         -- add header for inserted bytestring
                         -- FIXME: assert(S.length bs < maxBound :: Word32)
                         !op'' <- (`runPoke` op') $ getPoke $
-                            writeWord32Hex (fromIntegral $ S.length bs) 
+                            writeWord32Hex (fromIntegral $ S.length bs)
                             `mappend` writeCRLF
                         -- insert bytestring and write CRLF in next buildstep
                         return $! InsertByteString
                           op'' bs
-                          (unBuilder (fromWrite writeCRLF) $ 
+                          (unBuilder (fromWrite writeCRLF) $
                             buildStep $ go nextInnerStep)
-                  
+
           where
             -- minimal size guaranteed for actual data no need to require more
             -- than 1 byte to guarantee progress the larger sizes will be
             -- hopefully provided by the driver or requested by the wrapped
             -- builders.
-            minimalChunkSize  = 1   
-                                    
+            minimalChunkSize  = 1
+
             -- overhead computation
             maxBeforeBufferOverhead = sizeOf (undefined :: Int) + 2 -- max chunk size and CRLF after header
             maxAfterBufferOverhead  = 2 +                           -- CRLF after data
@@ -210,7 +210,7 @@ chunkedTransferEncoding (Builder b) =
             outRemaining :: Int
             outRemaining    = ope `minusPtr` op
             chunkSizeLength = word32HexLength $ fromIntegral outRemaining
-      
+
 
 -- | The zero-length chunk '0\r\n\r\n' signaling the termination of the data transfer.
 chunkedTransferTerminator :: Builder

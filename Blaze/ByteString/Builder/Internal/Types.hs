@@ -3,7 +3,7 @@
 -- Module      : Blaze.ByteString.Builder.Internal.Types
 -- Copyright   : (c) 2010 Simon Meier
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
@@ -36,11 +36,11 @@ data BuildSignal a =
       {-# UNPACK #-} !(Ptr Word8)
                      !(BuildStep a)
   | InsertByteString
-      {-# UNPACK #-} !(Ptr Word8) 
+      {-# UNPACK #-} !(Ptr Word8)
                      !S.ByteString
                      !(BuildStep a)
 
-newtype BuildStep a =  
+newtype BuildStep a =
     BuildStep { runBuildStep :: BufRange -> IO (BuildSignal a) }
 
 -- Hiding the implementation of 'BuildStep's
@@ -61,8 +61,8 @@ buildStep = BuildStep
 -- The 'Builder' Monoid and the 'Put' Monad
 ------------------------------------------------------------------------------
 
-newtype Builder = Builder { 
-    unBuilder :: forall r. BuildStep r -> BuildStep r 
+newtype Builder = Builder {
+    unBuilder :: forall r. BuildStep r -> BuildStep r
   }
 
 instance Monoid Builder where
@@ -105,7 +105,7 @@ instance Monad Put where
 -- Creation from concrete 'BuildStep's
 ------------------------------------------------------------------------------
 
-putBuildStepCont :: (forall r. (a -> BufRange -> IO (BuildSignal r)) -> 
+putBuildStepCont :: (forall r. (a -> BufRange -> IO (BuildSignal r)) ->
                                (     BufRange -> IO (BuildSignal r))
                     ) -> Put a
 putBuildStepCont step = Put step'
@@ -113,7 +113,7 @@ putBuildStepCont step = Put step'
     step' k = BuildStep $ step (\x -> runBuildStep (k x))
 
 
-fromBuildStepCont :: (forall r. (BufRange -> IO (BuildSignal r)) -> 
+fromBuildStepCont :: (forall r. (BufRange -> IO (BuildSignal r)) ->
                                 (BufRange -> IO (BuildSignal r))
                      ) -> Builder
 fromBuildStepCont step = Builder step'

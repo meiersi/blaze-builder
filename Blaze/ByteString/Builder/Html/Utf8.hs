@@ -3,7 +3,7 @@
 -- Module      : Blaze.ByteString.Builder.Html.Utf8
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
@@ -16,7 +16,7 @@
 -- 'Data.Binary.Builder' implementation, this module will most likely keep its
 -- place, as it provides a set of very specialized functions.
 module Blaze.ByteString.Builder.Html.Utf8
-    ( 
+    (
       module Blaze.ByteString.Builder.Char.Utf8
 
       -- * Writing HTML escaped and UTF-8 encoded characters to a buffer
@@ -42,7 +42,7 @@ import Blaze.ByteString.Builder.Char.Utf8
 -- | Write a HTML escaped and UTF-8 encoded Unicode character to a bufffer.
 --
 writeHtmlEscapedChar :: Char -> Write
-writeHtmlEscapedChar c0 = 
+writeHtmlEscapedChar c0 =
     boundedWrite 6 (io c0)
     -- WARNING: Don't forget to change the bound if you change the bytestrings.
   where

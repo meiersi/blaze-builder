@@ -31,5 +31,5 @@ word8s :: Builder
 word8s = map (fromWord8 . fromIntegral) $ [(1::Int)..1000]
 
 main :: IO ()
-main = 
+main =
     print $ toLazyByteStringWith 10 10 (mconcat word8s) L.empty

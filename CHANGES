@@ -3,7 +3,7 @@
 
 * 0.3.0.1
 
-  - Fix build warning in Blaze.ByteString.Builder.Word 
+  - Fix build warning in Blaze.ByteString.Builder.Word
     (contributed by Greg Weber)
 
 * 0.3.0.1
@@ -18,8 +18,8 @@
 
   - Renamings in internal modules: WriteIO -> Poke and associated functions.
 
-* 0.2.1.4 
-   
+* 0.2.1.4
+
   - Fixed bug: appending to 'chunkedTransferEncoding somebuilder' also encoded
     the appended builder, which is obviously wrong.
 
@@ -33,7 +33,7 @@
     issues caused by GHC bug http://hackage.haskell.org/trac/ghc/ticket/4498
 
 * 0.2.1.1
-  
+
   - Reexport 'Write' datatype and 'fromWriteList', 'fromWriteSingleton',
     'fromWrite' functions together with writes and builders for storables.
   - Add 'MonoPatBinds' language extension to (hopefully) solve the issues
@@ -51,7 +51,7 @@
       encoding this results currently in a slight slowdown due to GHC not
       recognizing the strictness of the returned value. This will be fixed in
       the future.
-    - BuildSteps support returning a result in `Done`, which enables to 
+    - BuildSteps support returning a result in `Done`, which enables to
       implement a `Put` monad using CPS.
     - chunked list writes were removed, as they result in worse performance
       when writing non-trivial lists. (cf. benchmarks)
@@ -60,16 +60,16 @@
       `blaze-builder-enumeratee` package, to execute puts and builders.
       It will be used later also by the execution functions of the
       `blaze-builder` package.
-  
+
   Implemented new functionality
-    - `Blaze.ByteString.Builder.HTTP` provides a builder transformer for 
+    - `Blaze.ByteString.Builder.HTTP` provides a builder transformer for
        doing in-buffer chunked HTTP encoding of an arbitary other builder.
     - `Blaze.ByteString.Builder.Char8` provides functions to serialize the
        lower 8-bits of characters similiar to what `Data.ByteString.Char8`
        provides for bytestrings.
 
 * 0.2.0.3
-  
+
   Loosen 'text' dependency to '>= 0.10 && < 0.12'
 
 * 0.2.0.2
@@ -77,7 +77,7 @@
   Fixed bug: use &#39; instead of &apos; for HTML escaping '
 
 * 0.2.0.1
-  
+
   Added a missing benchmark file.
 
 * blaze-builder-0.2.0.0
@@ -90,7 +90,7 @@
   Changed module structure:
     Blaze.ByteString.Builder.Core -> Blaze.ByteString.Builder
     Blaze.ByteString.Builder.Utf8 -> Blaze.ByteString.Builder.Char.Utf8
-    Blaze.ByteString.Builder.Html -> Blaze.ByteString.Builder.Html.Utf8 
+    Blaze.ByteString.Builder.Html -> Blaze.ByteString.Builder.Html.Utf8
 
   Changed function names:
     writeByte     -> writeWord8
@@ -106,7 +106,7 @@
     'empty'    : use 'mempty' instead
     'singleton': use 'fromWord8' instead
     'append'   : use 'mappend' instead
-  
+
 
 * blaze-builder-0.1
 

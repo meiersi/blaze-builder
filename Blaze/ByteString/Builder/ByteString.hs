@@ -4,7 +4,7 @@
 -- Module      : Blaze.ByteString.Builder.ByteString
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
@@ -18,7 +18,7 @@
 -- > import qualified Data.ByteString.Lazy as L
 --
 module Blaze.ByteString.Builder.ByteString
-    ( 
+    (
     -- * Strict bytestrings
       writeByteString
     , fromByteString
@@ -76,7 +76,7 @@ writeByteString bs = exactWrite l io
 --
 -- If you statically know that copying or inserting the strict bytestring is
 -- always the best choice, then you can use the 'copyByteString' or
--- 'insertByteString' functions. 
+-- 'insertByteString' functions.
 --
 fromByteString :: S.ByteString -> Builder
 fromByteString = fromByteStringWith defaultMaximalCopySize
@@ -97,7 +97,7 @@ fromByteString = fromByteStringWith defaultMaximalCopySize
 fromByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                    -> S.ByteString -- ^ Strict 'S.ByteString' to serialize.
                    -> Builder      -- ^ Resulting 'Builder'.
-fromByteStringWith maxCopySize = 
+fromByteStringWith maxCopySize =
     \bs -> fromBuildStepCont $ step bs
   where
     step !bs !k br@(BufRange !op _)
@@ -106,7 +106,7 @@ fromByteStringWith maxCopySize =
 {-# INLINE fromByteStringWith #-}
 
 -- | @copyByteString bs@ serialize the strict bytestring @bs@ by copying it to
--- the output buffer. 
+-- the output buffer.
 --
 -- Use this function to serialize strict bytestrings that are statically known
 -- to be smallish (@<= 4kb@).
@@ -115,10 +115,10 @@ copyByteString :: S.ByteString -> Builder
 copyByteString = \bs -> fromBuildStepCont $ copyByteStringStep bs
 {-# INLINE copyByteString #-}
 
-copyByteStringStep :: S.ByteString 
+copyByteStringStep :: S.ByteString
                    -> (BufRange -> IO (BuildSignal a))
                    -> (BufRange -> IO (BuildSignal a))
-copyByteStringStep (S.PS ifp ioff isize) !k = 
+copyByteStringStep (S.PS ifp ioff isize) !k =
     goBS (unsafeForeignPtrToPtr ifp `plusPtr` ioff)
   where
     !ipe = unsafeForeignPtrToPtr ifp `plusPtr` (ioff + isize)
@@ -138,7 +138,7 @@ copyByteStringStep (S.PS ifp ioff isize) !k =
 {-# INLINE copyByteStringStep #-}
 
 -- | @insertByteString bs@ serializes the strict bytestring @bs@ by inserting
--- it directly as a chunk of the output stream. 
+-- it directly as a chunk of the output stream.
 --
 -- Note that this implies flushing the output buffer; even if it contains just
 -- a single byte. Hence, you should use this operation only for large (@> 8kb@)
@@ -146,7 +146,7 @@ copyByteStringStep (S.PS ifp ioff isize) !k =
 -- to be processed efficiently.
 --
 insertByteString :: S.ByteString -> Builder
-insertByteString = 
+insertByteString =
     \bs -> fromBuildStepCont $ step bs
   where
     step !bs !k !(BufRange op _) = return $ I.insertByteString op bs k
@@ -167,7 +167,7 @@ insertByteString =
 --
 -- If you statically know that copying or inserting /all/ chunks of the lazy
 -- bytestring is always the best choice, then you can use the
--- 'copyLazyByteString' or 'insertLazyByteString' functions. 
+-- 'copyLazyByteString' or 'insertLazyByteString' functions.
 --
 fromLazyByteString :: L.ByteString -> Builder
 fromLazyByteString = fromLazyByteStringWith defaultMaximalCopySize
@@ -188,7 +188,7 @@ fromLazyByteString = fromLazyByteStringWith defaultMaximalCopySize
 fromLazyByteStringWith :: Int          -- ^ Maximal number of bytes to copy.
                        -> L.ByteString -- ^ Lazy 'L.ByteString' to serialize.
                        -> Builder      -- ^ Resulting 'Builder'.
-fromLazyByteStringWith maxCopySize = 
+fromLazyByteStringWith maxCopySize =
   L.foldrChunks (\bs b -> fromByteStringWith maxCopySize bs `mappend` b) mempty
 {-# INLINE fromLazyByteStringWith #-}
 
@@ -199,7 +199,7 @@ fromLazyByteStringWith maxCopySize =
 -- See 'copyByteString' for usage considerations.
 --
 copyLazyByteString :: L.ByteString -> Builder
-copyLazyByteString = 
+copyLazyByteString =
   L.foldrChunks (\bs b -> copyByteString bs `mappend` b) mempty
 {-# INLINE copyLazyByteString #-}
 

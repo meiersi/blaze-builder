@@ -4,7 +4,7 @@
 -- Module      : Criterion.ScalingBenchmark
 -- Copyright   : Simon Meier
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : GHC
@@ -58,7 +58,7 @@ import Control.Monad.Trans.Reader
 
 import Statistics.Types
 import Statistics.Sample
-import Statistics.Quantile as Statistics 
+import Statistics.Quantile as Statistics
 import Statistics.Function as Statistics
 
 import System.FilePath
@@ -80,46 +80,46 @@ main = do
       [ (compressComparison, defaultPlotConfig { pcLogYAxis = False })
       , (packComparison, defaultPlotConfig)
       , (zoomedPackComparison, defaultPlotConfig)
-      ] 
+      ]
   where
     runAndPlot config env (sc, plotConfig) = do
       sc' <- withConfig config $ runScalingComparison env sc
       mkPlots sc' plotConfig
 
     mkPlots sc plotConfig = sequence_
-        [ plotScalingComparison outType 
+        [ plotScalingComparison outType
             (plotConfig {pcBoxPlot = doBoxPlot}) conv sc
         | outType <- outTypes PDF ++ outTypes PNG,
           doBoxPlot <- [True, False]
-        ] 
+        ]
       where
         conv = fromIntegral :: Int -> Double
         outTypes f = map (uncurry f) [(640,480),(800,600),(1280,1024)]
 
 -- | Comparison of different implementations of packing [Word8].
 packComparison, zoomedPackComparison :: ScalingComparison Int
-(packComparison, zoomedPackComparison) = 
+(packComparison, zoomedPackComparison) =
   ( cmp "Packing [Word8]"             broadVs (bsFaster ++ bsSlower)
   , cmp "Packing short [Word8] lists" zoomedVs (bsFaster)
   )
   where
     cmp name = compareBenchmarks name "bytes"
 
-    bsFaster = 
+    bsFaster =
       [ ScalingBenchmark "S.pack"               (\x-> whnf S.pack                          (take x word8s))
       , ScalingBenchmark "packLazy"             (\x-> whnf (L.length . packLazy)           (take x word8s))
       , ScalingBenchmark "packStrict"           (\x-> whnf packStrict                      (take x word8s))
       ]
 
-    bsSlower = 
+    bsSlower =
       [ ScalingBenchmark "L.pack"               (\x-> whnf (L.length . L.pack)             (take x word8s))
       , ScalingBenchmark "declPackLazy"         (\x-> whnf (L.length . declPackLazy)       (take x word8s))
       , ScalingBenchmark "Binary.declPackLazy"  (\x-> whnf (L.length . binaryDeclPackLazy) (take x word8s))
       ]
-    
+
     mkLogVs :: Double -> Double -> [Int]
-    mkLogVs factor upperBound = 
-      map head . group . map round . takeWhile (<= upperBound) $ 
+    mkLogVs factor upperBound =
+      map head . group . map round . takeWhile (<= upperBound) $
       iterate (*factor) 1
 
     broadVs  = mkLogVs 1.5 (200 * 1024)
@@ -175,7 +175,7 @@ compressComparison = compareBenchmarks ("Compressing "++show kb++"kb of data") "
     vs :: [Int]
     vs = takeWhile (<= 100000) $ iterate (2*) 1
 
-    -- randomWord8s = map fromIntegral . take n $ unfoldr (Just . R.next) (R.mkStdGen 666) 
+    -- randomWord8s = map fromIntegral . take n $ unfoldr (Just . R.next) (R.mkStdGen 666)
     -- randomByteStrings c = L.fromChunks . map S.pack . chunk c $ randomWord8s
     -- {-# NOINLINE randomByteStrings #-}
 
@@ -187,7 +187,7 @@ compressComparison = compareBenchmarks ("Compressing "++show kb++"kb of data") "
     compressDirectly = L.length . compress
 
     compressCompacted :: L.ByteString -> Int64
-    compressCompacted = 
+    compressCompacted =
       L.length . compress . toLazyByteString . fromLazyByteString
 
     compaction :: L.ByteString -> Int64
@@ -196,7 +196,7 @@ compressComparison = compareBenchmarks ("Compressing "++show kb++"kb of data") "
 
 -- BoxPlots
 -----------
-    
+
 data BoxPlot = BoxPlot
        { bpMean               :: Double
        , bpHighSevereOutliers :: Sample
@@ -268,15 +268,15 @@ compareBenchmarks :: String               -- ^ Name of comparison.
                   -> [a]                  -- ^ Test values.
                   -> [ScalingBenchmark a] -- ^ Benchmarks to compare.
                   -> ScalingComparison a  -- ^ Resulting scaling comparison.
-compareBenchmarks name unit vs bs = 
+compareBenchmarks name unit vs bs =
     ScalingComparison name unit vs bs []
 
 -- | Annotate the measurements stored in a 'ScalingComparison'.
 annotateMeasurements :: (a -> b)
-                     -> ScalingComparison a 
+                     -> ScalingComparison a
                      -> [(String, [(b,Sample)])]
 annotateMeasurements f sc =
-    zip (map scalingBenchmarkName $ scBenchmarks sc) 
+    zip (map scalingBenchmarkName $ scBenchmarks sc)
         (map (zip (map f $ scTestValues sc)) (scMeasurements sc))
 
 -- | Run a 'ScalingComparison'.
@@ -293,8 +293,8 @@ runScalingComparison env sc = do
         let testPointStr = show x ++ " " ++ scTestUnit sc
         liftIO $ putStrLn $ ""
         liftIO $ putStrLn $ "running benchmarks for " ++ testPointStr
-        samples <- sequence 
-            [ ((,) name) `liftM` runBenchmark env (mkBench x) 
+        samples <- sequence
+            [ ((,) name) `liftM` runBenchmark env (mkBench x)
             | ScalingBenchmark name mkBench <- scBenchmarks sc ]
         liftIO $ putStrLn $ ""
         liftIO $ putStrLn $ "ranking for " ++ testPointStr
@@ -304,15 +304,15 @@ runScalingComparison env sc = do
     quickAnalysis samples = do
         let indent = length (show $ length samples + 1) + 2
             extent = maximum (map (length . fst) samples) + 2
-        mapM_ (printStatistics indent extent) 
+        mapM_ (printStatistics indent extent)
               (zip [1..] $ sortBy (compare `on` (mean . snd)) samples)
- 
+
     printStatistics :: Int -> Int -> (Int, (String, Sample)) -> IO ()
     printStatistics indent extent (i, (info, sample)) = putStrLn $
         rightAlign indent (show i) ++ ". " ++
         leftAlign extent (info ++ ":") ++
-        "mean " ++ secs (mean sample) ++ 
-        " (2p " ++ secs p2 ++ 
+        "mean " ++ secs (mean sample) ++
+        " (2p " ++ secs p2 ++
         ", 98p " ++ secs p98 ++
         ", out " ++ rightAlign 2 (show outliers) ++
         ")"
@@ -330,7 +330,7 @@ data PlotConfig = PlotConfig {
     pcBoxPlot  :: Bool
   , pcLogYAxis :: Bool
   , pcLogXAxis :: Bool
-  } 
+  }
   deriving( Eq, Ord, Show )
 
 defaultPlotConfig :: PlotConfig
@@ -343,7 +343,7 @@ prettyPlotConfig (PlotConfig boxPlot logY logX) =
     f b info = if b then return info else mzero
 
 -- | Plot a scaling comparison.
-plotScalingComparison :: (PlotValue b, RealFloat b) 
+plotScalingComparison :: (PlotValue b, RealFloat b)
                       => PlotOutput           -- ^ Output format.
                       -> PlotConfig           -- ^ Plot configuration.
                       -> (a -> b)             -- ^ Test point conversion function.
@@ -357,9 +357,9 @@ plotScalingComparison output config conv sc =
       PDF x y    -> \r -> renderableToPDFFile r x y (mkName "pdf" x y)
       PNG x y    -> \r -> renderableToPNGFile r x y (mkName "png" x y)
       SVG x y    -> \r -> renderableToSVGFile r x y (mkName "svg" x y)
-      Window x y -> \r -> renderableToWindow  r x y 
+      Window x y -> \r -> renderableToWindow  r x y
 
-    mkName fileType x y = mangle $ 
+    mkName fileType x y = mangle $
       printf "%s scaling %s%dx%d.%s" (scName sc) plotType x y fileType
 
     plotType = case prettyPlotConfig config of
@@ -369,20 +369,20 @@ plotScalingComparison output config conv sc =
 -- plotScalingComparison (PNG x y) doBoxplot conv sc =
 --   renderableToPNGFile (renderScalingComparison doBoxplot conv sc) x y
 --                       (mangle $ printf "%s scaling %dx%d.png" (scName sc) x y)
--- 
+--
 -- plotScalingComparison (SVG x y) doBoxplot conv sc =
 --   renderableToSVGFile (renderScalingComparison doBoxplot conv sc) x y
 --                       (mangle $ printf "%s scaling %dx%d.svg" (scName sc) x y)
--- 
+--
 -- plotScalingComparison (Window x y) doBoxplot conv sc =
 --   renderableToWindow (renderScalingComparison doBoxplot conv sc) x y
--- 
+--
 
 -- | Render a scaling comparison using an adaption of the boxplot technique to
 -- lineplots.
-renderScalingComparison :: (PlotValue b, RealFloat b) 
+renderScalingComparison :: (PlotValue b, RealFloat b)
                         => PlotConfig -> (a -> b) -> ScalingComparison a -> Renderable ()
-renderScalingComparison config f sc = 
+renderScalingComparison config f sc =
     toRenderable $
       layout1_plots ^= plots $
       layout1_title ^= scName sc $
@@ -402,8 +402,8 @@ renderScalingComparison config f sc =
 
 -- | Plot the means of the annotated samples
 --
-plotAnnotatedSamples :: AlphaColour Double 
-                     -> (String, [(a,Sample)]) 
+plotAnnotatedSamples :: AlphaColour Double
+                     -> (String, [(a,Sample)])
                      -> [Either (Plot a Double) (Plot a Double)]
 plotAnnotatedSamples colour (name, points) =
     return . Right $ line (solidLine 1) 1 mean
@@ -415,8 +415,8 @@ plotAnnotatedSamples colour (name, points) =
 -- | Plot the annotated samples as a boxplot. This should be used to check the
 -- soundness of the measured results.
 --
-boxplotAnnotatedSamples :: AlphaColour Double 
-                     -> (String, [(a,Sample)]) 
+boxplotAnnotatedSamples :: AlphaColour Double
+                     -> (String, [(a,Sample)])
                      -> [Either (Plot a Double) (Plot a Double)]
 boxplotAnnotatedSamples colour (name, points) =
     map (Right . noLegend . uncurry (line (solidLine 1)))
@@ -432,10 +432,10 @@ boxplotAnnotatedSamples colour (name, points) =
         , outliers severeOutStyle bpLowSevereOutliers
         , outliers mildOutStyle bpHighMildOutliers
         , outliers mildOutStyle bpLowMildOutliers
-        ] 
+        ]
   where
     points' = map (second boxPlot) points
-    
+
     line style trans proj = toPlot $ plotLine name
         (solidLine 1 $ dissolve trans colour)
         (map (second proj) points')
@@ -453,18 +453,18 @@ noLegend = plot_legend ^= []
 
 -- | Plot a single named line using the given line style.
 plotLine :: String -> CairoLineStyle -> [(a,b)] -> PlotLines a b
-plotLine name style points = 
+plotLine name style points =
     plot_lines_title ^= name $
     plot_lines_style ^= style $
-    plot_lines_values ^= [points] $ 
+    plot_lines_values ^= [points] $
     defaultPlotLines
 
 -- | Plot a single named line using the given line style.
 plotPoints :: String -> CairoPointStyle -> [(a,b)] -> PlotPoints a b
-plotPoints name style points = 
+plotPoints name style points =
     plot_points_title ^= name $
     plot_points_style ^= style $
-    plot_points_values ^= points $ 
+    plot_points_values ^= points $
     defaultPlotPoints
 
 
@@ -475,12 +475,12 @@ mkLinearAxis :: PlotValue x => String -> LayoutAxis x
 mkLinearAxis name = laxis_title ^= name $ defaultLayoutAxis
 
 mkLogAxis :: (RealFloat x, PlotValue x) => String -> LayoutAxis x
-mkLogAxis name = 
-  laxis_title ^= name $ 
+mkLogAxis name =
+  laxis_title ^= name $
   laxis_generate ^= autoScaledLogAxis defaultLogAxis $
   defaultLayoutAxis
 
--- Filehandling 
+-- Filehandling
 ---------------
 
 

@@ -79,7 +79,7 @@ instance Show Builder where
     show = show . toLazyByteString
 
 instance Eq Builder where
-    b1 == b2 = 
+    b1 == b2 =
         -- different and small buffer sizses for testing wrapping behaviour
         toLazyByteStringWith  1024     1024 256 b1 mempty ==
         toLazyByteStringWith  2001     511  256 b2 mempty

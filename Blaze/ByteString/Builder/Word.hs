@@ -7,7 +7,7 @@
 --               (c) Lennart Kolmodin, Ross Patterson
 --
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
@@ -15,7 +15,7 @@
 -- 'Write's and 'Builder's for serializing words.
 --
 -- Note that for serializing a three tuple @(x,y,z)@ of bytes (or other word
--- values) you should use the expression 
+-- values) you should use the expression
 --
 -- > fromWrite $ writeWord8 x `mappend` writeWord8 y `mappend` writeWord z
 --
@@ -32,7 +32,7 @@
 #include "MachDeps.h"
 #endif
 module Blaze.ByteString.Builder.Word
-    ( 
+    (
     -- * Writing words to a buffer
 
       writeWord8
@@ -54,7 +54,7 @@ module Blaze.ByteString.Builder.Word
     , writeWord64host         -- :: Word64 -> Write
 
     -- * Creating builders from words
-    
+
     -- | We provide serialization functions both for singleton words as well as
     -- for lists of words. Using these list serialization functions is /much/ faster
     -- than using @mconcat . map fromWord/<n/>@, as the list serialization
@@ -102,7 +102,7 @@ import Foreign
 --
 -- Based upon the 'putWordX' functions from "Data.Binary.Builder" from the
 -- 'binary' package.
--- 
+--
 ------------------------------------------------------------------------------
 
 
@@ -228,25 +228,25 @@ writeWord64le w = exactWrite 8 $ \p -> do
 -- conversion.
 --
 writeWordhost :: Word -> Write
-writeWordhost w = 
+writeWordhost w =
     exactWrite (sizeOf (undefined :: Word)) (\p -> poke (castPtr p) w)
 {-# INLINE writeWordhost #-}
 
 -- | Write a 'Word16' in native host order and host endianness.
 writeWord16host :: Word16 -> Write
-writeWord16host w16 = 
+writeWord16host w16 =
     exactWrite (sizeOf (undefined :: Word16)) (\p -> poke (castPtr p) w16)
 {-# INLINE writeWord16host #-}
 
 -- | Write a 'Word32' in native host order and host endianness.
 writeWord32host :: Word32 -> Write
-writeWord32host w32 = 
+writeWord32host w32 =
     exactWrite (sizeOf (undefined :: Word32)) (\p -> poke (castPtr p) w32)
 {-# INLINE writeWord32host #-}
 
 -- | Write a 'Word64' in native host order and host endianness.
 writeWord64host :: Word64 -> Write
-writeWord64host w = 
+writeWord64host w =
     exactWrite (sizeOf (undefined :: Word64)) (\p -> poke (castPtr p) w)
 {-# INLINE writeWord64host #-}
 
@@ -274,22 +274,22 @@ fromWord8s = fromWriteList writeWord8
 
 -- | Serialize a 'Word16' in big endian format.
 fromWord16be :: Word16 -> Builder
-fromWord16be = fromWriteSingleton writeWord16be 
+fromWord16be = fromWriteSingleton writeWord16be
 {-# INLINE fromWord16be #-}
 
 -- | Serialize a list of 'Word16's in big endian format.
 fromWord16sbe :: [Word16] -> Builder
-fromWord16sbe = fromWriteList writeWord16be 
+fromWord16sbe = fromWriteList writeWord16be
 {-# INLINE fromWord16sbe #-}
 
 -- | Serialize a 'Word16' in little endian format.
 fromWord16le :: Word16 -> Builder
-fromWord16le = fromWriteSingleton writeWord16le 
+fromWord16le = fromWriteSingleton writeWord16le
 {-# INLINE fromWord16le #-}
 
 -- | Serialize a list of 'Word16's in little endian format.
 fromWord16sle :: [Word16] -> Builder
-fromWord16sle = fromWriteList writeWord16le 
+fromWord16sle = fromWriteList writeWord16le
 {-# INLINE fromWord16sle #-}
 
 
@@ -298,42 +298,42 @@ fromWord16sle = fromWriteList writeWord16le
 
 -- | Serialize a 'Word32' in big endian format.
 fromWord32be :: Word32 -> Builder
-fromWord32be = fromWriteSingleton writeWord32be 
+fromWord32be = fromWriteSingleton writeWord32be
 {-# INLINE fromWord32be #-}
 
 -- | Serialize a list of 'Word32's in big endian format.
 fromWord32sbe :: [Word32] -> Builder
-fromWord32sbe = fromWriteList writeWord32be 
+fromWord32sbe = fromWriteList writeWord32be
 {-# INLINE fromWord32sbe #-}
 
 -- | Serialize a 'Word32' in little endian format.
 fromWord32le :: Word32 -> Builder
-fromWord32le = fromWriteSingleton writeWord32le 
+fromWord32le = fromWriteSingleton writeWord32le
 {-# INLINE fromWord32le #-}
 
 -- | Serialize a list of 'Word32's in little endian format.
 fromWord32sle :: [Word32] -> Builder
-fromWord32sle = fromWriteList writeWord32le 
+fromWord32sle = fromWriteList writeWord32le
 {-# INLINE fromWord32sle #-}
 
 -- | Serialize a 'Word64' in big endian format.
 fromWord64be :: Word64 -> Builder
-fromWord64be = fromWriteSingleton writeWord64be 
+fromWord64be = fromWriteSingleton writeWord64be
 {-# INLINE fromWord64be #-}
 
 -- | Serialize a list of 'Word64's in big endian format.
 fromWord64sbe :: [Word64] -> Builder
-fromWord64sbe = fromWriteList writeWord64be 
+fromWord64sbe = fromWriteList writeWord64be
 {-# INLINE fromWord64sbe #-}
 
 -- | Serialize a 'Word64' in little endian format.
 fromWord64le :: Word64 -> Builder
-fromWord64le = fromWriteSingleton writeWord64le 
+fromWord64le = fromWriteSingleton writeWord64le
 {-# INLINE fromWord64le #-}
 
 -- | Serialize a list of 'Word64's in little endian format.
 fromWord64sle :: [Word64] -> Builder
-fromWord64sle = fromWriteList writeWord64le 
+fromWord64sle = fromWriteList writeWord64le
 {-# INLINE fromWord64sle #-}
 
 
@@ -347,33 +347,33 @@ fromWord64sle = fromWriteList writeWord64le
 -- conversion.
 --
 fromWordhost :: Word -> Builder
-fromWordhost = fromWriteSingleton writeWordhost 
+fromWordhost = fromWriteSingleton writeWordhost
 {-# INLINE fromWordhost #-}
 
 -- | Serialize a list of 'Word's.
 -- See 'fromWordhost' for usage considerations.
 fromWordshost :: [Word] -> Builder
-fromWordshost = fromWriteList writeWordhost 
+fromWordshost = fromWriteList writeWordhost
 {-# INLINE fromWordshost #-}
 
 -- | Write a 'Word16' in native host order and host endianness.
 fromWord16host :: Word16 -> Builder
-fromWord16host = fromWriteSingleton writeWord16host 
+fromWord16host = fromWriteSingleton writeWord16host
 {-# INLINE fromWord16host #-}
 
 -- | Write a list of 'Word16's in native host order and host endianness.
 fromWord16shost :: [Word16] -> Builder
-fromWord16shost = fromWriteList writeWord16host 
+fromWord16shost = fromWriteList writeWord16host
 {-# INLINE fromWord16shost #-}
 
 -- | Write a 'Word32' in native host order and host endianness.
 fromWord32host :: Word32 -> Builder
-fromWord32host = fromWriteSingleton writeWord32host 
+fromWord32host = fromWriteSingleton writeWord32host
 {-# INLINE fromWord32host #-}
 
 -- | Write a list of 'Word32's in native host order and host endianness.
 fromWord32shost :: [Word32] -> Builder
-fromWord32shost = fromWriteList writeWord32host 
+fromWord32shost = fromWriteList writeWord32host
 {-# INLINE fromWord32shost #-}
 
 -- | Write a 'Word64' in native host order and host endianness.

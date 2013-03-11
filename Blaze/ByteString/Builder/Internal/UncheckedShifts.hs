@@ -7,7 +7,7 @@
 --               (c) Lennart Kolmodin, Ross Patterson
 --
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only

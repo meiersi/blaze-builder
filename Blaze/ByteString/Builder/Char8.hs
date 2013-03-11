@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-unused-imports #-} 
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {-# LANGUAGE MonoPatBinds #-}
 -- ignore warning from 'import Data.Text.Encoding'
 
@@ -6,13 +6,13 @@
 -- Module      : Blaze.ByteString.Builder.Char8
 -- Copyright   : (c) 2010 Simon Meier
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
 --
 -- //Note:// This package is intended for low-level use like implementing
--- protocols. If you need to //serialize// Unicode characters use one of the 
+-- protocols. If you need to //serialize// Unicode characters use one of the
 -- UTF encodings (e.g. 'Blaze.ByteString.Builder.Char.UTF-8').
 --
 -- 'Write's and 'Builder's for serializing the lower 8-bits of characters.
@@ -21,7 +21,7 @@
 -- 'Data.ByteString.Char8'.
 --
 module Blaze.ByteString.Builder.Char8
-    ( 
+    (
       -- * Writing Latin-1 (ISO 8859-1) encodable characters to a buffer
       writeChar
 

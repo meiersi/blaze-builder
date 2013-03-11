@@ -3,7 +3,7 @@
 -- Module      : Blaze.ByteString.Builder
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
 -- License     : BSD3-style (see LICENSE)
--- 
+--
 -- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
@@ -12,7 +12,7 @@
 -- of the @blaze-builder@ library.
 --
 -- > import Blaze.ByteString.Builder
--- 
+--
 -- It provides you with a type 'Builder' that allows to efficiently construct
 -- lazy bytestrings with a large average chunk size.
 --
@@ -57,7 +57,7 @@
 -----------------------------------------------------------------------------
 
 module Blaze.ByteString.Builder
-    ( 
+    (
       -- * The 'Builder' type
       Builder
 
