@@ -4,6 +4,8 @@
 {-# LANGUAGE MonoPatBinds #-}
 #endif
 
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+
 -- |
 -- Module      : Blaze.ByteString.Builder.ByteString
 -- Copyright   : (c) 2010 Jasper Van der Jeugt & Simon Meier
