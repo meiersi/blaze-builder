@@ -43,6 +43,14 @@ Extra-source-files:
 
                      tests/*.hs
 
+                     cbits/*.c
+
+                     Data/ByteString/*.hs
+                     Data/ByteString/Builder/*.hs
+                     Data/ByteString/Builder/Prim/*.hs
+                     Data/ByteString/Builder/Prim/Internal/*.hs
+                     Data/ByteString/Short/*.hs
+
 Source-repository head
   Type: git
   Location: https://github.com/meiersi/blaze-builder.git
@@ -68,7 +76,7 @@ Library
                      text >= 0.10 && < 0.13
 
   if impl(ghc < 7.6)
-      c-sources: bytestring/cbits/itoa.c
+      c-sources: cbits/itoa.c
 
 
   if impl(ghc < 7.8)
