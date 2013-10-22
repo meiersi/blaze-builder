@@ -1,15 +1,12 @@
-{-# LANGUAGE CPP, BangPatterns #-}
+{-# LANGUAGE CPP, BangPatterns, MonoPatBinds #-}
 
-#ifdef USE_MONO_PAT_BINDS
-{-# LANGUAGE MonoPatBinds #-}
-#endif
 -- |
 -- Module      : Blaze.ByteString.Builder.Internal.Poke
 -- Copyright   : (c) 2010 Simon Meier
 --               (c) 2010 Jasper van der Jeugt
 -- License     : BSD3-style (see LICENSE)
 --
--- Maintainer  : Simon Meier <iridcode@gmail.com>
+-- Maintainer  : Leon P Smith <leon@melding-monads.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
 --
@@ -20,12 +17,11 @@
 --
 module Blaze.ByteString.Builder.Internal.Write (
   -- * Poking a buffer
-    Poke
-  , runPoke
+    Poke(..)
   , pokeN
 
   -- * Writing to abuffer
-  , Write
+  , Write(..)
   , runWrite
   , getBound
   , getBound'
@@ -57,8 +53,8 @@ import Data.Monoid
 
 import Control.Monad
 
-import Blaze.ByteString.Builder.Internal.Types
-
+import Data.ByteString.Builder.Internal
+import Data.ByteString.Builder.Prim.Internal
 
 ------------------------------------------------------------------------------
 -- Poking a buffer and writing to a buffer
@@ -219,12 +215,12 @@ writeOrd test = writeOrdering (`compare` test)
 {-# INLINE fromWrite #-}
 fromWrite :: Write -> Builder
 fromWrite (Write maxSize wio) =
-    fromBuildStepCont step
+    builder step
   where
-    step k (BufRange op ope)
+    step k (BufferRange op ope)
       | op `plusPtr` maxSize <= ope = do
           op' <- runPoke wio op
-          let !br' = BufRange op' ope
+          let !br' = BufferRange op' ope
           k br'
       | otherwise = return $ bufferFull maxSize op (step k)
 
@@ -233,28 +229,29 @@ fromWriteSingleton :: (a -> Write) -> (a -> Builder)
 fromWriteSingleton write =
     mkBuilder
   where
-    mkBuilder x = fromBuildStepCont step
+    mkBuilder x = builder step
       where
-        step k (BufRange op ope)
+        step k (BufferRange op ope)
           | op `plusPtr` maxSize <= ope = do
               op' <- runPoke wio op
-              let !br' = BufRange op' ope
+              let !br' = BufferRange op' ope
               k br'
           | otherwise = return $ bufferFull maxSize op (step k)
           where
             Write maxSize wio = write x
+
 
 -- | Construct a 'Builder' writing a list of data one element at a time.
 fromWriteList :: (a -> Write) -> [a] -> Builder
 fromWriteList write =
     makeBuilder
   where
-    makeBuilder xs0 = fromBuildStepCont $ step xs0
+    makeBuilder xs0 = builder $ step xs0
       where
-        step xs1 k !(BufRange op0 ope0) = go xs1 op0
+        step xs1 k !(BufferRange op0 ope0) = go xs1 op0
           where
             go [] !op = do
-               let !br' = BufRange op ope0
+               let !br' = BufferRange op ope0
                k br'
 
             go xs@(x':xs') !op

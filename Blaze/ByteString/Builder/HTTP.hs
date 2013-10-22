@@ -1,9 +1,4 @@
-{-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings #-}
-
-#ifdef USE_MONO_PAT_BINDS
-{-# LANGUAGE MonoPatBinds #-}
-#endif
-
+{-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings, MonoPatBinds #-}
 -- | Support for HTTP response encoding.
 --
 -- TODO: Improve documentation.
@@ -13,18 +8,44 @@ module Blaze.ByteString.Builder.HTTP (
   , chunkedTransferTerminator
   ) where
 
+#if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
+#include "MachDeps.h"
+#endif
+
+#if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
+import GHC.Base
+import GHC.Word (Word32(..))
+#else
+import Data.Word
+#endif
+
+import Foreign
+
 import Data.Monoid
 import qualified Data.ByteString       as S
 import Data.ByteString.Char8 ()
 
 import Foreign
 
-import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Internal.Types
-import Blaze.ByteString.Builder.Internal.UncheckedShifts
+import Blaze.ByteString.Builder.Internal.Write
+import Data.ByteString.Builder
+import Data.ByteString.Builder.Internal
+-- import Blaze.ByteString.Builder.Internal.Types
+-- import Blaze.ByteString.Builder.Internal.UncheckedShifts
 import Blaze.ByteString.Builder.ByteString (copyByteString)
 
 import qualified Blaze.ByteString.Builder.Char8 as Char8
+
+
+{-# INLINE shiftr_w32 #-}
+shiftr_w32 :: Word32 -> Int -> Word32
+
+#if defined(__GLASGOW_HASKELL__) && !defined(__HADDOCK__)
+shiftr_w32 (W32# w) (I# i) = W32# (w `uncheckedShiftRL#`   i)
+#else
+shiftr_w32 = shiftR
+#endif
+
 
 -- only required by test-code
 -- import qualified Data.ByteString.Lazy as L
@@ -105,6 +126,7 @@ writeWord32Hex w =
     len = word32HexLength w
 {-# INLINE writeWord32Hex #-}
 
+
 {-
 test = flip (toLazyByteStringWith 32 32 32) L.empty
     $ chunkedTransferEncoding
@@ -129,19 +151,23 @@ body = copyByteString "maa" `mappend` copyByteString "foo" `mappend` copyByteStr
 
 -- | Transform a builder such that it uses chunked HTTP transfer encoding.
 chunkedTransferEncoding :: Builder -> Builder
-chunkedTransferEncoding (Builder b) =
-    fromBuildStepCont transferEncodingStep
+chunkedTransferEncoding builder =
+    builder transferEncodingStep
   where
-    finalStep !(BufRange op _) = return $ Done op ()
+    b = runBuilder builder
+    buildStep = id
+    runBuildStep = id
+
+    finalStep !(BufferRange op _) = return $ Done op ()
 
     transferEncodingStep k = go (b (buildStep finalStep))
       where
-        go innerStep !(BufRange op ope)
+        go innerStep !(BufferRange op ope)
           -- FIXME: Assert that outRemaining < maxBound :: Word32
           | outRemaining < minimalBufferSize =
               return $ bufferFull minimalBufferSize op (go innerStep)
           | otherwise = do
-              let !brInner@(BufRange opInner _) = BufRange
+              let !brInner@(BufferRange opInner _) = BufferRange
                      (op  `plusPtr` (chunkSizeLength + 2))     -- leave space for chunk header
                      (ope `plusPtr` (-maxAfterBufferOverhead)) -- leave space at end of data
 
@@ -165,7 +191,7 @@ chunkedTransferEncoding (Builder b) =
               case signal of
                 Done opInner' _ ->
                     wrapChunk opInner' $ \op' -> do
-                      let !br' = BufRange op' ope
+                      let !br' = BufferRange op' ope
                       k br'
 
                 BufferFull minRequiredSize opInner' nextInnerStep ->
@@ -192,7 +218,7 @@ chunkedTransferEncoding (Builder b) =
                         -- insert bytestring and write CRLF in next buildstep
                         return $! InsertByteString
                           op'' bs
-                          (unBuilder (fromWrite writeCRLF) $
+                          (runBuilderWith (fromWrite writeCRLF) $
                             buildStep $ go nextInnerStep)
 
           where
@@ -220,5 +246,3 @@ chunkedTransferEncoding (Builder b) =
 -- | The zero-length chunk '0\r\n\r\n' signaling the termination of the data transfer.
 chunkedTransferTerminator :: Builder
 chunkedTransferTerminator = copyByteString "0\r\n\r\n"
-
-

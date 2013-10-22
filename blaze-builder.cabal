@@ -2,7 +2,7 @@ Name:                blaze-builder
 Version:             0.3.1.1
 Synopsis:            Efficient buffered output.
 
-Description:         
+Description:
                      This library provides an abstraction of buffered output of
                      byte streams and several convenience functions to exploit
                      it. For example, it allows to efficiently serialize
@@ -13,9 +13,10 @@ Description:
                      when writing the resulting lazy bytestring to a file or
                      sending it over the network.
 
-Author:              Jasper Van der Jeugt, Simon Meier
-Copyright:           2010 Simon Meier
-                     2010 Jasper Van der Jeugt
+Author:              Jasper Van der Jeugt, Simon Meier, Leon P Smith
+Copyright:           (c) 2010-2013 Simon Meier
+                     (c) 2010 Jasper Van der Jeugt
+                     (c) 2013 Leon P Smith
 Maintainer:          Simon Meier <iridcode@gmail.com>
 
 License:             BSD3
@@ -29,7 +30,7 @@ Category:            Data
 Build-type:          Simple
 Cabal-version:       >= 1.6
 
-Extra-source-files:  
+Extra-source-files:
                      Makefile
                      README.markdown
                      TODO
@@ -49,14 +50,6 @@ Source-repository head
 Library
   ghc-options:       -Wall
 
-  -- Earlier versions of GHC did not split off unsafe functions in "Foreign"
-  if impl(ghc >= 7.4)
-      cpp-options:   -DHAS_FOREIGN_UNSAFE_MODULE
-
-  -- GHC 7.0.x and lower required MonoPatBinds feature
-  if impl(ghc < 7.2)
-      cpp-options:   -DUSE_MONO_PAT_BINDS
-
   exposed-modules:   Blaze.ByteString.Builder
                      Blaze.ByteString.Builder.Int
                      Blaze.ByteString.Builder.Word
@@ -64,15 +57,37 @@ Library
                      Blaze.ByteString.Builder.Char.Utf8
                      Blaze.ByteString.Builder.Char8
                      Blaze.ByteString.Builder.Html.Utf8
-                     Blaze.ByteString.Builder.HTTP
+--                     Blaze.ByteString.Builder.HTTP
+                     Blaze.ByteString.Builder.Compat.Write
 
-                     Blaze.ByteString.Builder.Internal
                      Blaze.ByteString.Builder.Internal.Write
-                     Blaze.ByteString.Builder.Internal.Types
-                     Blaze.ByteString.Builder.Internal.Buffer
 
-  other-modules:     Blaze.ByteString.Builder.Internal.UncheckedShifts
-  
   build-depends:     base == 4.* ,
                      bytestring >= 0.9 && < 1.0 ,
+                     deepseq,
                      text >= 0.10 && < 0.13
+
+  if impl(ghc < 7.6)
+      c-sources: bytestring/cbits/itoa.c
+
+
+  if impl(ghc < 7.8)
+      exposed-modules:
+                         Data.ByteString.Builder
+                         Data.ByteString.Builder.Extra
+                         Data.ByteString.Builder.Prim
+
+                         -- perhaps only exposed temporarily
+                         Data.ByteString.Builder.Internal
+                         Data.ByteString.Builder.Prim.Internal
+
+                         Data.ByteString.Short
+                         Data.ByteString.Short.Internal
+
+      other-modules:
+                         Data.ByteString.Builder.ASCII
+                         Data.ByteString.Builder.Prim.Binary
+                         Data.ByteString.Builder.Prim.ASCII
+                         Data.ByteString.Builder.Prim.Internal.Floating
+                         Data.ByteString.Builder.Prim.Internal.UncheckedShifts
+                         Data.ByteString.Builder.Prim.Internal.Base16

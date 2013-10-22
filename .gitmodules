@@ -1,0 +1,6 @@
+[submodule "blaze-builder"]
+	path = blaze-builder
+	url = git@github.com:lpsmith/blaze-builder.git
+[submodule "bytestring"]
+	path = bytestring
+	url = https://github.com/haskell/bytestring.git

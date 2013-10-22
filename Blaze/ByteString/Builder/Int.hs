@@ -1,24 +1,13 @@
-{-# LANGUAGE CPP #-}
-
-#ifdef USE_MONO_PAT_BINDS
-{-# LANGUAGE MonoPatBinds #-}
-#endif
-
+------------------------------------------------------------------------------
 -- |
--- Module      : Blaze.ByteString.Builder.Int
--- Copyright   : (c) 2010 Simon Meier
+-- Module:      Blaze.ByteString.Builder.Int
+-- Copyright:   (c) 2013 Leon P Smith
+-- License:     BSD3
+-- Maintainer:  Leon P Smith <leon@melding-monads.com>
+-- Stability:   experimental
 --
--- License     : BSD3-style (see LICENSE)
---
--- Maintainer  : Simon Meier <iridcode@gmail.com>
--- Stability   : experimental
--- Portability : tested on GHC only
---
--- 'Write's and 'Builder's for serializing integers.
---
--- See "Blaze.ByteString.Builder.Word" for information about how to best write several
--- integers at once.
---
+------------------------------------------------------------------------------
+
 module Blaze.ByteString.Builder.Int
     (
     -- * Writing integers to a buffer
@@ -79,218 +68,113 @@ module Blaze.ByteString.Builder.Int
 
     ) where
 
-import Blaze.ByteString.Builder.Internal
-import Blaze.ByteString.Builder.Word
+import Data.Int
+import Blaze.ByteString.Builder.Compat.Write ( Write, writePrimFixed )
+import Data.ByteString.Builder ( Builder )
+import qualified Data.ByteString.Builder       as B
+import qualified Data.ByteString.Builder.Extra as B
+import qualified Data.ByteString.Builder.Prim  as P
 
-import Foreign
+    -- * Writing integers to a buffer
 
-------------------------------------------------------------------------------
--- Int writes
---------------
---
--- we rely on 'fromIntegral' to do a loss-less conversion to the corresponding
--- 'Word' type
---
-------------------------------------------------------------------------------
+writeInt8      :: Int8 -> Write
+writeInt8 = writePrimFixed P.int8
 
+    -- ** Big-endian writes
+writeInt16be   :: Int16 -> Write
+writeInt16be = writePrimFixed P.int16BE
 
--- | Write a single signed byte.
---
-writeInt8 :: Int8 -> Write
-writeInt8 = writeWord8 . fromIntegral
-{-# INLINE writeInt8 #-}
+writeInt32be   :: Int32 -> Write
+writeInt32be = writePrimFixed P.int32BE
 
--- | Write an 'Int16' in big endian format.
-writeInt16be :: Int16 -> Write
-writeInt16be = writeWord16be . fromIntegral
-{-# INLINE writeInt16be #-}
-
--- | Write an 'Int16' in little endian format.
-writeInt16le :: Int16 -> Write
-writeInt16le = writeWord16le . fromIntegral
-{-# INLINE writeInt16le #-}
-
--- | Write an 'Int32' in big endian format.
-writeInt32be :: Int32 -> Write
-writeInt32be = writeWord32be . fromIntegral
-{-# INLINE writeInt32be #-}
-
--- | Write an 'Int32' in little endian format.
-writeInt32le :: Int32 -> Write
-writeInt32le = writeWord32le . fromIntegral
-{-# INLINE writeInt32le #-}
-
--- | Write an 'Int64' in big endian format.
-writeInt64be :: Int64 -> Write
-writeInt64be = writeWord64be . fromIntegral
-{-# INLINE writeInt64be #-}
-
--- | Write an 'Int64' in little endian format.
-writeInt64le :: Int64 -> Write
-writeInt64le = writeWord64le . fromIntegral
-{-# INLINE writeInt64le #-}
+writeInt64be   :: Int64 -> Write
+writeInt64be = writePrimFixed P.int64BE
 
 
-------------------------------------------------------------------------
--- Unaligned, integer size ops
+    -- ** Little-endian writes
+writeInt16le   :: Int16 -> Write
+writeInt16le = writePrimFixed P.int16LE
 
--- | Write a single native machine 'Int'. The 'Int' is written in host order,
--- host endian form, for the machine you're on. On a 64 bit machine the 'Int'
--- is an 8 byte value, on a 32 bit machine, 4 bytes. Values written this way
--- are not portable to different endian or integer sized machines, without
--- conversion.
---
-writeInthost :: Int -> Write
-writeInthost = writeStorable
-{-# INLINE writeInthost #-}
+writeInt32le   :: Int32 -> Write
+writeInt32le = writePrimFixed P.int32LE
 
--- | Write an 'Int16' in native host order and host endianness.
+writeInt64le   :: Int64 -> Write
+writeInt64le = writePrimFixed P.int64LE
+
+writeInthost   :: Int -> Write
+writeInthost = writePrimFixed P.intHost
+
 writeInt16host :: Int16 -> Write
-writeInt16host = writeStorable
-{-# INLINE writeInt16host #-}
+writeInt16host = writePrimFixed P.int16Host
 
--- | Write an 'Int32' in native host order and host endianness.
 writeInt32host :: Int32 -> Write
-writeInt32host = writeStorable
-{-# INLINE writeInt32host #-}
+writeInt32host = writePrimFixed P.int32Host
 
--- | Write an 'Int64' in native host order and host endianness.
 writeInt64host :: Int64 -> Write
-writeInt64host = writeStorable
-{-# INLINE writeInt64host #-}
+writeInt64host = writePrimFixed P.int64Host
 
+fromInt8       :: Int8    -> Builder
+fromInt8 = B.int8
 
-------------------------------------------------------------------------------
--- Builders corresponding to the integer writes
-------------------------------------------------------------------------------
+fromInt8s      :: [Int8]  -> Builder
+fromInt8s = P.primMapListFixed P.int8
 
--- Single bytes
-------------------------------------------------------------------------------
+fromInt16be    :: Int16   -> Builder
+fromInt16be = B.int16BE
 
--- | Serialize a single byte.
---
-fromInt8 :: Int8 -> Builder
-fromInt8 = fromWriteSingleton writeInt8
+fromInt32be    :: Int32   -> Builder
+fromInt32be = B.int32BE
 
--- | Serialize a list of bytes.
---
-fromInt8s :: [Int8] -> Builder
-fromInt8s = fromWriteList writeInt8
+fromInt64be    :: Int64   -> Builder
+fromInt64be = B.int64BE
 
+fromInt32sbe   :: [Int32] -> Builder
+fromInt32sbe = P.primMapListFixed P.int32BE
 
--- Int16
-------------------------------------------------------------------------------
+fromInt16sbe   :: [Int16] -> Builder
+fromInt16sbe = P.primMapListFixed P.int16BE
 
--- | Serialize an 'Int16' in big endian format.
-fromInt16be :: Int16 -> Builder
-fromInt16be = fromWriteSingleton writeInt16be
-{-# INLINE fromInt16be #-}
+fromInt64sbe   :: [Int64] -> Builder
+fromInt64sbe = P.primMapListFixed P.int64BE
 
--- | Serialize a list of 'Int16's in big endian format.
-fromInt16sbe :: [Int16] -> Builder
-fromInt16sbe = fromWriteList writeInt16be
-{-# INLINE fromInt16sbe #-}
+fromInt16le    :: Int16   -> Builder
+fromInt16le = B.int16LE
 
--- | Serialize an 'Int16' in little endian format.
-fromInt16le :: Int16 -> Builder
-fromInt16le = fromWriteSingleton writeInt16le
-{-# INLINE fromInt16le #-}
+fromInt32le    :: Int32   -> Builder
+fromInt32le = B.int32LE
 
--- | Serialize a list of 'Int16's in little endian format.
-fromInt16sle :: [Int16] -> Builder
-fromInt16sle = fromWriteList writeInt16le
-{-# INLINE fromInt16sle #-}
+fromInt64le    :: Int64   -> Builder
+fromInt64le = B.int64LE
 
+fromInt16sle   :: [Int16] -> Builder
+fromInt16sle = P.primMapListFixed P.int16LE
 
--- Int32
------------------------------------------------------------------------------
+fromInt32sle   :: [Int32] -> Builder
+fromInt32sle = P.primMapListFixed P.int32LE
 
--- | Serialize an 'Int32' in big endian format.
-fromInt32be :: Int32 -> Builder
-fromInt32be = fromWriteSingleton writeInt32be
-{-# INLINE fromInt32be #-}
+fromInt64sle   :: [Int64] -> Builder
+fromInt64sle = P.primMapListFixed P.int64LE
 
--- | Serialize a list of 'Int32's in big endian format.
-fromInt32sbe :: [Int32] -> Builder
-fromInt32sbe = fromWriteList writeInt32be
-{-# INLINE fromInt32sbe #-}
+fromInthost    :: Int     -> Builder
+fromInthost = B.intHost
 
--- | Serialize an 'Int32' in little endian format.
-fromInt32le :: Int32 -> Builder
-fromInt32le = fromWriteSingleton writeInt32le
-{-# INLINE fromInt32le #-}
+fromInt16host  :: Int16   -> Builder
+fromInt16host = B.int16Host
 
--- | Serialize a list of 'Int32's in little endian format.
-fromInt32sle :: [Int32] -> Builder
-fromInt32sle = fromWriteList writeInt32le
-{-# INLINE fromInt32sle #-}
+fromInt32host  :: Int32   -> Builder
+fromInt32host = B.int32Host
 
--- | Serialize an 'Int64' in big endian format.
-fromInt64be :: Int64 -> Builder
-fromInt64be = fromWriteSingleton writeInt64be
-{-# INLINE fromInt64be #-}
+fromInt64host  :: Int64   -> Builder
+fromInt64host = B.int64Host
 
--- | Serialize a list of 'Int64's in big endian format.
-fromInt64sbe :: [Int64] -> Builder
-fromInt64sbe = fromWriteList writeInt64be
-{-# INLINE fromInt64sbe #-}
+fromIntshost   :: [Int]   -> Builder
+fromIntshost = P.primMapListFixed P.intHost
 
--- | Serialize an 'Int64' in little endian format.
-fromInt64le :: Int64 -> Builder
-fromInt64le = fromWriteSingleton writeInt64le
-{-# INLINE fromInt64le #-}
-
--- | Serialize a list of 'Int64's in little endian format.
-fromInt64sle :: [Int64] -> Builder
-fromInt64sle = fromWriteList writeInt64le
-{-# INLINE fromInt64sle #-}
-
-
-------------------------------------------------------------------------
--- Unaligned, integer size ops
-
--- | Serialize a single native machine 'Int'. The 'Int' is serialized in host
--- order, host endian form, for the machine you're on. On a 64 bit machine the
--- 'Int' is an 8 byte value, on a 32 bit machine, 4 bytes. Values written this
--- way are not portable to different endian or integer sized machines, without
--- conversion.
---
-fromInthost :: Int -> Builder
-fromInthost = fromWriteSingleton writeInthost
-{-# INLINE fromInthost #-}
-
--- | Serialize a list of 'Int's.
--- See 'fromInthost' for usage considerations.
-fromIntshost :: [Int] -> Builder
-fromIntshost = fromWriteList writeInthost
-{-# INLINE fromIntshost #-}
-
--- | Write an 'Int16' in native host order and host endianness.
-fromInt16host :: Int16 -> Builder
-fromInt16host = fromWriteSingleton writeInt16host
-{-# INLINE fromInt16host #-}
-
--- | Write a list of 'Int16's in native host order and host endianness.
 fromInt16shost :: [Int16] -> Builder
-fromInt16shost = fromWriteList writeInt16host
-{-# INLINE fromInt16shost #-}
+fromInt16shost = P.primMapListFixed P.int16Host
 
--- | Write an 'Int32' in native host order and host endianness.
-fromInt32host :: Int32 -> Builder
-fromInt32host = fromWriteSingleton writeInt32host
-{-# INLINE fromInt32host #-}
-
--- | Write a list of 'Int32's in native host order and host endianness.
 fromInt32shost :: [Int32] -> Builder
-fromInt32shost = fromWriteList writeInt32host
-{-# INLINE fromInt32shost #-}
+fromInt32shost = P.primMapListFixed P.int32Host
 
--- | Write an 'Int64' in native host order and host endianness.
-fromInt64host :: Int64 -> Builder
-fromInt64host = fromWriteSingleton writeInt64host
-{-# INLINE fromInt64host #-}
-
--- | Write a list of 'Int64's in native host order and host endianness.
 fromInt64shost :: [Int64] -> Builder
-fromInt64shost = fromWriteList writeInt64host
-{-# INLINE fromInt64shost #-}
+fromInt64shost = P.primMapListFixed P.int64Host
