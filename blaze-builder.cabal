@@ -75,7 +75,7 @@ Library
                      deepseq,
                      text >= 0.10 && < 0.13
 
-  if impl(bytestring < 0.10.2)
+  if impl(bytestring < 0.10)
       c-sources: cbits/itoa.c
 
 
