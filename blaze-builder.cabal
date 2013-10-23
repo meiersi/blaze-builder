@@ -75,11 +75,11 @@ Library
                      deepseq,
                      text >= 0.10 && < 0.13
 
-  if impl(ghc < 7.6)
+  if impl(bytestring < 0.10.2)
       c-sources: cbits/itoa.c
 
 
-  if impl(ghc < 7.8)
+  if impl(bytestring < 0.10.4)
       exposed-modules:
                          Data.ByteString.Builder
                          Data.ByteString.Builder.Extra
