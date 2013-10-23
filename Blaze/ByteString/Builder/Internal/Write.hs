@@ -54,7 +54,6 @@ import Data.Monoid
 import Control.Monad
 
 import Data.ByteString.Builder.Internal
-import Data.ByteString.Builder.Prim.Internal
 
 ------------------------------------------------------------------------------
 -- Poking a buffer and writing to a buffer

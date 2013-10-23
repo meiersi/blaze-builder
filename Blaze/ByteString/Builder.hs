@@ -44,9 +44,7 @@ module Blaze.ByteString.Builder
 
     ) where
 
-import Data.Monoid(Monoid(..))
-import Control.Monad(when,unless)
-
+import Control.Monad(unless)
 
 #if __GLASGOW_HASKELL__ >= 702
 import Foreign

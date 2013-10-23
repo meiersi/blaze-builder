@@ -21,7 +21,6 @@ module Blaze.ByteString.Builder.Char.Utf8
     , fromLazyText
     ) where
 
-import Data.Monoid
 import Blaze.ByteString.Builder.Compat.Write (Write, writePrimBounded)
 import           Data.ByteString.Builder ( Builder )
 import qualified Data.ByteString.Builder as B

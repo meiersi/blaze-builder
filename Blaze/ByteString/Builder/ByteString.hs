@@ -28,13 +28,11 @@ module Blaze.ByteString.Builder.ByteString
 
 import Blaze.ByteString.Builder.Internal.Write ( Write, exactWrite )
 import Foreign
-import           Data.ByteString.Builder ( Builder )
 import qualified Data.ByteString.Builder       as B
 import qualified Data.ByteString.Builder.Extra as B
 import qualified Data.ByteString               as S
 import qualified Data.ByteString.Internal      as S
 import qualified Data.ByteString.Lazy          as L
-import qualified Data.ByteString.Lazy.Internal as L
 
 
 writeByteString :: S.ByteString -> Write

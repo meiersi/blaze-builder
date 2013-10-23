@@ -69,7 +69,6 @@ module Blaze.ByteString.Builder.Word
     ) where
 
 import Data.Word
-import Data.Monoid
 import Blaze.ByteString.Builder.Compat.Write ( Write, writePrimFixed )
 import           Data.ByteString.Builder ( Builder )
 import qualified Data.ByteString.Builder       as B

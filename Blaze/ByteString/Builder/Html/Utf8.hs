@@ -29,9 +29,7 @@ import qualified Data.Text      as TS
 import qualified Data.Text.Lazy as TL
 
 import Blaze.ByteString.Builder.Compat.Write ( Write, writePrimBounded )
-import           Data.ByteString.Builder ( Builder )
 import qualified Data.ByteString.Builder       as B
-import qualified Data.ByteString.Builder.Extra as B
 import           Data.ByteString.Builder.Prim ((>*<), (>$<), condB)
 import qualified Data.ByteString.Builder.Prim  as P
 
@@ -40,7 +38,7 @@ import Blaze.ByteString.Builder.Char.Utf8
 writeHtmlEscapedChar :: Char -> Write
 writeHtmlEscapedChar = writePrimBounded charUtf8HtmlEscaped
 
-fromHtmlEscapedChar :: Char -> Builder
+fromHtmlEscapedChar :: Char -> B.Builder
 fromHtmlEscapedChar = P.primBounded charUtf8HtmlEscaped
 
 {-# INLINE charUtf8HtmlEscaped #-}
@@ -67,22 +65,22 @@ charUtf8HtmlEscaped =
 -- | /O(n)/. Serialize a HTML escaped Unicode 'String' using the UTF-8
 -- encoding.
 --
-fromHtmlEscapedString :: String -> Builder
+fromHtmlEscapedString :: String -> B.Builder
 fromHtmlEscapedString = P.primMapListBounded charUtf8HtmlEscaped
 
 -- | /O(n)/. Serialize a value by 'Show'ing it and then, HTML escaping and
 -- UTF-8 encoding the resulting 'String'.
 --
-fromHtmlEscapedShow :: Show a => a -> Builder
+fromHtmlEscapedShow :: Show a => a -> B.Builder
 fromHtmlEscapedShow = fromHtmlEscapedString . show
 
 -- | /O(n)/. Serialize a HTML escaped strict Unicode 'TS.Text' value using the
 -- UTF-8 encoding.
 --
-fromHtmlEscapedText :: TS.Text -> Builder
+fromHtmlEscapedText :: TS.Text -> B.Builder
 fromHtmlEscapedText = fromHtmlEscapedString . TS.unpack
 
 -- | /O(n)/. Serialize a HTML escaped Unicode 'TL.Text' using the UTF-8 encoding.
 --
-fromHtmlEscapedLazyText :: TL.Text -> Builder
+fromHtmlEscapedLazyText :: TL.Text -> B.Builder
 fromHtmlEscapedLazyText = fromHtmlEscapedString . TL.unpack
