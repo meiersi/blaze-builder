@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fsimpl-tick-factor=40000 #-}
+
 ------------------------------------------------------------------------------
 -- |
 -- Module:      Blaze.ByteString.Builder.Html.Utf8
