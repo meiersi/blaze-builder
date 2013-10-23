@@ -95,21 +95,6 @@ defaultBufferSize = 32 * 1024 - overhead -- Copied from Data.ByteString.Lazy.
 toByteStringIO :: (S.ByteString -> IO ()) -> Builder -> IO ()
 toByteStringIO = toByteStringIOWith defaultBufferSize
 
-
-liftBufferWriter :: B.BufferWriter -> Int -> IO (S.ByteString, B.Next)
-liftBufferWriter write !bufSize = do
-    fp <- S.mallocByteString bufSize
-    (len, next) <- withForeignPtr fp $ \p -> write p bufSize
-    -- Should we reallocate the string, at least in some cases?
-    -- And if so, should we try to use realloc?  In that case
-    -- we would probably have to avoid allocating a foreign
-    -- pointer, which means we would have to worry about leaking
-    -- memory when exceptions happen...
-    let !bs = S.PS fp 0 len
-    return $! (bs,next)
-
-{-# INLINE liftBufferWriter #-}
-
 toByteStringIOWith :: Int                      -- ^ Buffer size (upper bounds
                                                -- the number of bytes forced
                                                -- per call to the 'IO' action).
@@ -140,39 +125,6 @@ toByteStringIOWith !bufSize io builder = do
              else do
                unless (S.null bs') (io bs')
                getBuffer writer' size fp
-
-{--
-    S.mallocByteString bufSize >>= getBuffer (B.runBuilder builder) bufSize
-  where
-    getBuffer writer len fp = do
-      (bytes, next) <- withForeignPtr fp $ \p -> writer p len
-      if bytes <= 0
-        then do
-          case next of
-            B.Done -> return ()
-            B.More req writer' -> do
-              if req > bufSize
-                then do
-                  fp' <- S.mallocByteString req
-                  getBuffer writer' req fp'
-                else do
-                  getBuffer writer' len fp
-            B.Chunk bs' writer' -> do
-              unless (S.null bs') (io bs')
-              getBuffer writer' len fp
-        else do
-          io $! S.PS fp 0 bytes
-          case next of
-            B.Done -> return ()
-            B.More req writer' -> do
-              let !len' = max req bufSize
-              fp' <- S.mallocByteString len'
-              getBuffer writer' len' fp'
-            B.Chunk bs' writer' -> do
-              unless (S.null bs') (io bs')
-              fp' <- S.mallocByteString bufSize
-              getBuffer writer' bufSize fp'
---}
 
 toLazyByteStringWith :: Int
                      -> Int
