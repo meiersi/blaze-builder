@@ -39,6 +39,7 @@ module Blaze.ByteString.Builder.Internal (
 
   -- * Writes
   , module Blaze.ByteString.Builder.Internal.Write
+  , writeToByteString
 
   -- * Execution
   , toLazyByteString
@@ -62,6 +63,7 @@ import Foreign                   (unsafeForeignPtrToPtr, withForeignPtr, sizeOf,
 #endif
 
 import Control.Monad (unless)
+import System.IO.Unsafe (unsafeDupablePerformIO)
 
 import qualified Data.ByteString               as S
 import qualified Data.ByteString.Internal      as S
@@ -357,6 +359,17 @@ toByteStringIO :: (S.ByteString -> IO ()) -> Builder -> IO ()
 toByteStringIO = toByteStringIOWith defaultBufferSize
 {-# INLINE toByteStringIO #-}
 
+-- | Run a 'Write' to produce a strict 'S.ByteString'.
+-- This is equivalent to @('toByteString' . 'fromWrite')@, but is more
+-- efficient because it uses just one appropriately-sized buffer.
+writeToByteString :: Write -> S.ByteString
+writeToByteString !w = unsafeDupablePerformIO $ do
+    fptr <- S.mallocByteString (getBound w)
+    len <- withForeignPtr fptr $ \ptr -> do
+        end <- runWrite w ptr
+        return $! end `minusPtr` ptr
+    return $! S.fromForeignPtr fptr 0 len
+{-# INLINE writeToByteString #-}
 
 ------------------------------------------------------------------------------
 -- Draft of new builder/put execution code

@@ -79,6 +79,7 @@ module Blaze.ByteString.Builder
     , fromWrite
     , fromWriteSingleton
     , fromWriteList
+    , writeToByteString
 
     -- ** Writing 'Storable's
     , writeStorable
