@@ -1,3 +1,7 @@
+* 0.3.2.0
+  - added 'writeToByteString' to construct a strict bytestring in a single
+    step. We can actually view 'Write's as strict-bytestring builders.
+
 * 0.3.1.1
   - Changed imports of Foreign.Unsafe to make it GHC 7.8 compatible
   - -Wall clean on GHC 7.0 - 7.6
