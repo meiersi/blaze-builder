@@ -27,7 +27,7 @@ Bug-Reports:         http://github.com/meiersi/blaze-builder/issues
 Stability:           Experimental
 
 Category:            Data
-Build-type:          Simple
+Build-type:          Custom
 Cabal-version:       >= 1.6
 
 Extra-source-files:
@@ -55,6 +55,16 @@ Source-repository head
   Type: git
   Location: https://github.com/meiersi/blaze-builder.git
 
+-- Note that these flags are set by Setup.hs
+
+Flag bytestring_has_itoa_c
+  default: True
+  manual: True
+
+Flag bytestring_has_builder
+  default: True
+  manual: True
+
 Library
   ghc-options:       -Wall
 
@@ -75,11 +85,11 @@ Library
                      deepseq,
                      text >= 0.10 && < 0.13
 
-  if impl(bytestring < 0.10)
+  if !flag(bytestring_has_itoa_c)
       c-sources: cbits/itoa.c
 
 
-  if impl(bytestring < 0.10.4)
+  if !flag(bytestring_has_builder)
       exposed-modules:
                          Data.ByteString.Builder
                          Data.ByteString.Builder.Extra
