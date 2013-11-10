@@ -36,6 +36,7 @@ module Blaze.ByteString.Builder
     , W.fromWrite
     , W.fromWriteSingleton
     , W.fromWriteList
+    , writeToByteString
 
     -- ** Writing 'Storable's
     , W.writeStorable
@@ -53,7 +54,6 @@ import qualified Foreign.ForeignPtr.Unsafe as Unsafe
 import Foreign as Unsafe
 #endif
 
-
 import qualified Blaze.ByteString.Builder.Internal.Write as W
 import           Blaze.ByteString.Builder.ByteString
 import           Blaze.ByteString.Builder.Word
@@ -67,6 +67,13 @@ import qualified Data.ByteString               as S
 import qualified Data.ByteString.Internal      as S
 import qualified Data.ByteString.Lazy          as L
 import qualified Data.ByteString.Lazy.Internal as L
+
+#if __GLASGOW_HASKELL__ >= 702
+import System.IO.Unsafe (unsafeDupablePerformIO)
+#else
+unsafeDupablePerformIO :: IO a -> a
+unsafeDupablePerformIO = unsafePerformIO
+#endif
 
 
 
@@ -134,3 +141,15 @@ toLazyByteStringWith :: Int
                      -> L.ByteString
 toLazyByteStringWith bufSize _minBufSize firstBufSize builder k =
     B.toLazyByteStringWith (B.safeStrategy firstBufSize bufSize) k builder
+
+-- | Run a 'Write' to produce a strict 'S.ByteString'.
+-- This is equivalent to @('toByteString' . 'fromWrite')@, but is more
+-- efficient because it uses just one appropriately-sized buffer.
+writeToByteString :: W.Write -> S.ByteString
+writeToByteString !w = unsafeDupablePerformIO $ do
+    fptr <- S.mallocByteString (W.getBound w)
+    len <- withForeignPtr fptr $ \ptr -> do
+        end <- W.runWrite w ptr
+        return $! end `minusPtr` ptr
+    return $! S.fromForeignPtr fptr 0 len
+{-# INLINE writeToByteString #-}

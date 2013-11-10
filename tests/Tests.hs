@@ -32,6 +32,7 @@ tests =
     , testProperty "string and text"           stringAndText
     , testProperty "lazy bytestring identity"  identityLazyByteString
     , testProperty "flushing identity"         identityFlushing
+    , testProperty "writeToByteString"         writeToByteStringProp
     , testCase     "escaping case 1"           escaping1
     , testCase     "escaping case 2"           escaping2
     , testCase     "escaping case 3"           escaping3
@@ -66,6 +67,9 @@ identityFlushing s1 s2 =
         b2 = fromString s2
     in b1 `mappend` b2 == b1 `mappend` flush `mappend` b2
 
+writeToByteStringProp :: Write -> Bool
+writeToByteStringProp w = toByteString (fromWrite w) == writeToByteString w
+
 escaping1 :: Assertion
 escaping1 = fromString "&lt;hello&gt;" @?= fromHtmlEscapedString "<hello>"
 
@@ -77,6 +81,9 @@ escaping3 = fromString "&quot;&#39;" @?= fromHtmlEscapedString "\"'"
 
 instance Show Builder where
     show = show . toLazyByteString
+
+instance Show Write where
+    show = show . fromWrite
 
 instance Eq Builder where
     b1 == b2 =
@@ -91,6 +98,12 @@ numRepetitions = 250
 
 instance Arbitrary Builder where
     arbitrary = (mconcat . replicate numRepetitions . fromString) <$> arbitrary
+
+instance Arbitrary Write where
+    arbitrary = mconcat . map singleWrite <$> arbitrary
+      where
+        singleWrite (Left bs) = writeByteString (LB.toStrict bs)
+        singleWrite (Right w) = writeWord8 w
 
 instance Arbitrary LB.ByteString where
     arbitrary = (LB.concat . replicate numRepetitions . LB.pack) <$> arbitrary
