@@ -28,7 +28,7 @@ Stability:           Experimental
 
 Category:            Data
 Build-type:          Custom
-Cabal-version:       >= 1.6
+Cabal-version:       >= 1.8
 
 Extra-source-files:
                      Makefile

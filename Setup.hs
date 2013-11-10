@@ -9,8 +9,11 @@ import Distribution.Version
 -- bytestring_has_builder flags accordingly.
 
 main = defaultMainWithHooks simpleUserHooks {
-    confHook = \pkg flags -> do
-        lbi <- confHook simpleUserHooks pkg flags
+    confHook = \pkg flags ->
+      if null (configConstraints flags)
+      then do
+        confHook simpleUserHooks pkg flags
+      else do
         let bytestring_version =
                 case [ versionBranch v
                      | (Dependency pkg ver)  <- configConstraints flags
@@ -29,13 +32,9 @@ main = defaultMainWithHooks simpleUserHooks {
         let update fs gs =
                  fs ++ [ g | g <- gs, not $ any (\f -> fst f == fst g) fs]
 
-        let flags  = configFlags lbi
-
         let flags' = flags { configConfigurationsFlags =
                                 update [has_itoa_c, has_builder]
                                        (configConfigurationsFlags flags) }
-
-        let lbi' = lbi { configFlags = flags' }
-        
-        return lbi'
+            
+        confHook simpleUserHooks pkg flags'
   }
