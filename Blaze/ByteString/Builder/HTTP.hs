@@ -1,7 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, MagicHash, OverloadedStrings, MonoPatBinds #-}
 -- | Support for HTTP response encoding.
 --
--- TODO: Improve documentation.
 module Blaze.ByteString.Builder.HTTP (
   -- * Chunked HTTP transfer encoding
     chunkedTransferEncoding
@@ -43,12 +42,6 @@ shiftr_w32 = shiftR
 #endif
 
 
--- only required by test-code
--- import qualified Data.ByteString.Lazy as L
--- import qualified Blaze.ByteString.Builder.ByteString  as B
--- import Data.ByteString.Char8 ()
-
-
 -- | Write a CRLF sequence.
 writeCRLF :: Write
 writeCRLF = Char8.writeChar '\r' `mappend` Char8.writeChar '\n'
@@ -65,28 +58,6 @@ execWrite w op = do
 ------------------------------------------------------------------------------
 -- Hex Encoding Infrastructure
 ------------------------------------------------------------------------------
-
-{-
-pokeWord16Hex :: Word16 -> Ptr Word8 -> IO ()
-pokeWord16Hex x op = do
-    pokeNibble 0 12
-    pokeNibble 1  8
-    pokeNibble 2  4
-    pokeNibble 3  0
-  where
-    pokeNibble off s
-        | n <  10   = pokeWord8 off (fromIntegral $ 48 + n)
-        | otherwise = pokeWord8 off (fromIntegral $ 55 + n)
-        where
-          n = shiftr_w16 x s .&. 0xF
-
-    pokeWord8 :: Int -> Word8 -> IO ()
-    pokeWord8 off = poke (op `plusPtr` off)
-
-writeWord16Hex :: Word16 -> Write
-writeWord16Hex = exactWrite 4 . pokeWord16Hex
-
--}
 
 pokeWord32HexN :: Int -> Word32 -> Ptr Word8 -> IO ()
 pokeWord32HexN n0 w0 op0 =
@@ -122,24 +93,6 @@ writeWord32Hex w =
     len = word32HexLength w
 {-# INLINE writeWord32Hex #-}
 
-
-{-
-test = flip (toLazyByteStringWith 32 32 32) L.empty
-    $ chunkedTransferEncoding
-    $ mconcat $ map oneLine [0..16] ++
-                [B.insertByteString "hello"] ++
-                map oneLine [0,1] ++
-                [B.insertByteString ""] ++
-                map oneLine [0..16]
-
-  where
-    oneLine x = fromWriteSingleton writeWord32Hex x `mappend` Char8.fromChar ' '
-
-test = print $ toLazyByteString
-    $ chunkedTransferEncoding  body `mappend` chunkedTransferTerminator
-
-body = copyByteString "maa" `mappend` copyByteString "foo" `mappend` copyByteString "bar"
--}
 
 ------------------------------------------------------------------------------
 -- Chunked transfer encoding
