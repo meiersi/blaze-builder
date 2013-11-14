@@ -25,13 +25,9 @@ import Data.Monoid
 import qualified Data.ByteString       as S
 import Data.ByteString.Char8 ()
 
-import Foreign
-
 import Blaze.ByteString.Builder.Internal.Write
 import Data.ByteString.Builder
 import Data.ByteString.Builder.Internal
--- import Blaze.ByteString.Builder.Internal.Types
--- import Blaze.ByteString.Builder.Internal.UncheckedShifts
 import Blaze.ByteString.Builder.ByteString (copyByteString)
 
 import qualified Blaze.ByteString.Builder.Char8 as Char8
@@ -151,16 +147,11 @@ body = copyByteString "maa" `mappend` copyByteString "foo" `mappend` copyByteStr
 
 -- | Transform a builder such that it uses chunked HTTP transfer encoding.
 chunkedTransferEncoding :: Builder -> Builder
-chunkedTransferEncoding builder =
+chunkedTransferEncoding innerBuilder = undefined
     builder transferEncodingStep
   where
-    b = runBuilder builder
-    buildStep = id
-    runBuildStep = id
-
-    finalStep !(BufferRange op _) = return $ Done op ()
-
-    transferEncodingStep k = go (b (buildStep finalStep))
+    transferEncodingStep k =
+        go (runBuilder innerBuilder)
       where
         go innerStep !(BufferRange op ope)
           -- FIXME: Assert that outRemaining < maxBound :: Word32
@@ -186,41 +177,38 @@ chunkedTransferEncoding builder =
                         execWrite writeCRLF opInner'
                         mkSignal (opInner' `plusPtr` 2)
 
-              -- execute inner builder with reduced boundaries
-              signal <- runBuildStep innerStep brInner
-              case signal of
-                Done opInner' _ ->
-                    wrapChunk opInner' $ \op' -> do
-                      let !br' = BufferRange op' ope
-                      k br'
+                  -- prepare handlers
+                  doneH opInner' _ = wrapChunk opInner' $ \op' -> do
+                                         let !br' = BufferRange op' ope
+                                         k br'
 
-                BufferFull minRequiredSize opInner' nextInnerStep ->
-                    wrapChunk opInner' $ \op' ->
-                      return $! bufferFull
-                        (minRequiredSize + maxEncodingOverhead)
-                        op'
-                        (go nextInnerStep)
-
-                InsertByteString opInner' bs nextInnerStep
-                  | S.null bs ->                        -- flush
+                  fullH opInner' minRequiredSize nextInnerStep =
                       wrapChunk opInner' $ \op' ->
-                        return $! insertByteString
-                          op' S.empty
+                        return $! bufferFull
+                          (minRequiredSize + maxEncodingOverhead)
+                          op'
                           (go nextInnerStep)
 
-                  | otherwise ->                        -- insert non-empty bytestring
-                      wrapChunk opInner' $ \op' -> do
-                        -- add header for inserted bytestring
-                        -- FIXME: assert(S.length bs < maxBound :: Word32)
-                        !op'' <- (`runPoke` op') $ getPoke $
-                            writeWord32Hex (fromIntegral $ S.length bs)
-                            `mappend` writeCRLF
-                        -- insert bytestring and write CRLF in next buildstep
-                        return $! InsertByteString
-                          op'' bs
-                          (runBuilderWith (fromWrite writeCRLF) $
-                            buildStep $ go nextInnerStep)
+                  insertChunkH opInner' bs nextInnerStep
+                    | S.null bs =                         -- flush
+                        wrapChunk opInner' $ \op' ->
+                          return $! insertChunk op' S.empty (go nextInnerStep)
 
+                    | otherwise =                         -- insert non-empty bytestring
+                        wrapChunk opInner' $ \op' -> do
+                          -- add header for inserted bytestring
+                          -- FIXME: assert(S.length bs < maxBound :: Word32)
+                          !op'' <- (`runPoke` op') $ getPoke $
+                              writeWord32Hex (fromIntegral $ S.length bs)
+                              `mappend` writeCRLF
+
+                          -- insert bytestring and write CRLF in next buildstep
+                          return $! insertChunk
+                            op'' bs
+                            (runBuilderWith (fromWrite writeCRLF) $ go nextInnerStep)
+
+              -- execute inner builder with reduced boundaries
+              fillWithBuildStep innerStep doneH fullH insertChunkH brInner
           where
             -- minimal size guaranteed for actual data no need to require more
             -- than 1 byte to guarantee progress the larger sizes will be

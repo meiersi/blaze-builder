@@ -75,7 +75,7 @@ Library
                      Blaze.ByteString.Builder.Char.Utf8
                      Blaze.ByteString.Builder.Char8
                      Blaze.ByteString.Builder.Html.Utf8
---                     Blaze.ByteString.Builder.HTTP
+                     Blaze.ByteString.Builder.HTTP
                      Blaze.ByteString.Builder.Compat.Write
 
                      Blaze.ByteString.Builder.Internal.Write
