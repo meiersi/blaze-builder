@@ -90,6 +90,7 @@ Library
 
 
   if !flag(bytestring_has_builder)
+      c-sources: cbits/fpstring.c
       exposed-modules:
                          Data.ByteString.Builder
                          Data.ByteString.Builder.Extra
