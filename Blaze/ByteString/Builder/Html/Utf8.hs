@@ -11,6 +11,14 @@
 -- Maintainer:  Leon P Smith <leon@melding-monads.com>
 -- Stability:   experimental
 --
+-- 'Write's and 'Builder's for serializing HTML escaped and UTF-8 encoded
+-- characters.
+--
+-- This module is used by both the 'blaze-html' and the \'hamlet\' HTML
+-- templating libraries. If the 'Builder' from 'blaze-builder' replaces the
+-- 'Data.Binary.Builder' implementation, this module will most likely keep its
+-- place, as it provides a set of very specialized functions.
+--
 ------------------------------------------------------------------------------
 
 module Blaze.ByteString.Builder.Html.Utf8
@@ -40,11 +48,17 @@ import qualified Data.ByteString.Builder.Prim  as P
 
 import Blaze.ByteString.Builder.Char.Utf8
 
+-- | Write a HTML escaped and UTF-8 encoded Unicode character to a bufffer.
+--
 writeHtmlEscapedChar :: Char -> Write
 writeHtmlEscapedChar = writePrimBounded charUtf8HtmlEscaped
+{-# INLINE writeHtmlEscapedChar #-}
 
+-- | /O(1)./ Serialize a HTML escaped Unicode character using the UTF-8
+-- encoding.
 fromHtmlEscapedChar :: Char -> B.Builder
 fromHtmlEscapedChar = P.primBounded charUtf8HtmlEscaped
+{-# INLINE fromHtmlEscapedChar #-}
 
 {-# INLINE charUtf8HtmlEscaped #-}
 charUtf8HtmlEscaped :: P.BoundedPrim Char
