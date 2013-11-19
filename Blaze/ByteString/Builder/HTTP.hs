@@ -100,7 +100,7 @@ writeWord32Hex w =
 
 -- | Transform a builder such that it uses chunked HTTP transfer encoding.
 chunkedTransferEncoding :: Builder -> Builder
-chunkedTransferEncoding innerBuilder = undefined
+chunkedTransferEncoding innerBuilder =
     builder transferEncodingStep
   where
     transferEncodingStep k =
