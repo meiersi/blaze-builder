@@ -1,7 +1,10 @@
+{-# LANGUAGE CPP, OverloadedStrings #-}
+#if __GLASGOW_HASKELL__ >= 704
+{-# OPTIONS_GHC -fsimpl-tick-factor=40000 #-}
+#endif
 -- | Tests for the Blaze builder
 --
-{-# LANGUAGE OverloadedStrings #-}
-module Tests where
+module Main where
 
 import Control.Applicative ((<$>))
 import Data.Monoid (mempty, mappend, mconcat)

@@ -110,3 +110,22 @@ Library
                          Data.ByteString.Builder.Prim.Internal.Floating
                          Data.ByteString.Builder.Prim.Internal.UncheckedShifts
                          Data.ByteString.Builder.Prim.Internal.Base16
+
+test-suite test
+  type:           exitcode-stdio-1.0
+
+  hs-source-dirs: tests
+  main-is:        Tests.hs
+
+  ghc-options: -Wall -fno-warn-orphans
+
+  build-depends: base
+               , blaze-builder
+               , bytestring
+               , HUnit
+               , QuickCheck
+               , test-framework
+               , test-framework-hunit
+               , test-framework-quickcheck2
+               , text
+               , utf8-string
