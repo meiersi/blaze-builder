@@ -22,7 +22,9 @@ import Blaze.ByteString.Builder.Internal.Write
 
 writePrimFixed :: FixedPrim a -> a -> Write
 writePrimFixed fe a = Write (size fe) (Poke wio)
-  where wio op = runF fe a >> return $! (op `plusPtr` size fe)
+  where wio op = do
+           runF fe a op
+           return $! (op `plusPtr` size fe)
 
 writePrimBounded :: BoundedPrim a -> a -> Write
 writePrimBounded be a = Write (sizeBound be) (Poke wio)
