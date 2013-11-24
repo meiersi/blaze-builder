@@ -145,7 +145,7 @@ instance Monoid Write where
 {-# INLINE pokeN #-}
 pokeN :: Int
        -> (Ptr Word8 -> IO ()) -> Poke
-pokeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
+pokeN size io = Poke $ \op -> io op >> (return $! (op `plusPtr` size))
 
 
 -- | @exactWrite size io@ creates a bounded write that can later be converted to
