@@ -55,11 +55,7 @@ Source-repository head
   Type: git
   Location: https://github.com/meiersi/blaze-builder.git
 
--- Note that these flags are set by Setup.hs
-
-Flag bytestring_has_itoa_c
-  default: True
-  manual: True
+-- Note that this flag is set by Setup.hs
 
 Flag bytestring_has_builder
   default: True
@@ -81,35 +77,12 @@ Library
                      Blaze.ByteString.Builder.Internal.Write
 
   build-depends:     base == 4.* ,
-                     bytestring >= 0.9 && < 1.0 ,
+                     bytestring >= 0.9 && < 1.0,
                      deepseq,
                      text >= 0.10 && < 0.13
 
-  if !flag(bytestring_has_itoa_c)
-      c-sources: cbits/itoa.c
-
-
   if !flag(bytestring_has_builder)
-      c-sources: cbits/fpstring.c
-      exposed-modules:
-                         Data.ByteString.Builder
-                         Data.ByteString.Builder.Extra
-                         Data.ByteString.Builder.Prim
-
-                         -- perhaps only exposed temporarily
-                         Data.ByteString.Builder.Internal
-                         Data.ByteString.Builder.Prim.Internal
-
-                         Data.ByteString.Short
-                         Data.ByteString.Short.Internal
-
-      other-modules:
-                         Data.ByteString.Builder.ASCII
-                         Data.ByteString.Builder.Prim.Binary
-                         Data.ByteString.Builder.Prim.ASCII
-                         Data.ByteString.Builder.Prim.Internal.Floating
-                         Data.ByteString.Builder.Prim.Internal.UncheckedShifts
-                         Data.ByteString.Builder.Prim.Internal.Base16
+    build-depends:   bytestring-builder
 
 test-suite test
   type:           exitcode-stdio-1.0
