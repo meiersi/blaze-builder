@@ -27,7 +27,7 @@ Bug-Reports:         http://github.com/meiersi/blaze-builder/issues
 Stability:           Experimental
 
 Category:            Data
-Build-type:          Custom
+Build-type:          Simple
 Cabal-version:       >= 1.8
 
 Extra-source-files:
@@ -57,10 +57,6 @@ Source-repository head
 
 -- Note that this flag is set by Setup.hs
 
-Flag bytestring_has_builder
-  default: True
-  manual: True
-
 Library
   ghc-options:       -Wall
 
@@ -78,11 +74,9 @@ Library
 
   build-depends:     base == 4.* ,
                      bytestring >= 0.9 && < 1.0,
+                     bytestring-builder,
                      deepseq,
                      text >= 0.10 && < 0.13
-
-  if !flag(bytestring_has_builder)
-    build-depends:   bytestring-builder
 
 test-suite test
   type:           exitcode-stdio-1.0
