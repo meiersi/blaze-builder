@@ -74,9 +74,11 @@ Library
 
   build-depends:     base == 4.* ,
                      bytestring >= 0.9 && < 1.0,
-                     bytestring-builder,
                      deepseq,
-                     text >= 0.10 && < 0.13
+                     text >= 0.10
+
+  if impl(ghc < 7.8)
+     build-depends:  bytestring-builder
 
 test-suite test
   type:           exitcode-stdio-1.0
