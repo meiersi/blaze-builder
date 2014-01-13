@@ -81,6 +81,7 @@ charUtf8HtmlEscaped =
     fixed5 x = P.liftFixedToBounded $ const x >$<
       P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7
 
+    {-# INLINE fixed6 #-}
     fixed6 x = P.liftFixedToBounded $ const x >$<
       P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7
 
