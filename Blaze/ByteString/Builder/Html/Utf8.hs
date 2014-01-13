@@ -67,7 +67,7 @@ charUtf8HtmlEscaped =
     condB (== '<' ) (fixed4 ('&',('l',('t',';')))) $        -- &lt;
     condB (== '>' ) (fixed4 ('&',('g',('t',';')))) $        -- &gt;
     condB (== '&' ) (fixed5 ('&',('a',('m',('p',';'))))) $  -- &amp;
-    condB (== '"' ) (fixed5 ('&',('#',('3',('4',';'))))) $  -- &#34;
+    condB (== '"' ) (fixed6 ('&',('q',('u',('o',('t',';')))))) $  -- &#quot;
     condB (== '\'') (fixed5 ('&',('#',('3',('9',';'))))) $  -- &#39;
     condB (\c -> c >= ' ' || c == '\t' || c == '\n' || c == '\r')
           (P.liftFixedToBounded P.char7) $
@@ -80,6 +80,9 @@ charUtf8HtmlEscaped =
     {-# INLINE fixed5 #-}
     fixed5 x = P.liftFixedToBounded $ const x >$<
       P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7
+
+    fixed6 x = P.liftFixedToBounded $ const x >$<
+      P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7
 
 -- | /O(n)/. Serialize a HTML escaped Unicode 'String' using the UTF-8
 -- encoding.
