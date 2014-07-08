@@ -19,9 +19,7 @@
 --
 module Blaze.ByteString.Builder.Internal.Types where
 
-#ifdef APPLICATIVE_IN_BASE
 import Control.Applicative
-#endif
 
 import Data.Monoid
 import qualified Data.ByteString      as S
@@ -86,7 +84,6 @@ instance Functor Put where
   fmap f (Put put) = Put $ \k -> put (\x -> k (f x))
   {-# INLINE fmap #-}
 
-#ifdef APPLICATIVE_IN_BASE
 instance Applicative Put where
   pure x = Put $ \k -> k x
   {-# INLINE pure #-}
@@ -96,7 +93,6 @@ instance Applicative Put where
   {-# INLINE (<*) #-}
   a *> b = Put $ \k -> unPut a (\_ -> unPut b k)
   {-# INLINE (*>) #-}
-#endif
 
 instance Monad Put where
   return x = Put $ \k -> k x
