@@ -1,5 +1,5 @@
 Name:                blaze-builder
-Version:             0.3.3.2
+Version:             0.3.3.3
 Synopsis:            Efficient buffered output.
 
 Description:         
@@ -14,7 +14,7 @@ Description:
                      sending it over the network.
 
 Author:              Jasper Van der Jeugt, Simon Meier
-Copyright:           2010 Simon Meier
+Copyright:           2010-2014 Simon Meier
                      2010 Jasper Van der Jeugt
 Maintainer:          Simon Meier <iridcode@gmail.com>
 
