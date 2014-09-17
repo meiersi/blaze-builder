@@ -363,6 +363,7 @@ toByteStringIO :: (S.ByteString -> IO ()) -> Builder -> IO ()
 toByteStringIO = toByteStringIOWith defaultBufferSize
 {-# INLINE toByteStringIO #-}
 
+unsafeIO :: IO a -> a
 #if MIN_VERSION_base(4,4,0)
 unsafeIO = unsafeDupablePerformIO
 #else
