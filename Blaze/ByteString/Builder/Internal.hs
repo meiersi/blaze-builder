@@ -63,7 +63,11 @@ import Foreign                   (unsafeForeignPtrToPtr, withForeignPtr, sizeOf,
 #endif
 
 import Control.Monad (unless)
+#if MIN_VERSION_base(4,4,0)
 import System.IO.Unsafe (unsafeDupablePerformIO)
+#else
+import System.IO.Unsafe (unsafePerformIO)
+#endif
 
 import qualified Data.ByteString               as S
 import qualified Data.ByteString.Internal      as S
@@ -359,11 +363,17 @@ toByteStringIO :: (S.ByteString -> IO ()) -> Builder -> IO ()
 toByteStringIO = toByteStringIOWith defaultBufferSize
 {-# INLINE toByteStringIO #-}
 
+#if MIN_VERSION_base(4,4,0)
+unsafeIO = unsafeDupablePerformIO
+#else
+unsafeIO = unsafePerformIO
+#endif
+
 -- | Run a 'Write' to produce a strict 'S.ByteString'.
 -- This is equivalent to @('toByteString' . 'fromWrite')@, but is more
 -- efficient because it uses just one appropriately-sized buffer.
 writeToByteString :: Write -> S.ByteString
-writeToByteString !w = unsafeDupablePerformIO $ do
+writeToByteString !w = unsafeIO $ do
     fptr <- S.mallocByteString (getBound w)
     len <- withForeignPtr fptr $ \ptr -> do
         end <- runWrite w ptr
