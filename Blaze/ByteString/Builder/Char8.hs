@@ -3,7 +3,7 @@
 -- Module:      Blaze.ByteString.Builder.Char8
 -- Copyright:   (c) 2013 Leon P Smith
 -- License:     BSD3
--- Maintainer:  Leon P Smith <leon@melding-monads.com>
+-- Maintainer:  Simon Meier <iridcode@gmail.com>
 -- Stability:   experimental
 --
 -- //Note:// This package is intended for low-level use like implementing

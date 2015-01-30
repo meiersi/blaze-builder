@@ -1,1 +1,0 @@
-../../bytestring/Data/ByteString/Short.hs

@@ -6,7 +6,7 @@
 --               (c) 2010 Jasper van der Jeugt
 -- License     : BSD3-style (see LICENSE)
 --
--- Maintainer  : Leon P Smith <leon@melding-monads.com>
+-- Maintainer  : Simon Meier <iridcode@gmail.com>
 -- Stability   : experimental
 -- Portability : tested on GHC only
 --
@@ -145,7 +145,7 @@ instance Monoid Write where
 {-# INLINE pokeN #-}
 pokeN :: Int
        -> (Ptr Word8 -> IO ()) -> Poke
-pokeN size io = Poke $ \op -> io op >> return (op `plusPtr` size)
+pokeN size io = Poke $ \op -> io op >> (return $! (op `plusPtr` size))
 
 
 -- | @exactWrite size io@ creates a bounded write that can later be converted to

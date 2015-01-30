@@ -8,7 +8,7 @@
 -- Module:      Blaze.ByteString.Builder.Html.Utf8
 -- Copyright:   (c) 2013 Leon P Smith
 -- License:     BSD3
--- Maintainer:  Leon P Smith <leon@melding-monads.com>
+-- Maintainer:  Simon Meier <iridcode@gmail.com>
 -- Stability:   experimental
 --
 -- 'Write's and 'Builder's for serializing HTML escaped and UTF-8 encoded
@@ -67,7 +67,7 @@ charUtf8HtmlEscaped =
     condB (== '<' ) (fixed4 ('&',('l',('t',';')))) $        -- &lt;
     condB (== '>' ) (fixed4 ('&',('g',('t',';')))) $        -- &gt;
     condB (== '&' ) (fixed5 ('&',('a',('m',('p',';'))))) $  -- &amp;
-    condB (== '"' ) (fixed5 ('&',('#',('3',('4',';'))))) $  -- &#34;
+    condB (== '"' ) (fixed6 ('&',('q',('u',('o',('t',';')))))) $  -- &#quot;
     condB (== '\'') (fixed5 ('&',('#',('3',('9',';'))))) $  -- &#39;
     condB (\c -> c >= ' ' || c == '\t' || c == '\n' || c == '\r')
           (P.liftFixedToBounded P.char7) $
@@ -80,6 +80,10 @@ charUtf8HtmlEscaped =
     {-# INLINE fixed5 #-}
     fixed5 x = P.liftFixedToBounded $ const x >$<
       P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7
+
+    {-# INLINE fixed6 #-}
+    fixed6 x = P.liftFixedToBounded $ const x >$<
+      P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7 >*< P.char7
 
 -- | /O(n)/. Serialize a HTML escaped Unicode 'String' using the UTF-8
 -- encoding.
